@@ -1,0 +1,33 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+
+<div class="ui grid">
+  <div class="four wide column">
+    <div class="ui secondary pointing menu">
+      <a class="item active" data-tab="data">
+        JSON data
+      </a>
+      <a class="item" data-tab="result">
+        Convert
+      </a>
+    </div>
+    <div class="ui tab active segment" data-tab="data" style="height:600px;">
+      <pre id="data"></pre>
+    </div>
+    <div class="ui tab segment" data-tab="result" style="height:600px;">
+      <pre id="result"></pre>
+    </div>
+  </div>
+  <div class="four wide column">
+    <div id="editor"></div>
+  </div>
+  <div class="eight wide column">
+    <button id="viz" class="ui green button">Viz</button>
+    <div id="canvas" style="overflow:scroll;"></div>
+    <div id="canvas2"></div>
+  </div>
+</div>
+
+
+{% endblock %}

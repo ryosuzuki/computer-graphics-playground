@@ -1,0 +1,20 @@
+html, body {
+  height: 100%;
+}
+
+.ui.grid {
+  height: 100%;
+}
+
+.ui.column {
+  height: 100%;
+}
+
+pre {
+  height: 100%;
+  overflow: scroll;
+}
+
+#editor {
+  height: 500px;
+}
