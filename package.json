@@ -31,7 +31,6 @@
     "koa-route": "^2.4.2",
     "koa-static": "^1.4.9",
     "lodash": "^3.10.1",
-    "swig": "^1.4.2",
-    "vizq": "git+https://git@github.com/ryosuzuki/vizq.git"
+    "swig": "^1.4.2"
   }
 }

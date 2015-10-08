@@ -8,15 +8,20 @@
 
   </head>
   <body>
-    {% block main %}{% endblock %}
-
     <script src="bower_components/jquery/dist/jquery.js"></script>
     <script src="bower_components/semantic-ui/dist/semantic.js"></script>
-    <script src="bower_components/d3/d3.js"></script>
     <script src="bower_components/ace-builds/src/ace.js"></script>
     <script src="bower_components/lodash/lodash.js"></script>
-    <script src="js/bundle.js"></script>
-    <script src="js/script.js"></script>
+    <script src="bower_components/three.js/build/three.js"></script>
+    <script src="bower_components/three.js/examples/js/controls/OrbitControls.js"></script>
+    <script src="bower_components/three.js/examples/js/controls/TransformControls.js"></script>
+    <script src="bower_components/three.js/examples/js/renderers/Projector.js"></script>
+    <script src="bower_components/three.js/examples/js/controls/DragControls.js"></script>
+    <script src="bower_components/three.js/examples/js/libs/stats.min.js"></script>
+
+    <script src="js/index.js"></script>
+
+    {% block main %}{% endblock %}
   </body>
 
 </html>
