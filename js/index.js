@@ -30,6 +30,13 @@ var splines = {
 var cube;
 var cubeHelperObjects = [];
 
+var raycaster = new THREE.Raycaster()
+var lane = null
+var selection = null
+var offset = new THREE.Vector3()
+var objects = [];
+var plane;
+
 setup();
 init();
 animate();
@@ -57,31 +64,22 @@ function setup() {
   scene.add( light );
   spotlight = light;
 
-  stats = new Stats();
-  stats.domElement.style.position = 'absolute';
-  stats.domElement.style.top = '0px';
-  container.appendChild( stats.domElement );
-}
-
-function init() {
-  var planeGeometry = new THREE.PlaneGeometry( 2000, 2000, 20, 20 );
-  planeGeometry.rotateX( - Math.PI / 2 );
-  var planeMaterial = new THREE.MeshBasicMaterial( { color: 0xeeeeee } );
-
-  var plane = new THREE.Mesh( planeGeometry, planeMaterial );
-  plane.position.y = -200;
-  plane.receiveShadow = true;
-  scene.add( plane );
-
   var helper = new THREE.GridHelper( 1000, 100 );
   helper.position.y = - 199;
   helper.material.opacity = 0.25;
   helper.material.transparent = true;
   scene.add( helper );
 
-  // var axis = new THREE.AxisHelper();
-  // axis.position.set( -500, -500, -500 );
-  // scene.add( axis );
+  var planeGeometry = new THREE.PlaneGeometry( 2000, 2000, 20, 20 );
+  planeGeometry.rotateX( - Math.PI / 2 );
+  var planeMaterial = new THREE.MeshBasicMaterial( { color: 0xeeeeee } );
+  plane = new THREE.Mesh( planeGeometry, planeMaterial );
+  plane.position.y = -200;
+  plane.receiveShadow = true;
+  scene.add( plane );
+}
+
+function init() {
 
   var geometry = new THREE.BoxGeometry( 200, 200, 200 );
   var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
@@ -102,245 +100,60 @@ function init() {
   controls.damping = 0.2;
   controls.addEventListener( 'change', render );
 
-  transformControl = new THREE.TransformControls( camera, renderer.domElement );
-  transformControl.addEventListener( 'change', render );
-  scene.add( transformControl );
-  transformControl.addEventListener( 'change', function( e ) {
-    cancelHideTransorm();
-  } );
-  transformControl.addEventListener( 'mouseDown', function( e ) {
-    cancelHideTransorm();
-  } );
-  transformControl.addEventListener( 'mouseUp', function( e ) {
-    delayHideTransform();
-  } );
-  transformControl.addEventListener( 'objectChange', function( e ) {
-    updateSplineOutline();
-  } );
+  // var dragcontrols = new THREE.DragControls( camera, cubeHelperObjects, renderer.domElement ); //
+  // dragcontrols.on( 'hoveron', function( e ) {
+  //   console.log('FJWEOFJWEO')
+  // } )
+  // dragcontrols.on( 'hoveroff', function( e ) {
+  //   if ( e ) console.log('hoge') //delayHideTransform();
+  // } )
 
-  var dragcontrols = new THREE.DragControls( camera, cubeHelperObjects, renderer.domElement ); //
-  dragcontrols.on( 'hoveron', function( e ) {
-    transformControl.attach( e.object );
-    cancelHideTransorm();
-  } )
+  document.addEventListener('mousedown', onDocumentMouseDown, false);
+  document.addEventListener('mousemove', onDocumentMouseMove, false);
+  document.addEventListener('mouseup', onDocumentMouseUp, false);
 
-  dragcontrols.on( 'hoveroff', function( e ) {
-    if ( e ) delayHideTransform();
-  } )
+  function onDocumentMouseDown (event) {
+    var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    var vector = new THREE.Vector3(mouseX, mouseY, 1);
+    vector.unproject(camera);
 
-  controls.addEventListener( 'start', function() {
-    cancelHideTransorm();
-  } );
-
-  controls.addEventListener( 'end', function() {
-    delayHideTransform();
-  } );
-
-  var hiding;
-
-  function delayHideTransform() {
-    cancelHideTransorm();
-    hideTransform();
+    var dir = vector.sub(camera.position).normalize();
+    var distance = - camera.position.z / dir.z;
+    var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
   }
 
-  function hideTransform() {
-    hiding = setTimeout( function() {
-      transformControl.detach( transformControl.object );
-    }, 2500 )
+  function onDocumentMouseMove (event) {
+    event.preventDefault();
+    var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    var vector = new THREE.Vector3(mouseX, mouseY, 0.5);
+    vector.unproject(camera);
+
+    var dir = vector.sub(camera.position).normalize();
+    var distance = - camera.position.z / dir.z;
+    var pos = camera.position.clone().add( dir.multiplyScalar( distance ) )
+    window.pos = pos
+    cube.position.set(pos.x, pos.y, pos.z);
+    console.log(pos);
   }
 
-  function cancelHideTransorm() {
-    if ( hiding ) clearTimeout( hiding );
+  function onDocumentMouseUp (event) {
+    // Enable the controls
+    controls.enabled = true;
+    selection = null;
   }
-}
-
-function addPoint() {
-  splinePointsLength ++;
-  positions.push( addSplineObject()
-		  .position );
-  updateSplineOutline();
 
 }
 
-function removePoint() {
-  if ( splinePointsLength <= 4 ) {
-    return;
-  }
-  splinePointsLength --;
-  positions.pop();
-  scene.remove( splineHelperObjects.pop() );
-  updateSplineOutline();
-}
-
-function updateSplineOutline() {
-  var p;
-  for ( var k in splines ) {
-    var spline = splines[ k ];
-    splineMesh = spline.mesh;
-    for ( var i = 0; i < ARC_SEGMENTS; i ++ ) {
-      p = splineMesh.geometry.vertices[ i ];
-      p.copy( spline.getPoint( i /  ( ARC_SEGMENTS - 1 ) ) );
-    }
-    splineMesh.geometry.verticesNeedUpdate = true;
-  }
-}
-
-function exportSpline() {
-  var p;
-  var strplace = [];
-  for ( i = 0; i < splinePointsLength; i ++ ) {
-    p = splineHelperObjects[ i ].position;
-    strplace.push( 'new THREE.Vector3({0}, {1}, {2})'.format( p.x, p.y, p.z ) )
-
-  }
-  console.log( strplace.join( ',\n' ) );
-  var code = '[' + ( strplace.join( ',\n\t' ) ) + ']';
-  prompt( 'copy and paste code', code );
-
-}
-
-function load( new_positions ) {
-  while ( new_positions.length > positions.length ) {
-    addPoint();
-  }
-  while ( new_positions.length < positions.length ) {
-    removePoint();
-  }
-  for ( i = 0; i < positions.length; i ++ ) {
-    positions[ i ].copy( new_positions[ i ] );
-  }
-  updateSplineOutline();
-
-}
 
 function animate() {
-
   requestAnimationFrame( animate );
   render();
-  stats.update();
   controls.update();
-  transformControl.update();
-
 }
 
 function render() {
-
-  // splines.uniform.mesh.visible = uniform.checked;
-  // splines.centripetal.mesh.visible = centripetal.checked;
-  // splines.chordal.mesh.visible = chordal.checked;
   renderer.render( scene, camera );
 
 }
-
-/*
-  var i;
-  for ( i = 0; i < splinePointsLength; i ++ ) {
-    addSplineObject( positions[ i ] );
-  }
-  positions = [];
-  for ( i = 0; i < splinePointsLength; i ++ ) {
-    positions.push( splineHelperObjects[ i ].position );
-  }
-
-  var geometry = new THREE.Geometry();
-  for ( var i = 0; i < ARC_SEGMENTS; i ++ ) {
-    geometry.vertices.push( new THREE.Vector3() );
-  }
-
-  for ( var k in splines ) {
-
-    var spline = splines[ k ];
-    scene.add( spline.mesh );
-
-  }
-
-  load( [ new THREE.Vector3( 289.76843686945404, 452.51481137238443, 56.10018915737797 ),
-          new THREE.Vector3( -53.56300074753207, 171.49711742836848, -14.495472686253045 ),
-          new THREE.Vector3( -91.40118730204415, 176.4306956436485, -6.958271935582161 ),
-          new THREE.Vector3( -383.785318791128, 491.1365363371675, 47.869296953772746 ) ] );
-
-*/
-
-
-
-/*
-function addSplineObject( position ) {
-  var object = new THREE.Mesh( geometry, new THREE.MeshLambertMaterial( {
-    color: Math.random() * 0xffffff
-  } ) );
-  object.material.ambient = object.material.color;
-  if ( position ) {
-    object.position.copy( position );
-  } else {
-    object.position.x = Math.random() * 1000 - 500;
-    object.position.y = Math.random() * 600
-    object.position.z = Math.random() * 800 - 400;
-  }
-
-  object.castShadow = true;
-  object.receiveShadow = true;
-  scene.add( object );
-  splineHelperObjects.push( object );
-  return object;
-
-}
-*/
-
-
-/*
-  var curve;
-  curve = new THREE.CatmullRomCurve3( positions );
-  curve.type = 'catmullrom';
-  curve.mesh = new THREE.Line( geometry.clone(), new THREE.LineBasicMaterial( {
-    color: 0xff0000,
-    opacity: 0.35,
-    linewidth: 2
-  } ) );
-  curve.mesh.castShadow = true;
-  splines.uniform = curve;
-
-  curve = new THREE.CatmullRomCurve3( positions );
-  curve.type = 'centripetal';
-  curve.mesh = new THREE.Line( geometry.clone(), new THREE.LineBasicMaterial( {
-    color: 0x00ff00,
-    opacity: 0.35,
-    linewidth: 2
-  } ) );
-  curve.mesh.castShadow = true;
-  splines.centripetal = curve;
-
-  curve = new THREE.CatmullRomCurve3( positions );
-  curve.type = 'chordal';
-  curve.mesh = new THREE.Line( geometry.clone(), new THREE.LineBasicMaterial( {
-    color: 0x0000ff,
-    opacity: 0.35,
-    linewidth: 2
-  } ) );
-  curve.mesh.castShadow = true;
-  splines.chordal = curve;
-*/
-
-
-/*
-  var info = document.createElement( 'div' );
-  info.style.position = 'absolute';
-  info.style.top = '10px';
-  info.style.width = '100%';
-  info.style.textAlign = 'center';
-  info.innerHTML = 'catmull-rom rom spline comparisions';
-  options = document.createElement( 'div' );
-  options.style.position = 'absolute';
-  options.style.top = '30px';
-  options.style.width = '100%';
-  options.style.textAlign = 'center';
-
-  options.innerHTML = 'Points: <input type="button" onclick="addPoint();" value="+" />\
-<input type="button" onclick="removePoint();" value="-" />\
-<input type="button" onclick="exportSpline();" value="Export" /><br />\
-<input type="checkbox" id="uniform" checked /> <label for="uniform">Uniform Catmull-rom</label>  <input type="range" id="tension" onchange="splines.uniform.tension = tension.value;updateSplineOutline();" min=0 max=1 step=0.01 value=0.5 /> <span id="tension_value" /></span> <br />\
-<input type="checkbox" id="centripetal" checked /> Centripetal Catmull-rom<br />\
-<input type="checkbox" id="chordal" checked /> Chordal Catmull-rom<br />';
-  container.appendChild( info );
-  container.appendChild( options );
-*/
-
