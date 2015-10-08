@@ -1,15 +1,4 @@
 
-String.prototype.format = function () {
-
-  var str = this;
-  for ( var i = 0; i < arguments.length; i ++ ) {
-
-    str = str.replace( '{' + i + '}', arguments[ i ] );
-
-  }
-  return str;
-
-}
 
 var container, stats;
 var camera, scene, renderer;
@@ -31,18 +20,29 @@ var cube;
 var cubeHelperObjects = [];
 
 var raycaster = new THREE.Raycaster()
+var mouse = new THREE.Vector2();
 var lane = null
 var selection = null
 var offset = new THREE.Vector3()
 var objects = [];
 var plane;
+var hover = false;
+var draggable = false;
 
-setup();
 init();
+drawObject();
+dragObject();
 animate();
 
+var mouse2D;
+var projector;
+var voxelPosition;
+var tmpVec;
 
-function setup() {
+var size = 200;
+
+
+function init() {
   container = document.createElement( 'div' );
   document.body.appendChild( container );
   scene = new THREE.Scene();
@@ -65,7 +65,7 @@ function setup() {
   spotlight = light;
 
   var helper = new THREE.GridHelper( 1000, 100 );
-  helper.position.y = - 199;
+  helper.position.y = - 99;
   helper.material.opacity = 0.25;
   helper.material.transparent = true;
   scene.add( helper );
@@ -74,13 +74,23 @@ function setup() {
   planeGeometry.rotateX( - Math.PI / 2 );
   var planeMaterial = new THREE.MeshBasicMaterial( { color: 0xeeeeee } );
   plane = new THREE.Mesh( planeGeometry, planeMaterial );
-  plane.position.y = -200;
+  plane.position.y = - 100;
   plane.receiveShadow = true;
   scene.add( plane );
+
+  renderer = new THREE.WebGLRenderer( { antialias: true } );
+  renderer.setClearColor( 0xf0f0f0 );
+  renderer.setSize( window.innerWidth, window.innerHeight );
+  renderer.shadowMap.enabled = true;
+  container.appendChild( renderer.domElement );
+
+  mouse2D = new THREE.Vector3(0, 10000, 0.5);
+  voxelPosition = new THREE.Vector3()
+  projector = new THREE.Projector();
+  tmpVec = new THREE.Vector3();
 }
 
-function init() {
-
+function drawObject() {
   var geometry = new THREE.BoxGeometry( 200, 200, 200 );
   var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
   cube = new THREE.Mesh( geometry, material );
@@ -89,63 +99,80 @@ function init() {
   scene.add( cube );
   cubeHelperObjects.push( cube );
   positions.push( cubeHelperObjects[0].position );
+}
 
-  renderer = new THREE.WebGLRenderer( { antialias: true } );
-  renderer.setClearColor( 0xf0f0f0 );
-  renderer.setSize( window.innerWidth, window.innerHeight );
-  renderer.shadowMap.enabled = true;
-  container.appendChild( renderer.domElement );
-
+function dragObject() {
   controls = new THREE.OrbitControls( camera, renderer.domElement );
   controls.damping = 0.2;
   controls.addEventListener( 'change', render );
 
-  // var dragcontrols = new THREE.DragControls( camera, cubeHelperObjects, renderer.domElement ); //
-  // dragcontrols.on( 'hoveron', function( e ) {
-  //   console.log('FJWEOFJWEO')
-  // } )
-  // dragcontrols.on( 'hoveroff', function( e ) {
-  //   if ( e ) console.log('hoge') //delayHideTransform();
-  // } )
+  var dragcontrols = new THREE.DragControls( camera, cubeHelperObjects, renderer.domElement ); //
+  dragcontrols.on( 'hoveron', function( e ) {
+    hover = true;
+  })
+  dragcontrols.on( 'hoveroff', function( e ) {
+    if (!draggable) hover = false;
+  })
 
   document.addEventListener('mousedown', onDocumentMouseDown, false);
   document.addEventListener('mousemove', onDocumentMouseMove, false);
   document.addEventListener('mouseup', onDocumentMouseUp, false);
 
-  function onDocumentMouseDown (event) {
-    var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-    var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-    var vector = new THREE.Vector3(mouseX, mouseY, 1);
-    vector.unproject(camera);
-
-    var dir = vector.sub(camera.position).normalize();
-    var distance = - camera.position.z / dir.z;
-    var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
-  }
-
-  function onDocumentMouseMove (event) {
-    event.preventDefault();
-    var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-    var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-    var vector = new THREE.Vector3(mouseX, mouseY, 0.5);
-    vector.unproject(camera);
-
-    var dir = vector.sub(camera.position).normalize();
-    var distance = - camera.position.z / dir.z;
-    var pos = camera.position.clone().add( dir.multiplyScalar( distance ) )
-    window.pos = pos
-    cube.position.set(pos.x, pos.y, pos.z);
-    console.log(pos);
-  }
-
-  function onDocumentMouseUp (event) {
-    // Enable the controls
-    controls.enabled = true;
-    selection = null;
-  }
-
 }
 
+function onDocumentMouseDown (event) {
+  if (!hover) return false;
+  draggable = true;
+  controls.enabled = false;
+}
+
+function onDocumentMouseMove (event) {
+  if (!hover || !draggable) return false;
+  event.preventDefault();
+  var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+  var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+  var vector = new THREE.Vector3(mouseX, mouseY, 1);
+  vector.unproject(camera);
+
+  var dir = vector.sub(camera.position).normalize()
+  raycaster.set(camera.position, dir);
+  var intersects = raycaster.intersectObjects(scene.children);
+  if (intersects.length > 0) {
+    intersector = getRealIntersector(intersects);
+    if (!intersector) return false;
+    var point = intersector.point;
+    var distance = - camera.position.z / dir.z;
+    var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
+    var dimention = 'z';
+    if (dimention == 'xy') {
+      cube.position.set(point.x, 0, point.z);
+    } else if (dimention == 'x') {
+      cube.position.set(point.x, 0, 0);
+    } else if (dimention == 'y') {
+      cube.position.set(0, 0, point.z);
+    } else if (dimention == 'z') {
+      if (pos.y < 0) return false;
+      cube.position.set(0, pos.y, 0);
+    }
+
+  }
+}
+
+function onDocumentMouseUp (event) {
+  controls.enabled = true;
+  draggable = false;
+  hover = false;
+}
+
+function getRealIntersector( intersects ) {
+  for( i = 0; i < intersects.length; i++ ) {
+    intersector = intersects[ i ];
+    if ( intersector.object != cube ) {
+      return intersector;
+    }
+  }
+  return null;
+}
 
 function animate() {
   requestAnimationFrame( animate );
