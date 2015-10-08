@@ -36,10 +36,32 @@ animate();
 
 var mouse2D;
 var projector;
-var voxelPosition;
-var tmpVec;
+var oldPosition;
+var dimention = 'xz';
+var point;
+var pos;
+var oldPoint = { x:0, y:0, z:0 };
+var oldPos = { x:0, y:0, z:0 };
 
 var size = 200;
+
+$( function () {
+  $('#init').click( function() {
+    cube.position.set(0,0,0)
+  });
+  $('#xz').click( function() {
+    dimention = 'xz';
+  });
+  $('#x').click( function() {
+    dimention = 'x';
+  });
+  $('#y').click( function() {
+    dimention = 'y';
+  });
+  $('#z').click( function() {
+    dimention = 'z';
+  });
+});
 
 
 function init() {
@@ -65,7 +87,7 @@ function init() {
   spotlight = light;
 
   var helper = new THREE.GridHelper( 1000, 100 );
-  helper.position.y = - 99;
+  helper.position.y = 1;
   helper.material.opacity = 0.25;
   helper.material.transparent = true;
   scene.add( helper );
@@ -74,7 +96,7 @@ function init() {
   planeGeometry.rotateX( - Math.PI / 2 );
   var planeMaterial = new THREE.MeshBasicMaterial( { color: 0xeeeeee } );
   plane = new THREE.Mesh( planeGeometry, planeMaterial );
-  plane.position.y = - 100;
+  plane.position.y = 0;
   plane.receiveShadow = true;
   scene.add( plane );
 
@@ -85,7 +107,6 @@ function init() {
   container.appendChild( renderer.domElement );
 
   mouse2D = new THREE.Vector3(0, 10000, 0.5);
-  voxelPosition = new THREE.Vector3()
   projector = new THREE.Projector();
   tmpVec = new THREE.Vector3();
 }
@@ -140,19 +161,19 @@ function onDocumentMouseMove (event) {
   if (intersects.length > 0) {
     intersector = getRealIntersector(intersects);
     if (!intersector) return false;
-    var point = intersector.point;
+    point = intersector.point;
     var distance = - camera.position.z / dir.z;
-    var pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
-    var dimention = 'z';
-    if (dimention == 'xy') {
-      cube.position.set(point.x, 0, point.z);
+    pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
+    if (dimention == 'xz') {
+      cube.position.set(point.x, cube.position.y, point.z);
     } else if (dimention == 'x') {
-      cube.position.set(point.x, 0, 0);
+      cube.position.setX(point.x);
     } else if (dimention == 'y') {
-      cube.position.set(0, 0, point.z);
-    } else if (dimention == 'z') {
       if (pos.y < 0) return false;
-      cube.position.set(0, pos.y, 0);
+      // cube.translateY((pos.y)/40)
+      cube.position.setY(pos.y);
+    } else if (dimention == 'z') {
+      cube.position.setZ(point.z);
     }
 
   }
@@ -162,6 +183,8 @@ function onDocumentMouseUp (event) {
   controls.enabled = true;
   draggable = false;
   hover = false;
+  if (point) oldPoint = point;
+  if (pos) oldPos = pos;
 }
 
 function getRealIntersector( intersects ) {
@@ -182,5 +205,6 @@ function animate() {
 
 function render() {
   renderer.render( scene, camera );
-
 }
+
+
