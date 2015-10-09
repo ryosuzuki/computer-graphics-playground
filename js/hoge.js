@@ -18,6 +18,20 @@ initScene = function() {
   renderer.shadowMap.enabled = true;
   document.getElementById('viewport').appendChild(renderer.domElement);
 
+
+  render_stats = new Stats();
+  render_stats.domElement.style.position = 'absolute';
+  render_stats.domElement.style.top = '1px';
+  render_stats.domElement.style.zIndex = 100;
+  document.getElementById( 'viewport' ).appendChild( render_stats.domElement );
+
+  physics_stats = new Stats();
+  physics_stats.domElement.style.position = 'absolute';
+  physics_stats.domElement.style.top = '50px';
+  physics_stats.domElement.style.zIndex = 100;
+  document.getElementById( 'viewport' ).appendChild( physics_stats.domElement );
+
+
   scene = new Physijs.Scene({ fixedTimeStep: 1 / 120 });
   scene.setGravity(new THREE.Vector3( 0, -30, 0 ));
   scene.addEventListener(
@@ -34,6 +48,7 @@ initScene = function() {
         }
       }
       scene.simulate( undefined, 1 );
+      physics_stats.update();
     }
   );
 
@@ -117,6 +132,7 @@ initScene = function() {
 render = function() {
   requestAnimationFrame( render );
   renderer.render( scene, camera );
+  render_stats.update();
 };
 
 createTower = (function() {
