@@ -19,11 +19,16 @@ app.use( function *(next) {
   yield next;
 });
 app.use(route.get('/', index));
+app.use(route.get('/basic', basic));
 app.use(route.get('/jenga', jenga));
 app.use(route.get('/hoge', hoge));
 
 function *index() {
   this.body = yield this.render('index');
+}
+
+function *basic() {
+  this.body = yield this.render('basic');
 }
 
 function *jenga() {
