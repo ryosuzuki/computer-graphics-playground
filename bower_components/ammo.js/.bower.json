@@ -1,0 +1,14 @@
+{
+  "name": "ammo.js",
+  "homepage": "https://github.com/kripken/ammo.js",
+  "version": "0.0.3",
+  "_release": "0.0.3",
+  "_resolution": {
+    "type": "version",
+    "tag": "0.0.3",
+    "commit": "9666d7113b018d16457bc206fd200a29cef8b054"
+  },
+  "_source": "git://github.com/kripken/ammo.js.git",
+  "_target": "*",
+  "_originalSource": "kripken/ammo.js"
+}

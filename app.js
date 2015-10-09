@@ -19,10 +19,16 @@ app.use( function *(next) {
   yield next;
 });
 app.use(route.get('/', index));
+app.use(route.get('/jenga', jenga));
 
 function *index() {
   this.body = yield this.render('index');
 }
+
+function *jenga() {
+  this.body = yield this.render('jenga');
+}
+
 
 app.listen(port);
 

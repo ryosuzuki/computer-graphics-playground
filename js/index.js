@@ -19,6 +19,8 @@ var splines = {
 var cube;
 var cubeHelperObjects = [];
 
+var ground;
+
 var raycaster = new THREE.Raycaster()
 var mouse = new THREE.Vector2();
 var lane = null
@@ -64,15 +66,24 @@ $( function () {
 });
 
 
+
 function init() {
+  Physijs.scripts.worker = '/bower_components/physijs/physijs_worker.js';
+  Physijs.scripts.ammo = '/bower_components/physijs/examples/js/ammo.js';
+
+
   container = document.createElement( 'div' );
   document.body.appendChild( container );
-  scene = new THREE.Scene();
+
+
+  // scene = new THREE.Scene();
+  scene = new Physijs.Scene();
   camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
-  camera.position.z = 1000;
+  camera.position.set(800, 800, 800)
   scene.add( camera );
 
-  scene.add( new THREE.AmbientLight( 0xf0f0f0 ) );
+  var ambient = new THREE.AmbientLight( 0xf0f0f0 )
+  scene.add(ambient);
   var light = new THREE.SpotLight( 0xffffff, 1.5 );
   light.position.set( 0, 1500, 200 );
   light.castShadow = true;
@@ -100,6 +111,11 @@ function init() {
   plane.receiveShadow = true;
   scene.add( plane );
 
+  var groundMaterial = new Physijs.createMaterial(new THREE.MeshBasicMaterial({ color: 0xeeeeee }), 0.8, 0.3)
+  ground = new Physijs.BoxMesh(new THREE.CubeGeometry(100, 1, 100), groundMaterial, 9);
+  ground.receiveShadow = true;
+  scene.add(ground);
+
   renderer = new THREE.WebGLRenderer( { antialias: true } );
   renderer.setClearColor( 0xf0f0f0 );
   renderer.setSize( window.innerWidth, window.innerHeight );
@@ -112,11 +128,13 @@ function init() {
 }
 
 function drawObject() {
-  var geometry = new THREE.BoxGeometry( 200, 200, 200 );
-  var material = new THREE.MeshBasicMaterial( { color: 0x00ff00 } );
-  cube = new THREE.Mesh( geometry, material );
+  var geometry = new THREE.CubeGeometry(200, 200, 200);
+  var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  // cube = new THREE.Mesh( geometry, material );
+  cube = new Physijs.BoxMesh(geometry, material);
   cube.castShadow = true;
   cube.receiveShadow = true;
+  cube.position.y = 500;
   scene.add( cube );
   cubeHelperObjects.push( cube );
   positions.push( cubeHelperObjects[0].position );
@@ -198,13 +216,15 @@ function getRealIntersector( intersects ) {
 }
 
 function animate() {
-  requestAnimationFrame( animate );
+  requestAnimationFrame(render);
   render();
   controls.update();
 }
 
 function render() {
-  renderer.render( scene, camera );
+  scene.simulate();
+  renderer.render(scene, camera );
+  requestAnimationFrame(render);
 }
 
 

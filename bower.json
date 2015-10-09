@@ -19,6 +19,7 @@
     "jquery": "~2.1.4",
     "semantic-ui": "~2.1.4",
     "lodash": "~3.10.1",
-    "three.js": "mrdoob/three.js"
+    "three.js": "mrdoob/three.js",
+    "physijs": "*"
   }
 }
