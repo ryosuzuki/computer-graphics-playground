@@ -20,6 +20,7 @@ app.use( function *(next) {
 });
 app.use(route.get('/', index));
 app.use(route.get('/jenga', jenga));
+app.use(route.get('/hoge', hoge));
 
 function *index() {
   this.body = yield this.render('index');
@@ -29,6 +30,9 @@ function *jenga() {
   this.body = yield this.render('jenga');
 }
 
+function *hoge() {
+  this.body = yield this.render('hoge');
+}
 
 app.listen(port);
 

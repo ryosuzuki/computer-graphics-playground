@@ -34,9 +34,10 @@ var draggable = false;
 init();
 drawObject();
 dragObject();
-animate();
+render();
 
 var mouse2D;
+var mouse = new THREE.Vector3
 var projector;
 var oldPosition;
 var dimention = 'xz';
@@ -44,6 +45,10 @@ var point;
 var pos;
 var oldPoint = { x:0, y:0, z:0 };
 var oldPos = { x:0, y:0, z:0 };
+var selected = null;
+var intersect_plane;
+var _v3 = new THREE.Vector3;
+var vector = new THREE.Vector3;
 
 var size = 200;
 
@@ -71,13 +76,31 @@ function init() {
   Physijs.scripts.worker = '/bower_components/physijs/physijs_worker.js';
   Physijs.scripts.ammo = '/bower_components/physijs/examples/js/ammo.js';
 
-
   container = document.createElement( 'div' );
   document.body.appendChild( container );
 
+  scene = new Physijs.Scene({ fixedTimeStep: 1 / 20 });
+  scene.setGravity(new THREE.Vector3( 0, -300, 0 ));
+  scene.addEventListener(
+    'update',
+    function() {
+      if (selected !== null) {
+        selected.position.set(mouse.x, mouse.y, mouse.z)
+        _v3.copy(mouse).sub(selected.position).multiplyScalar( 5 );
+        _v3.y = 0;
+        _v3.set(1, 1, 1)
+        selected.setLinearVelocity(_v3);
+        // selected.applyCentralImpulse(new THREE.Vector3( 0, -300, 0 ))
+        // _v3.set(0, 0, 0);
+        // cube.applyCentralImpulse( _v3 );
+        // for ( _i = 0; _i < blocks.length; _i++ ) {
+        //   blocks[_i].applyCentralImpulse( _v3 );
+        // }
+      }
+      scene.simulate( undefined, 1 );
+    }
+  );
 
-  // scene = new THREE.Scene();
-  scene = new Physijs.Scene();
   camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
   camera.position.set(800, 800, 800)
   scene.add( camera );
@@ -111,8 +134,26 @@ function init() {
   plane.receiveShadow = true;
   scene.add( plane );
 
-  var groundMaterial = new Physijs.createMaterial(new THREE.MeshBasicMaterial({ color: 0xeeeeee }), 0.8, 0.3)
-  ground = new Physijs.BoxMesh(new THREE.CubeGeometry(100, 1, 100), groundMaterial, 9);
+  intersect_plane = new THREE.Mesh(
+    new THREE.PlaneGeometry( 150, 150 ),
+    new THREE.MeshBasicMaterial({ opacity: 0, transparent: true })
+  );
+  intersect_plane.rotation.x = Math.PI / -2;
+  scene.add( intersect_plane );
+
+
+  var groundMaterial = new Physijs.createMaterial(
+    new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+      0.9, // high friction
+      0.2 // low restitution
+  );
+
+  ground = new Physijs.BoxMesh(
+    new THREE.BoxGeometry(2000, 1, 2000),
+    groundMaterial,
+    0, // mass
+    { restitution: .2, friction: .8 }
+  );
   ground.receiveShadow = true;
   scene.add(ground);
 
@@ -125,6 +166,9 @@ function init() {
   mouse2D = new THREE.Vector3(0, 10000, 0.5);
   projector = new THREE.Projector();
   tmpVec = new THREE.Vector3();
+
+  requestAnimationFrame(render);
+  scene.simulate();
 }
 
 function drawObject() {
@@ -135,9 +179,10 @@ function drawObject() {
   cube.castShadow = true;
   cube.receiveShadow = true;
   cube.position.y = 500;
-  scene.add( cube );
-  cubeHelperObjects.push( cube );
-  positions.push( cubeHelperObjects[0].position );
+  scene.add(cube);
+  objects.push(cube);
+  cubeHelperObjects.push(cube);
+  positions.push(cubeHelperObjects[0].position);
 }
 
 function dragObject() {
@@ -163,11 +208,46 @@ function onDocumentMouseDown (event) {
   if (!hover) return false;
   draggable = true;
   controls.enabled = false;
+
+  event.preventDefault();
+  var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+  var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+  vector = new THREE.Vector3(mouseX, mouseY, 1);
+  vector.unproject(camera);
+  var dir = vector.sub(camera.position).normalize()
+  raycaster.set(camera.position, dir);
+
+  var intersections = raycaster.intersectObjects(objects);
+  if (intersections.length > 0) {
+    selected = intersections[0].object;
+    vector.set( 0, 0, 0 );
+    selected.setAngularFactor(vector);
+    selected.setAngularVelocity(vector);
+    selected.setLinearFactor(vector);
+    selected.setLinearVelocity(vector);
+
+    // mouse.copy( intersections[0].point );
+    // block_offset.subVectors( selected_block.position, mouse_position );
+    // intersect_plane.position.y = mouse.y;
+  }
 }
 
 function onDocumentMouseMove (event) {
   if (!hover || !draggable) return false;
   event.preventDefault();
+  // var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+  // var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+  // vector = new THREE.Vector3(mouseX, mouseY, 1);
+  // vector.unproject(camera);
+  // var dir = vector.sub(camera.position).normalize()
+  // raycaster.set(camera.position, dir);
+  // var intersections = raycaster.intersectObjects(objects);
+  // if (intersections.length > 0) {
+  //   mouse.copy( intersections[0].point );
+  // }
+  // var intersection = raycaster.intersectObject( intersect_plane );
+  // mouse.copy( intersection[0].point );
+
   var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
   var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
   var vector = new THREE.Vector3(mouseX, mouseY, 1);
@@ -175,25 +255,31 @@ function onDocumentMouseMove (event) {
 
   var dir = vector.sub(camera.position).normalize()
   raycaster.set(camera.position, dir);
-  var intersects = raycaster.intersectObjects(scene.children);
-  if (intersects.length > 0) {
-    intersector = getRealIntersector(intersects);
-    if (!intersector) return false;
-    point = intersector.point;
+  var intersections = raycaster.intersectObjects(objects);
+  if (intersections.length > 0) {
+    selected = intersections[0].object;
+    // selected.position.y = mouse.y;
+    // mouse.copy( intersections[0].point );
+
+    point = intersections[0].point;
     var distance = - camera.position.z / dir.z;
     pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
+    mouse.x = point.x;
+    mouse.y = 500
+    mouse.z = point.z;
+    /*
     if (dimention == 'xz') {
-      cube.position.set(point.x, cube.position.y, point.z);
+      selected.position.set(point.x, selected.position.y, point.z);
     } else if (dimention == 'x') {
-      cube.position.setX(point.x);
+      selected.position.setX(point.x);
     } else if (dimention == 'y') {
       if (pos.y < 0) return false;
-      // cube.translateY((pos.y)/40)
-      cube.position.setY(pos.y);
+      // selected.translateY((pos.y)/40)
+      selected.position.setY(pos.y);
     } else if (dimention == 'z') {
-      cube.position.setZ(point.z);
+      selected.position.setZ(point.z);
     }
-
+    */
   }
 }
 
@@ -201,30 +287,23 @@ function onDocumentMouseUp (event) {
   controls.enabled = true;
   draggable = false;
   hover = false;
+  vector.set(1, 1, 1);
+  selected.setAngularFactor(vector);
+  selected.setLinearFactor(vector);
+  // selected.setAngularFactor(vector);
+  // selected.setAngularVelocity(vector);
+  // selected.setLinearFactor(vector);
+  // selected.setLinearVelocity(vector);
+
+  selected = null;
   if (point) oldPoint = point;
   if (pos) oldPos = pos;
 }
 
-function getRealIntersector( intersects ) {
-  for( i = 0; i < intersects.length; i++ ) {
-    intersector = intersects[ i ];
-    if ( intersector.object != cube ) {
-      return intersector;
-    }
-  }
-  return null;
-}
-
-function animate() {
-  requestAnimationFrame(render);
-  render();
-  controls.update();
-}
-
 function render() {
-  scene.simulate();
-  renderer.render(scene, camera );
   requestAnimationFrame(render);
+  renderer.render(scene, camera);
+  controls.update();
 }
 
 

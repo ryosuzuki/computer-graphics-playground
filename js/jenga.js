@@ -1,6 +1,6 @@
 
-Physijs.scripts.worker = '../physijs_worker.js';
-Physijs.scripts.ammo = 'examples/js/ammo.js';
+Physijs.scripts.worker = '/bower_components/physijs/physijs_worker.js';
+Physijs.scripts.ammo = '/bower_components/physijs/examples/js/ammo.js';
 
 var initScene, initEventHandling, render, createTower,
     renderer, render_stats, physics_stats, scene, dir_light, am_light, camera,
@@ -13,17 +13,6 @@ initScene = function() {
   renderer.shadowMapEnabled = true;
   renderer.shadowMapSoft = true;
   document.getElementById( 'viewport' ).appendChild( renderer.domElement );
-
-  render_stats = new Stats();
-  render_stats.domElement.style.position = 'absolute';
-  render_stats.domElement.style.top = '1px';
-  render_stats.domElement.style.zIndex = 100;
-  document.getElementById( 'viewport' ).appendChild( render_stats.domElement );
-  physics_stats = new Stats();
-  physics_stats.domElement.style.position = 'absolute';
-  physics_stats.domElement.style.top = '50px';
-  physics_stats.domElement.style.zIndex = 100;
-  document.getElementById( 'viewport' ).appendChild( physics_stats.domElement );
 
   scene = new Physijs.Scene({ fixedTimeStep: 1 / 120 });
   scene.setGravity(new THREE.Vector3( 0, -30, 0 ));
@@ -43,7 +32,6 @@ initScene = function() {
         }
       }
       scene.simulate( undefined, 1 );
-      physics_stats.update();
     }
   );
 
@@ -76,24 +64,18 @@ initScene = function() {
   dir_light.shadowDarkness = .5;
   scene.add( dir_light );
 
-  // Materials
   table_material = Physijs.createMaterial(
-    new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture( 'images/wood.jpg' ), ambient: 0xFFFFFF }),
+    new THREE.MeshLambertMaterial({ color: 0x0000ff, ambient: 0xFFFFFF }),
       .9, // high friction
       .2 // low restitution
   );
-  table_material.map.wrapS = table_material.map.wrapT = THREE.RepeatWrapping;
-  table_material.map.repeat.set( 5, 5 );
 
   block_material = Physijs.createMaterial(
-    new THREE.MeshLambertMaterial({ map: THREE.ImageUtils.loadTexture( 'images/plywood.jpg' ), ambient: 0xFFFFFF }),
+    new THREE.MeshLambertMaterial({ color: 0x0000ff, ambient: 0xFFFFFF }),
       .4, // medium friction
       .4 // medium restitution
   );
-  block_material.map.wrapS = block_material.map.wrapT = THREE.RepeatWrapping;
-  block_material.map.repeat.set( 1, .5 );
 
-  // Table
   table = new Physijs.BoxMesh(
     new THREE.BoxGeometry(50, 1, 50),
     table_material,
@@ -121,7 +103,6 @@ initScene = function() {
 render = function() {
   requestAnimationFrame( render );
   renderer.render( scene, camera );
-  render_stats.update();
 };
 
 createTower = (function() {
@@ -199,6 +180,7 @@ initEventHandling = (function() {
 
       ray = new THREE.Raycaster( camera.position, _vector.sub( camera.position ).normalize() );
       intersection = ray.intersectObject( intersect_plane );
+      // intersections = ray.intersectObjects( blocks );
       mouse_position.copy( intersection[0].point );
     }
 
