@@ -20,6 +20,7 @@
     "semantic-ui": "~2.1.4",
     "lodash": "~3.10.1",
     "three.js": "mrdoob/three.js",
-    "physijs": "*"
+    "physijs": "*",
+    "cannon.js": "~0.6.2"
   }
 }
