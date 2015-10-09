@@ -27,6 +27,10 @@ var objects = [];
 var plane;
 var hover = false;
 var draggable = false;
+var dragging = false;
+
+var vector;
+var dir;
 
 var mouse2D;
 var projector;
@@ -36,7 +40,7 @@ var point;
 var pos;
 var oldPoint = { x:0, y:0, z:0 };
 var oldPos = { x:0, y:0, z:0 };
-
+var selected;
 var size = 200;
 
 var renderStats;
@@ -72,7 +76,7 @@ function init() {
   spotlight = light;
 
   var gridHelper = new THREE.GridHelper(scale*5, scale/2);
-  gridHelper.position.y = 0;
+  gridHelper.position.y = -scale*0.5;
   gridHelper.material.opacity = 0.25;
   gridHelper.material.transparent = true;
   scene.add(gridHelper);
@@ -81,7 +85,7 @@ function init() {
   planeGeometry.rotateX( - Math.PI / 2 );
   var planeMaterial = new THREE.MeshBasicMaterial( { color: 0xeeeeee } );
   plane = new THREE.Mesh( planeGeometry, planeMaterial );
-  plane.position.y = 0;
+  plane.position.y = -scale*0.51;
   plane.receiveShadow = true;
   scene.add( plane );
 
@@ -117,7 +121,7 @@ function initCannon () {
   var groundBody = new CANNON.Body({ mass: 0 })
   groundBody.addShape(groundShape)
   groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(scale, 0, 0),-Math.PI/2);
-  groundBody.position.y = -scale*0.5;
+  groundBody.position.y = -scale;
   world.add(groundBody)
 
   var mass = scale;
@@ -151,11 +155,11 @@ function drawObject() {
 
 function dragObject() {
   var dragcontrols = new THREE.DragControls( camera, boxHelperObjects, renderer.domElement ); //
-  dragcontrols.on( 'hoveron', function( e ) {
+  dragcontrols.on('hoveron', function (event) {
     hover = true;
   })
-  dragcontrols.on( 'hoveroff', function( e ) {
-    if (!draggable) hover = false;
+  dragcontrols.on('hoveroff', function (event) {
+    if (!selected) hover = false;
   })
 
   document.addEventListener('mousedown', onDocumentMouseDown, false);
@@ -170,60 +174,48 @@ function onDocumentMouseDown (event) {
 
   var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
   var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-  var vector = new THREE.Vector3(mouseX, mouseY, 1);
+  vector = new THREE.Vector3(mouseX, mouseY, 1);
   vector.unproject(camera);
-
-  var dir = vector.sub(camera.position).normalize()
+  dir = vector.sub(camera.position).normalize()
   raycaster.set(camera.position, dir);
   var intersects = raycaster.intersectObjects(objects);
   if (intersects.length > 0) {
-    selected = intersects[0].object;
-    var point = intersects[0].point;
-    selectedBody.position.set(point.x, point.y, point.z);
-
-    /*
-    intersector = getRealIntersector(intersects);
-    if (!intersector) return false;
-    point = intersector.point;
-    var distance = - camera.position.z / dir.z;
-    pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
-    if (dimention == 'xz') {
-      box.position.set(point.x, box.position.y, point.z);
-    } else if (dimention == 'x') {
-      box.position.setX(point.x);
-    } else if (dimention == 'y') {
-      if (pos.y < 0) return false;
-      // box.translateY((pos.y)/40)
-      box.position.setY(pos.y);
-    } else if (dimention == 'z') {
-      box.position.setZ(point.z);
-    }
-    */
+    selected = intersects[0];
   }
-
 }
 
 function onDocumentMouseMove (event) {
-  if (!hover || !draggable) return false;
+  if (!selected) return false;
   event.preventDefault();
+
+  var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+  var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+  vector = new THREE.Vector3(mouseX, mouseY, 1);
+  vector.unproject(camera);
+  dir = vector.sub(camera.position).normalize()
+  raycaster.set(camera.position, dir);
+  var point = raycaster.ray.intersectPlane(new THREE.Plane(plane.position));
+  var distance = -camera.position.z / dir.z;
+  pos = camera.position.clone().add(dir.multiplyScalar(distance));
+  if (dimention == 'xz') {
+    selectedBody.position.x = point.x;
+    selectedBody.position.z = point.z;
+  } else if (dimention == 'x') {
+    selectedBody.position.x = point.x;
+  } else if (dimention == 'y') {
+    if (pos.y < 0) return false;
+    selectedBody.position.y = pos.y;
+  } else if (dimention == 'z') {
+    selectedBody.position.z = point.z;
+  }
 }
 
 function onDocumentMouseUp (event) {
   controls.enabled = true;
-  draggable = false;
   hover = false;
+  selected = undefined;
   if (point) oldPoint = point;
   if (pos) oldPos = pos;
-}
-
-function getRealIntersector( intersects ) {
-  for( i = 0; i < intersects.length; i++ ) {
-    intersector = intersects[ i ];
-    if ( intersector.object != box ) {
-      return intersector;
-    }
-  }
-  return null;
 }
 
 var lastCallTime = 0;
@@ -238,7 +230,14 @@ function updatePhysics(){
   var timeSinceLastCall = now - lastCallTime;
   world.step(timeStep, timeSinceLastCall, maxSubSteps);
   lastCallTime = now;
-  box.position.copy(boxBody.position);
+  if (selected) {
+    box.position.copy(selectedBody.position);
+    boxBody.position.copy(selectedBody.position);
+  } else {
+    box.position.copy(boxBody.position);
+    selectedBody.position.copy(boxBody.position);
+  }
+
 }
 
 function animate(){
@@ -263,7 +262,7 @@ $( function () {
   animate();
 
   $('#init').click( function() {
-    box.position.set(0,0,0)
+    selectedBody.position.setZero();
   });
   $('#xz').click( function() {
     dimention = 'xz';
