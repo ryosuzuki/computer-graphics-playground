@@ -164,8 +164,6 @@ function initCannon () {
   world.add(gearBody);
   addMesh(gearBody);
 
-
-  var bunny = data;
   var bunnyBody = new CANNON.Body({ mass: mass });
   for(var i=0; i<bunny.length; i++){
     var rawVerts = bunny[i].verts;
@@ -198,6 +196,22 @@ function initCannon () {
   world.add(bunnyBody);
   addMesh(bunnyBody);
 
+  var hogeShape = new CANNON.Box(new CANNON.Vec3(scale, scale, scale));
+  hogeBody = new CANNON.Body({ mass: 0 })
+  hogeBody.addShape(hogeShape);
+  hogeBody.position.set(0, 3, 0);
+  hogeBody.fixedRotation = true;
+  world.add(hogeBody);
+  addMesh(hogeBody);
+
+  var fugaShape = new CANNON.Box(new CANNON.Vec3(scale, scale, scale));
+  fugaBody = new CANNON.Body({ mass: mass })
+  fugaBody.addShape(fugaShape);
+  fugaBody.position.set(2, 3, 0);
+  fugaBody.color = 'green'
+  fugaBody.fixedRotation = true;
+  world.add(fugaBody);
+  addMesh(fugaBody);
 
 
   var boxShape = new CANNON.Box(new CANNON.Vec3(scale, scale*2, scale));
@@ -206,9 +220,6 @@ function initCannon () {
   boxBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0));
   boxBody.addShape(boxShape, new CANNON.Vec3(0, scale, 0));
   boxBody.addShape(boxShape, new CANNON.Vec3(scale, scale, 0));
-
-
-
   boxBody.position.set(0, scale*1.1, 0);
   // boxBody.fixedRotation = true;
   boxBody.updateMassProperties();
@@ -305,7 +316,9 @@ function updatePhysics(){
   world.step(timeStep, timeSinceLastCall, maxSubSteps);
   lastCallTime = now;
 
-  rotate++;
+  rotate = rotate + 0.1;
+  hogeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotate);
+  fugaBody.position.set(2, 3, 0)
   // boxBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), rotate);
 
   updateMeshes();
