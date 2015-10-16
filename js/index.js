@@ -150,20 +150,6 @@ function initCannon () {
   // Use a box shape as child shape
   var shape = new CANNON.Box(new CANNON.Vec3(scale, scale*2, scale));
 
-  var cylinderShape = new CANNON.Cylinder(size, size, size*0.2, 30);
-  var boxShape = new CANNON.Box(new CANNON.Vec3(scale*1.2, scale*0.1, scale*0.1));
-  boxShape2 = new CANNON.Box(new CANNON.Vec3(scale*1.2, scale*0.1, scale*0.1));
-  // boxShape2.quaternion.set(0, 0, 0, 1)
-  gearBody = new CANNON.Body({ mass: mass });
-  gearBody.addShape(cylinderShape);
-  gearBody.addShape(boxShape);
-  gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/4));
-  gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/2));
-  gearBody.position.set(-size*2,size*2,size+1);
-  gearBody.draggable = true;
-  world.add(gearBody);
-  addMesh(gearBody);
-
   var bunnyBody = new CANNON.Body({ mass: mass });
   for(var i=0; i<bunny.length; i++){
     var rawVerts = bunny[i].verts;
@@ -193,25 +179,43 @@ function initCannon () {
   var z180 = new CANNON.Quaternion();
   z180.setFromAxisAngle(new CANNON.Vec3(0,0,1),Math.PI);
   bunnyBody.quaternion = z180.mult(bunnyBody.quaternion);
-  world.add(bunnyBody);
-  addMesh(bunnyBody);
-
-  var hogeShape = new CANNON.Box(new CANNON.Vec3(scale, scale, scale));
-  hogeBody = new CANNON.Body({ mass: 0 })
-  hogeBody.addShape(hogeShape);
-  hogeBody.position.set(0, 3, 0);
-  hogeBody.fixedRotation = true;
-  world.add(hogeBody);
-  addMesh(hogeBody);
+  // world.add(bunnyBody);
+  // addMesh(bunnyBody);
 
   var fugaShape = new CANNON.Box(new CANNON.Vec3(scale, scale, scale));
   fugaBody = new CANNON.Body({ mass: mass })
   fugaBody.addShape(fugaShape);
   fugaBody.position.set(2, 3, 0);
   fugaBody.color = 'green'
-  fugaBody.fixedRotation = true;
+  // fugaBody.fixedRotation = true;
   world.add(fugaBody);
   addMesh(fugaBody);
+
+  var cylinderShape = new CANNON.Cylinder(size, size, size*0.2, 30);
+  var boxShape = new CANNON.Box(new CANNON.Vec3(scale*1.2, scale*0.1, scale*0.1));
+  gearBody = new CANNON.Body({ mass: mass });
+  gearBody.fixedRotation = true;
+  gearBody.color = 'yellow'
+  gearBody.addShape(cylinderShape);
+  gearBody.addShape(boxShape);
+  // gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/4));
+  // gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/2));
+  gearBody.position.set(0, 3, 0);
+  gearBody.draggable = true;
+  world.add(gearBody);
+  addMesh(gearBody);
+
+  gearBody2 = new CANNON.Body({ mass: mass });
+  // gearBody2.fixedRotation = true;
+  gearBody2.color = 'green'
+  gearBody2.addShape(cylinderShape);
+  gearBody2.addShape(boxShape);
+  // gearBody2.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/4));
+  // gearBody2.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/2));
+  gearBody2.position.set(2, 3, 0);
+  gearBody2.draggable = true;
+  world.add(gearBody2);
+  addMesh(gearBody2);
 
 
   var boxShape = new CANNON.Box(new CANNON.Vec3(scale, scale*2, scale));
@@ -225,8 +229,8 @@ function initCannon () {
   boxBody.updateMassProperties();
   boxBody.color = 'yellow';
   boxBody.draggable = true;
-  world.add(boxBody);
-  addMesh(boxBody);
+  // world.add(boxBody);
+  // addMesh(boxBody);
 
   // var selectedShape = new CANNON.Sphere(0.1);
   // selectedBody = new CANNON.Body({ mass: 0 });
@@ -317,8 +321,9 @@ function updatePhysics(){
   lastCallTime = now;
 
   rotate = rotate + 0.1;
-  hogeBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotate);
-  fugaBody.position.set(2, 3, 0)
+  gearBody.position.set(0, 3, 0);
+  gearBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotate);
+  gearBody2.position.set(2, 3, 0);
   // boxBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), rotate);
 
   updateMeshes();
