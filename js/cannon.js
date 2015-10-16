@@ -5935,11 +5935,18 @@ Body.prototype.updateMassProperties = function(){
     );
     Box.calculateInertia(halfExtents, this.mass, I);
 
+    // hoge
     this.invInertia.set(
-        I.x > 0 && !fixed ? 1.0 / I.x : 0,
-        I.y > 0 && !fixed ? 1.0 / I.y : 0,
-        I.z > 0 && !fixed ? 1.0 / I.z : 0
+        0,
+        0,
+        I.z > 0 ? 1.0 / I.z : 0
     );
+
+    // this.invInertia.set(
+    //     I.x > 0 && !fixed ? 1.0 / I.x : 0,
+    //     I.y > 0 && !fixed ? 1.0 / I.y : 0,
+    //     I.z > 0 && !fixed ? 1.0 / I.z : 0
+    // );
     this.updateInertiaWorld(true);
 };
 

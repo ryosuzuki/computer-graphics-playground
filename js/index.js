@@ -198,8 +198,11 @@ function initCannon () {
   gearBody.color = 'yellow'
   gearBody.addShape(cylinderShape);
   gearBody.addShape(boxShape);
-  // gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/4));
-  // gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/2));
+  // for (var i = 1; i<10; i++) {
+  //   gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.1*i, Math.PI/4));
+  // }
+  gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/4));
+  gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/8));
   gearBody.position.set(0, 3, 0);
   gearBody.draggable = true;
   world.add(gearBody);
@@ -322,8 +325,8 @@ function updatePhysics(){
 
   rotate = rotate + 0.1;
   gearBody.position.set(0, 3, 0);
-  gearBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotate);
-  gearBody2.position.set(2, 3, 0);
+  // gearBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotate);
+  gearBody2.position.set(2.2, 3, 0);
   // boxBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), rotate);
 
   updateMeshes();
