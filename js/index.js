@@ -165,11 +165,12 @@ function initCannon () {
   addMesh(gearBody);
 
 
+  var bunny = data;
   var bunnyBody = new CANNON.Body({ mass: mass });
   for(var i=0; i<bunny.length; i++){
     var rawVerts = bunny[i].verts;
     var rawFaces = bunny[i].faces;
-    var rawOffset = bunny[i].offset;
+    var rawOffset = []; //bunny[i].offset;
     var verts=[], faces=[], offset;
     // Get vertices
     for(var j=0; j<rawVerts.length; j+=3){
