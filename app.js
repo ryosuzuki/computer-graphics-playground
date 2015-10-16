@@ -20,11 +20,16 @@ app.use( function *(next) {
 });
 app.use(route.get('/', index));
 app.use(route.get('/basic', basic));
+app.use(route.get('/physics', physics));
 app.use(route.get('/jenga', jenga));
 app.use(route.get('/hoge', hoge));
 
 function *index() {
   this.body = yield this.render('index');
+}
+
+function *physics() {
+  this.body = yield this.render('physics');
 }
 
 function *basic() {

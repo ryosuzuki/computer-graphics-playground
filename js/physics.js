@@ -102,9 +102,6 @@ function init() {
   document.getElementById('viewport').appendChild(stats.domElement);
 }
 
-var boxShape2;
-var gearBody;
-
 function initCannon () {
   world.gravity.set(0, -10, 0);
   world.broadphase = new CANNON.NaiveBroadphase();
@@ -139,89 +136,23 @@ function initCannon () {
   // world.add(cylinderBody);
   // addMesh(cylinderBody, 'red')
 
-  var s = 1.5;
-
-  // Now create a Body for our Compound
-  var mass = 10;
-  var body = new CANNON.Body({ mass: mass });
-  body.position.set(0,0,6);
-  body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 32);
-
-  // Use a box shape as child shape
-  var shape = new CANNON.Box(new CANNON.Vec3(scale, scale*2, scale));
-
-  var cylinderShape = new CANNON.Cylinder(size, size, size*0.2, 30);
-  var boxShape = new CANNON.Box(new CANNON.Vec3(scale*1.2, scale*0.1, scale*0.1));
-  boxShape2 = new CANNON.Box(new CANNON.Vec3(scale*1.2, scale*0.1, scale*0.1));
-  // boxShape2.quaternion.set(0, 0, 0, 1)
-  gearBody = new CANNON.Body({ mass: mass });
-  gearBody.addShape(cylinderShape);
-  gearBody.addShape(boxShape);
-  gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/4));
-  gearBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0), new CANNON.Quaternion(0, 0, 0.2, Math.PI/2));
-  gearBody.position.set(-size*2,size*2,size+1);
-  gearBody.draggable = true;
-  world.add(gearBody);
-  addMesh(gearBody);
-
-
-  var bunnyBody = new CANNON.Body({ mass: mass });
-  for(var i=0; i<bunny.length; i++){
-    var rawVerts = bunny[i].verts;
-    var rawFaces = bunny[i].faces;
-    var rawOffset = bunny[i].offset;
-    var verts=[], faces=[], offset;
-    // Get vertices
-    for(var j=0; j<rawVerts.length; j+=3){
-      verts.push(new CANNON.Vec3(rawVerts[j], rawVerts[j+1], rawVerts[j+2]));
-    }
-    // Get faces
-    for(var j=0; j<rawFaces.length; j+=3){
-      faces.push([rawFaces[j],rawFaces[j+1],rawFaces[j+2]]);
-    }
-    // Get offset
-    offset = new CANNON.Vec3(rawOffset[0],rawOffset[1],rawOffset[2]);
-    // Construct polyhedron
-    var bunnyPart = new CANNON.ConvexPolyhedron(verts,faces);
-    // Add to compound
-    bunnyBody.addShape(bunnyPart,offset);
-  }
-
-  // Create body
-  bunnyBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
-  bunnyBody.position.set(0, 10, 0);
-  bunnyBody.draggable = true;
-  var z180 = new CANNON.Quaternion();
-  z180.setFromAxisAngle(new CANNON.Vec3(0,0,1),Math.PI);
-  bunnyBody.quaternion = z180.mult(bunnyBody.quaternion);
-  world.add(bunnyBody);
-  addMesh(bunnyBody);
-
-
-
-  var boxShape = new CANNON.Box(new CANNON.Vec3(scale, scale*2, scale));
+  var boxShape = new CANNON.Box(new CANNON.Vec3(scale, scale, scale));
   boxBody = new CANNON.Body({ mass: mass })
-  boxBody.addShape(boxShape, new CANNON.Vec3(0, 0, scale));
-  boxBody.addShape(boxShape, new CANNON.Vec3(0, 0, 0));
-  boxBody.addShape(boxShape, new CANNON.Vec3(0, scale, 0));
-  boxBody.addShape(boxShape, new CANNON.Vec3(scale, scale, 0));
-
-
-
+  boxBody.addShape(boxShape);
   boxBody.position.set(0, scale*1.1, 0);
-  // boxBody.fixedRotation = true;
+  boxBody.fixedRotation = true;
   boxBody.updateMassProperties();
   boxBody.color = 'yellow';
   boxBody.draggable = true;
   world.add(boxBody);
   addMesh(boxBody);
 
-  // var selectedShape = new CANNON.Sphere(0.1);
-  // selectedBody = new CANNON.Body({ mass: 0 });
-  // selectedBody.addShape(selectedShape);
-  // selectedBody.collisionFilterGroup = 0;
-  // selectedBody.collisionFilterMask = 0;
-  // world.add(selectedBody)
+  var selectedShape = new CANNON.Sphere(0.1);
+  selectedBody = new CANNON.Body({ mass: 0 });
+  selectedBody.addShape(selectedShape);
+  selectedBody.collisionFilterGroup = 0;
+  selectedBody.collisionFilterMask = 0;
+  world.add(selectedBody)
 
   var dragcontrols = new THREE.DragControls(camera, objects, renderer.domElement);
   dragcontrols.on('hoveron', function (event) {
@@ -251,16 +182,12 @@ function onDocumentMouseDown (event) {
   var intersects = raycaster.intersectObjects(objects);
   if (intersects.length > 0) {
     selected = intersects[0];
-    window.hoge = selected;
-    console.log(selected)
   }
 }
 
 function onDocumentMouseMove (event) {
   if (!selected) return false;
   event.preventDefault();
-
-  selectedBody = selected.object.body;
 
   var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
   var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -292,7 +219,6 @@ function onDocumentMouseUp (event) {
 
 var lastCallTime = 0;
 var maxSubSteps = 3;
-var rotate = 0;
 function updatePhysics(){
   var now = Date.now() / 1000;
   if(!lastCallTime){
@@ -304,9 +230,13 @@ function updatePhysics(){
   world.step(timeStep, timeSinceLastCall, maxSubSteps);
   lastCallTime = now;
 
-  rotate++;
-  // boxBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), rotate);
-
+  if (selected) {
+    // box.position.copy(selectedBody.position);
+    boxBody.position.copy(selectedBody.position);
+  } else {
+    // box.position.copy(boxBody.position);
+    selectedBody.position.copy(boxBody.position);
+  }
   updateMeshes();
   // ground.position.copy(groundBody.position)
   // ground.quaternion.copy(groundBody.quaternion)
@@ -515,7 +445,6 @@ function shape2mesh (body) {
     var q = body.shapeOrientations[l];
     mesh.position.set(o.x, o.y, o.z);
     mesh.quaternion.set(q.x, q.y, q.z, q.w);
-    mesh.body = body;
 
     if (draggable) objects.push(mesh);
     obj.add(mesh);
