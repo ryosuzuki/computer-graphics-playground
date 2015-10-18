@@ -305,7 +305,6 @@ function initCannon () {
   // }
 
 
-
   var gear = involuteGear(20, 10);
   var vertices = [];
   var faces = [];
