@@ -105,8 +105,10 @@ function init() {
 
 var boxShape2;
 var gearBody;
+var gearBody2;
 var hogeBody;
 var gear;
+var bunnyBody2;
 
 function initCannon () {
   world.gravity.set(0, -10, 0);
@@ -134,14 +136,6 @@ function initCannon () {
   world.add(tableBody);
   addMesh(tableBody);
 
-  // var cylinderShape = new CANNON.Cylinder(scale*30, scale*30 , scale*10, 100)
-  // cylinderBody = new CANNON.Body({ mass: mass });
-  // cylinderBody.position.set(0, 0, 0);
-  // cylinderBody.shapes = new THREE.CylinderGeometry(scale*3, scale*3 , scale*0.1, 100);
-  // scene.add(cylinder);
-  // world.add(cylinderBody);
-  // addMesh(cylinderBody, 'red')
-
   var s = 1.5;
 
   // Now create a Body for our Compound
@@ -153,38 +147,49 @@ function initCannon () {
   // Use a box shape as child shape
   var shape = new CANNON.Box(new CANNON.Vec3(scale, scale*2, scale));
 
-  var bunnyBody = new CANNON.Body({ mass: mass });
-  for(var i=0; i<bunny.length; i++){
-    var rawVerts = bunny[i].verts;
-    var rawFaces = bunny[i].faces;
-    var rawOffset = []; //bunny[i].offset;
-    var verts=[], faces=[], offset;
-    // Get vertices
-    for(var j=0; j<rawVerts.length; j+=3){
-      verts.push(new CANNON.Vec3(rawVerts[j], rawVerts[j+1], rawVerts[j+2]));
-    }
-    // Get faces
-    for(var j=0; j<rawFaces.length; j+=3){
-      faces.push([rawFaces[j],rawFaces[j+1],rawFaces[j+2]]);
-    }
-    // Get offset
-    offset = new CANNON.Vec3(rawOffset[0],rawOffset[1],rawOffset[2]);
-    // Construct polyhedron
-    var bunnyPart = new CANNON.ConvexPolyhedron(verts,faces);
-    // Add to compound
-    bunnyBody.addShape(bunnyPart,offset);
-  }
+  // var bunnyBody = new CANNON.Body({ mass: 100 });
+  // var bunnyBody2 = new CANNON.Body({ mass: 100 });
+  // for(var i=0; i<bunny.length; i++){
+  //   var rawVerts = bunny[i].verts;
+  //   var rawFaces = bunny[i].faces;
+  //   var rawOffset = bunny[i].offset;
+  //   var verts=[], faces=[], offset;
+  //   // Get vertices
+  //   for(var j=0; j<rawVerts.length; j+=3){
+  //     verts.push(new CANNON.Vec3(rawVerts[j], rawVerts[j+1], rawVerts[j+2]));
+  //   }
+  //   // Get faces
+  //   for(var j=0; j<rawFaces.length; j+=3){
+  //     faces.push([rawFaces[j],rawFaces[j+1],rawFaces[j+2]]);
+  //   }
+  //   // Get offset
+  //   offset = new CANNON.Vec3(rawOffset[0],rawOffset[1],rawOffset[2]);
+  //   // Construct polyhedron
+  //   var bunnyPart = new CANNON.ConvexPolyhedron(verts,faces);
+  //   // Add to compound
+  //   bunnyBody.addShape(bunnyPart,offset);
+  //   bunnyBody2.addShape(bunnyPart,offset);
+  // }
 
-  // Create body
-  bunnyBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
-  bunnyBody.position.set(0, 10, 0);
-  bunnyBody.draggable = true;
-  var z180 = new CANNON.Quaternion();
-  z180.setFromAxisAngle(new CANNON.Vec3(0,0,1),Math.PI);
-  bunnyBody.quaternion = z180.mult(bunnyBody.quaternion);
+  // // Create body
+  // bunnyBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
+  // bunnyBody.position.set(0, 10, 0);
+  // bunnyBody.draggable = true;
+  // var z180 = new CANNON.Quaternion();
+  // z180.setFromAxisAngle(new CANNON.Vec3(0,0,1),Math.PI);
+  // bunnyBody.quaternion = z180.mult(bunnyBody.quaternion);
   // world.add(bunnyBody);
   // addMesh(bunnyBody);
 
+  // bunnyBody2.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
+  // bunnyBody2.position.set(2, 10, 0);
+  // bunnyBody2.draggable = true;
+  // bunnyBody2.color = 'yellow';
+  // var z180 = new CANNON.Quaternion();
+  // z180.setFromAxisAngle(new CANNON.Vec3(0,0,1),Math.PI);
+  // bunnyBody2.quaternion = z180.mult(bunnyBody2.quaternion);
+  // world.add(bunnyBody2);
+  // addMesh(bunnyBody2);
 
   gear = involuteGear(20, 10);
   var vertices = [];
@@ -216,53 +221,19 @@ function initCannon () {
   window.vertices = vertices;
   window.faces = faces;
   var gearShape = new CANNON.ConvexPolyhedron(vertices, faces);
-  gearBody = new CANNON.Body({ mass: 1 });
+  gearBody = new CANNON.Body({ mass: 100 });
   gearBody.addShape(gearShape);
   gearBody.color = 'yellow';
   gearBody.draggable = true;
   world.addBody(gearBody);
   addMesh(gearBody);
 
-  gearBody2 = new CANNON.Body({ mass: 1 });
+  gearBody2 = new CANNON.Body({ mass: 100 });
   gearBody2.addShape(gearShape);
   gearBody2.color = 'green';
   gearBody2.draggable = true;
   world.addBody(gearBody2);
   addMesh(gearBody2);
-
-
-  // var cylinderShape = new CANNON.Cylinder(size, size, size*0.2, 30);
-  // var boxShape = new CANNON.Box(new CANNON.Vec3(scale*1.2, scale*0.1, scale*0.1));
-  // gearBody = new CANNON.Body({ mass: 100 });
-  // gearBody.fixedRotation = true;
-  // gearBody.color = 'yellow'
-  // gearBody.addShape(cylinderShape);
-  // var num = 16;
-  // var origin = new CANNON.Vec3(0, 0, 0);
-  // for (var i = 1; i<=num; i++) {
-  //   var quat = new CANNON.Quaternion(0, 0, Math.sin(Math.PI*i/num), Math.cos(Math.PI*i/num));
-  //   gearBody.addShape(boxShape, origin, quat);
-  // }
-  // var xRotate = new CANNON.Quaternion(Math.sin(Math.PI/2), 0, 0, Math.cos(Math.PI/2));
-  // var xRotate = new CANNON.Quaternion(0.5, 0, 0, 0.5);
-  // gearBody.addShape(boxShape, origin, xRotate);
-  // gearBody.position.set(0, 3, 0);
-  // gearBody.draggable = true;
-  // world.add(gearBody);
-  // addMesh(gearBody);
-  // gearBody2 = new CANNON.Body({ mass: 100 });
-  // // gearBody2.fixedRotation = true;
-  // gearBody2.color = 'green'
-  // gearBody2.addShape(cylinderShape);
-  // for (var i = 1; i<=num; i++) {
-  //   var quat = new CANNON.Quaternion(0, 0, Math.sin(Math.PI*i/num), Math.cos(Math.PI*i/num));
-  //   gearBody2.addShape(boxShape, origin, quat);
-  // }
-  // gearBody2.position.set(2, 3, 0);
-  // gearBody2.draggable = true;
-  // world.add(gearBody2);
-  // addMesh(gearBody2);
-
 
 
   var dragcontrols = new THREE.DragControls(camera, objects, renderer.domElement);
@@ -350,9 +321,13 @@ function updatePhysics(){
   lastCallTime = now;
 
   rotate = rotate + 0.01;
-  gearBody.position.set(0, 1.5, 0);
-  gearBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotate);
-  gearBody2.position.set(2.2, 1.7, 0);
+  if (gearBody) {
+    gearBody.position.set(0, 1.5, 0);
+    gearBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotate);
+  }
+  if (gearBody2) {
+    gearBody2.position.set(2.8, 1.7, 0);
+  }
   // boxBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), rotate);
 
   updateMeshes();
