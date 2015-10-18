@@ -238,6 +238,79 @@ function initCannon () {
   // selectedBody.collisionFilterMask = 0;
   // world.add(selectedBody)
 
+
+
+  body = new CANNON.Body( {
+      mass:          10,
+      linearDamping: 0.5
+  } );
+  body.angularDamping = 0.5;
+  var vertices = [];
+
+  // Gray ConvexPolyhedron
+  body.position.set(0, 0, -2);
+  body.quaternion.y = 10;
+  body.quaternion.z = 5;
+  body.quaternion.normalize();
+
+  var verts = [
+    -1,0,1,
+    2,0,1,
+    -1,1,1,
+    2,1,1,
+    -1,1,-1,
+    2,1,-1,
+    -1,0,-1,
+    2,0,-1,
+    0,1,1,
+    0,1,-1,
+    -0.5,1,1,
+    -0.5,1,-1
+  ];
+  var faces = [
+    [0,  1,  2],
+    [2,  1, 10],
+    [10, 1,  8],
+    [1,  3,  8],
+    [2, 10,  4],
+    [4, 10, 11],
+    [7,  6,  5],
+    [5,  6,  9],
+    [6,  4,  9],
+    [4, 11,  9],
+    [6,  7,  0],
+    [0,  7,  1],
+    [1,  7,  3],
+    [3,  7,  5],
+    [6,  0,  4],
+    [4,  0,  2],
+    [9,  8,  5],
+    [5,  8,  3],
+    [11,10,  9],
+    [9, 10,  8]
+  ];
+
+  // var verts = [0,0,0, 0,0,1, 1,0,0, 0,1,0, 1,0,1];
+  // var faces = [
+  //   [0,1,2],
+  //   [0,2,3],
+  //   [0,1,3,4],
+  //   [2,3,4],
+  //   [2,4,1],
+  // ];
+  for (var i=0; i<verts.length / 3; i++) {
+      vertices.push(new CANNON.Vec3(verts[i * 3], verts[i * 3 + 1], verts[i * 3 + 2]));
+  }
+
+  var part = new CANNON.ConvexPolyhedron(vertices, faces);
+  body.addShape(part);
+  body.color = 'yellow';
+  body.draggable = true;
+  world.addBody(body);
+  addMesh(body);
+
+
+
   var dragcontrols = new THREE.DragControls(camera, objects, renderer.domElement);
   dragcontrols.on('hoveron', function (event) {
     console.log('afjoejfoawj')
@@ -270,6 +343,89 @@ function onDocumentMouseDown (event) {
     console.log(selected)
   }
 }
+
+
+function involuteGear(numTeeth, circularPitch, pressureAngle, clearance, thickness)
+{
+  // default values:
+  if(arguments.length < 3) pressureAngle = 20;
+  if(arguments.length < 4) clearance = 0;
+  if(arguments.length < 4) thickness = 1;
+
+  var addendum = circularPitch / Math.PI;
+  var dedendum = addendum + clearance;
+
+  // radiuses of the 4 circles:
+  var pitchRadius = numTeeth * circularPitch / (2 * Math.PI);
+  var baseRadius = pitchRadius * Math.cos(Math.PI * pressureAngle / 180);
+  var outerRadius = pitchRadius + addendum;
+  var rootRadius = pitchRadius - dedendum;
+
+  var maxtanlength = Math.sqrt(outerRadius*outerRadius - baseRadius*baseRadius);
+  var maxangle = maxtanlength / baseRadius;
+
+  var tl_at_pitchcircle = Math.sqrt(pitchRadius*pitchRadius - baseRadius*baseRadius);
+  var angle_at_pitchcircle = tl_at_pitchcircle / baseRadius;
+  var diffangle = angle_at_pitchcircle - Math.atan(angle_at_pitchcircle);
+  var angularToothWidthAtBase = Math.PI / numTeeth + 2*diffangle;
+
+  // build a single 2d tooth in the 'points' array:
+  var resolution = 5;
+  var points = [new CSG.Vector2D(0,0)];
+  for(var i = 0; i <= resolution; i++)
+  {
+    // first side of the tooth:
+    var angle = maxangle * i / resolution;
+    var tanlength = angle * baseRadius;
+    var radvector = CSG.Vector2D.fromAngle(angle);
+    var tanvector = radvector.normal();
+    var p = radvector.times(baseRadius).plus(tanvector.times(tanlength));
+    points[i+1] = p;
+
+    // opposite side of the tooth:
+    radvector = CSG.Vector2D.fromAngle(angularToothWidthAtBase - angle);
+    tanvector = radvector.normal().negated();
+    p = radvector.times(baseRadius).plus(tanvector.times(tanlength));
+    points[2 * resolution + 2 - i] = p;
+  }
+
+  // create the polygon and extrude into 3D:
+  var tooth3d = new CSG.Polygon2D(points).extrude({offset: [0, 0, thickness]});
+
+  var allteeth = new CSG();
+  for(var j = 0; j < numTeeth; j++)
+  {
+    var ang = j*360/numTeeth;
+    var rotatedtooth = tooth3d.rotateZ(ang);
+    allteeth = allteeth.unionForNonIntersecting(rotatedtooth);
+  }
+
+  // build the root circle:
+  points = [];
+  var toothAngle = 2 * Math.PI / numTeeth;
+  var toothCenterAngle = 0.5 * angularToothWidthAtBase;
+  for(var k = 0; k < numTeeth; k++)
+  {
+    var angl = toothCenterAngle + k * toothAngle;
+    var p1 = CSG.Vector2D.fromAngle(angl).times(rootRadius);
+    points.push(p1);
+  }
+
+  // create the polygon and extrude into 3D:
+  var rootcircle = new CSG.Polygon2D(points).extrude({offset: [0, 0, thickness]});
+
+  var result = rootcircle.union(allteeth);
+
+  // center at origin:
+  result = result.translate([0, 0, -thickness/2]);
+
+  return result;
+}
+
+
+
+
+
 
 function onDocumentMouseMove (event) {
   if (!selected) return false;
