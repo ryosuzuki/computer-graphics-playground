@@ -105,6 +105,7 @@ function init() {
 
 var boxShape2;
 var gearBody;
+var hogeBody;
 
 function initCannon () {
   world.gravity.set(0, -10, 0);
@@ -239,21 +240,6 @@ function initCannon () {
   // world.add(selectedBody)
 
 
-
-  body = new CANNON.Body( {
-      mass:          10,
-      linearDamping: 0.5
-  } );
-  body.angularDamping = 0.5;
-  var vertices = [];
-
-  // Gray ConvexPolyhedron
-  body.position.set(0, 0, -2);
-  body.quaternion.y = 10;
-  body.quaternion.z = 5;
-  body.quaternion.normalize();
-
-
   var verts = [
     -1,0,1,
     2,0,1,
@@ -299,28 +285,68 @@ function initCannon () {
   //   [2,3,4],
   //   [2,4,1],
   // ];
-  for (var i=0; i<verts.length / 3; i++) {
-      vertices.push(new CANNON.Vec3(verts[i * 3], verts[i * 3 + 1], verts[i * 3 + 2]));
-  }
-
-  var part = new CANNON.ConvexPolyhedron(vertices, faces);
-  body.addShape(part);
-  body.color = 'yellow';
-  body.draggable = true;
-  world.addBody(body);
-  addMesh(body);
+  // for (var i=0; i<verts.length / 3; i++) {
+  //   vertices.push(new CANNON.Vec3(verts[i * 3], verts[i * 3 + 1], verts[i * 3 + 2]));
+  // }
+  // gear.polygons = Array[380]
+  // var verts = gear.polygons[0].vertices;
+  // var vartices = [];
+  // for (var i=0; i<verts.length; i++) {
+  //   var point = verts[i]
+  //   vertices.push(new CANNON.Vec3(point.x, point.y, point.z));
+  // }
+  // var indices = polygon.vertices.map(function (vertex) {
+  //   var vertexIndex =
+  //   vertices.push(new CANNON.Vec3(vertex.pos.x, vertex.pos.y, vertex.pos.z));
+  //   return vertices.length;
+  // });
+  // for (var j=2; j<indices.length; j++) {
+  //   indices = vertices.length;
+  // }
 
 
 
   var gear = involuteGear(20, 10);
-  // gear.polygons = Array[380]
-  var verts = gear.polygons[0].vertices;
-  var vartices = [];
-  for (var i=0; i<verts.length; i++) {
-    var point = verts[i]
-    vertices.push(new CANNON.Vec3(point.x, point.y, point.z));
+  var vertices = [];
+  var faces = [];
+  var polygons = gear.polygons;
+  for (var i=0; i<polygons.length; i++) {
+    var polygon = polygons[i];
+    for (var j=0; j<polygon.vertices.length; j++) {
+      var vertex = polygon.vertices[j];
+      vertices.push(new CANNON.Vec3(vertex.pos.x, vertex.pos.y, vertex.pos.z));
+      if (j>=2) {
+        var a = vertices[0];
+        var b = vertices[j-1];
+        var c = vertices[j];
+        // v = AB x BC = (b-a) x (c-a)
+        // sign = v * a
+        // sign < 0 -> counteclocwise
+        var ccw = (b.vsub(a).cross(c.vsub(a))).dot(a);
+        var face = (ccw > 0) ? [0, j-1, j] : [0, j, j-1];
+        faces.push(face);
+      }
+    }
   }
 
+  window.vertices = vertices;
+  window.faces = faces;
+
+  var part = new CANNON.ConvexPolyhedron(vertices, faces);
+  hogeBody = new CANNON.Body( {
+      mass:          0,
+      linearDamping: 0.5
+  });
+  hogeBody.angularDamping = 0.5;
+  hogeBody.quaternion.y = 10;
+  hogeBody.quaternion.z = 5;
+  hogeBody.quaternion.normalize();
+  hogeBody.addShape(part);
+  hogeBody.color = 'yellow';
+  hogeBody.draggable = true;
+  hogeBody.position.set(0, 0, 0);
+  world.addBody(hogeBody);
+  addMesh(hogeBody);
 
 
   var dragcontrols = new THREE.DragControls(camera, objects, renderer.domElement);
