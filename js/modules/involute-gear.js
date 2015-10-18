@@ -48,11 +48,11 @@ function involuteGear(numTeeth, circularPitch, pressureAngle, clearance, thickne
   // if(arguments.length < 4) clearance = 0;
   // if(arguments.length < 4) thickness = 1;
 
-  numTeeth = 20;
-  circularPitch = 10;
+  numTeeth = 15;
+  circularPitch = 0.5;
   pressureAngle = 20;
   clearance = 0;
-  thickness = 1;
+  thickness = 0.5;
 
   var addendum = circularPitch / Math.PI;
   var dedendum = addendum + clearance;
@@ -72,7 +72,7 @@ function involuteGear(numTeeth, circularPitch, pressureAngle, clearance, thickne
   var angularToothWidthAtBase = Math.PI / numTeeth + 2*diffangle;
 
   // build a single 2d tooth in the 'points' array:
-  var resolution = 5;
+  var resolution = 2; // 5
   var points = [new CSG.Vector2D(0,0)];
   for(var i = 0; i <= resolution; i++)
   {
