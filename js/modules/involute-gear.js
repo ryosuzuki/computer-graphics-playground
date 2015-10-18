@@ -1,9 +1,58 @@
+// title      : Gear
+// author     : Joost Nieuwenhuijse
+// license    : MIT License
+// description: a simple gear
+// file       : gear.jscad
+
+// Here we define the user editable parameters:
+function getParameterDefinitions() {
+  return [
+    { name: 'numTeeth', caption: 'Number of teeth:', type: 'int', initial: 10 },
+    { name: 'cixrcularPitch', caption: 'Circular pitch:', type: 'float', initial: 5 },
+    { name: 'pressureAngle', caption: 'Pressure angle:', type: 'float', initial: 20 },
+    { name: 'clearance', caption: 'Clearance:', type: 'float', initial: 0 },
+    { name: 'thickness', caption: 'Thickness:', type: 'float', initial: 5 },
+    { name: 'centerholeradius', caption: 'Radius of center hole (0 for no hole):', type: 'float', initial: 2 }
+  ];
+}
+
+// Main entry point; here we construct our solid:
+function main(params)
+{
+  var gear = involuteGear(
+    params.numTeeth,
+    params.circularPitch,
+    params.pressureAngle,
+    params.clearance,
+    params.thickness
+  );
+  if(params.centerholeradius > 0)
+  {
+    var centerhole = CSG.cylinder({start: [0,0,-params.thickness], end: [0,0,params.thickness], radius: params.centerholeradius, resolution: 16});
+    gear = gear.subtract(centerhole);
+  }
+  return gear;
+}
+
+/*
+  For gear terminology see:
+    http://www.astronomiainumbria.org/advanced_internet_files/meccanica/easyweb.easynet.co.uk/_chrish/geardata.htm
+  Algorithm based on:
+    http://www.cartertools.com/involute.html
+  circularPitch: The distance between adjacent teeth measured at the pitch circle
+*/
 function involuteGear(numTeeth, circularPitch, pressureAngle, clearance, thickness)
 {
   // default values:
-  if(arguments.length < 3) pressureAngle = 20;
-  if(arguments.length < 4) clearance = 0;
-  if(arguments.length < 4) thickness = 1;
+  // if(arguments.length < 3) pressureAngle = 20;
+  // if(arguments.length < 4) clearance = 0;
+  // if(arguments.length < 4) thickness = 1;
+
+  numTeeth = 20;
+  circularPitch = 10;
+  pressureAngle = 20;
+  clearance = 0;
+  thickness = 1;
 
   var addendum = circularPitch / Math.PI;
   var dedendum = addendum + clearance;
