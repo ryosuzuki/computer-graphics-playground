@@ -20,6 +20,7 @@ app.use( function *(next) {
 });
 app.use(route.get('/', index));
 app.use(route.get('/gear', gear));
+app.use(route.get('/involute', involute));
 app.use(route.get('/basic', basic));
 app.use(route.get('/physics', physics));
 app.use(route.get('/jenga', jenga));
@@ -31,6 +32,10 @@ function *index() {
 
 function *gear() {
   this.body = yield this.render('gear');
+}
+
+function *involute() {
+  this.body = yield this.render('involute');
 }
 
 function *physics() {
