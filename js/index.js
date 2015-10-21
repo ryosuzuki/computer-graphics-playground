@@ -108,7 +108,15 @@ var faces = [];
 var geometry = new THREE.Geometry();
 var gearMesh;
 
+
+
 function drawObjects () {
+
+  var g = new Gear();
+  var s = new GearSet(g, g, 3);
+  s.createShape();
+
+
   gear = involuteGear(20, 10);
   var polygons = gear.polygons;
   for (var i=0; i<polygons.length; i++) {
