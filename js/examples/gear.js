@@ -151,38 +151,6 @@ function initCannon () {
   // Use a box shape as child shape
   var shape = new CANNON.Box(new CANNON.Vec3(scale, scale*2, scale));
 
-  var bunnyBody = new CANNON.Body({ mass: mass });
-  for(var i=0; i<bunny.length; i++){
-    var rawVerts = bunny[i].verts;
-    var rawFaces = bunny[i].faces;
-    var rawOffset = []; //bunny[i].offset;
-    var verts=[], faces=[], offset;
-    // Get vertices
-    for(var j=0; j<rawVerts.length; j+=3){
-      verts.push(new CANNON.Vec3(rawVerts[j], rawVerts[j+1], rawVerts[j+2]));
-    }
-    // Get faces
-    for(var j=0; j<rawFaces.length; j+=3){
-      faces.push([rawFaces[j],rawFaces[j+1],rawFaces[j+2]]);
-    }
-    // Get offset
-    offset = new CANNON.Vec3(rawOffset[0],rawOffset[1],rawOffset[2]);
-    // Construct polyhedron
-    var bunnyPart = new CANNON.ConvexPolyhedron(verts,faces);
-    // Add to compound
-    bunnyBody.addShape(bunnyPart,offset);
-  }
-
-  // Create body
-  bunnyBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0),-Math.PI/2);
-  bunnyBody.position.set(0, 10, 0);
-  bunnyBody.draggable = true;
-  var z180 = new CANNON.Quaternion();
-  z180.setFromAxisAngle(new CANNON.Vec3(0,0,1),Math.PI);
-  bunnyBody.quaternion = z180.mult(bunnyBody.quaternion);
-  // world.add(bunnyBody);
-  // addMesh(bunnyBody);
-
   var cylinderShape = new CANNON.Cylinder(size, size, size*0.2, 30);
   var boxShape = new CANNON.Box(new CANNON.Vec3(scale*1.2, scale*0.1, scale*0.1));
   gearBody = new CANNON.Body({ mass: 100 });

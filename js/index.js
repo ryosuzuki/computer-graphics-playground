@@ -202,6 +202,7 @@ function onDocumentMouseUp (event) {
 }
 
 var rotate = 0;
+
 function animate(){
   requestAnimationFrame(animate);
   rotate = rotate + 0.01;
