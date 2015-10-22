@@ -65,12 +65,6 @@ var Gear = (function () {
   function Gear(options) {
     var options = options || {};
 
-    options = {
-      circularPitch: 8,
-      qualitySettings: {resolution: 2, stepsPerToothAngle: 3}
-    }
-
-
     this.toothCount = options.toothCount == null ? 15 : options.toothCount;
     if (this.toothCount > 0) {
       this.gearType = GearType.Regular;
@@ -119,7 +113,7 @@ var Gear = (function () {
     //Outer Circle
     this.outerRadius = this.pitchRadius + this.shiftedAddendum;
     this.angleToothToTooth = 360 / this.toothCount;
-    this.qualitySettings = options.qualitySettings;
+    this.qualitySettings = options.qualitySettings || { resolution: 2, stepsPerToothAngle: 3 };
     //OpenJsCad.log("qualitySettings.resolution: " + this.qualitySettings.resolution);
     //OpenJsCad.log("qualitySettings.stepsPerToothAngle: " + this.qualitySettings.stepsPerToothAngle);
   }

@@ -107,17 +107,24 @@ var vertices = [];
 var faces = [];
 var geometry = new THREE.Geometry();
 var gearMesh;
-
-
+var gear1;
+var gear2;
 
 function drawObjects () {
 
-  var g = new Gear();
-  var s = new GearSet(g, g, 3);
-  s.createShape();
+  gear1 = new Gear({
+    circularPitch: 1,
+    toothCount: 15
+  })
+  gear2 = new Gear({
+    circularPitch: 1,
+    toothCount: 0
+  })
+  var gearSet = new GearSet(gear1, gear2, 3);
+  a = gearSet.createShape();
+  gear = a.extrude({offset: [0, 0, 1]})
 
-
-  gear = involuteGear(20, 10);
+  // gear = involuteGear(20, 10);
   var polygons = gear.polygons;
   for (var i=0; i<polygons.length; i++) {
     var polygon = polygons[i];
