@@ -106,6 +106,8 @@ function init() {
 var pinionMesh;
 var rackMesh;
 var stickMesh;
+var button;
+var buttonOn;
 
 function drawObjects () {
 
@@ -117,6 +119,25 @@ function drawObjects () {
   drum.receiveShadow = true;
   scene.add(drum);
 
+
+  var cylinder = new THREE.CylinderGeometry(scale*0.3, scale*0.3, scale*0.4, 100);
+  var material = new THREE.MeshBasicMaterial({ color: 0x00aa00 });
+  var buttonBottom = new THREE.Mesh(cylinder, material);
+  buttonBottom.position.set(3, 0, 3)
+  buttonBottom.castShadow = true;
+  buttonBottom.receiveShadow = true;
+  scene.add(buttonBottom);
+
+
+  var cylinder = new THREE.CylinderGeometry(scale*0.2, scale*0.2, scale*0.4, 100);
+  var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  button = new THREE.Mesh(cylinder, material);
+  button.name = 'button';
+  button.position.set(3, 0.2, 3)
+  button.castShadow = true;
+  button.receiveShadow = true;
+  scene.add(button);
+  objects.push(button);
 
   // var cylinder = new THREE.CSG.toCSG(new THREE.CylinderGeometry(scale*0.1, scale*0.1, scale*1, 100));
   // var sphere = THREE.CSG.toCSG(new THREE.SphereGeometry(scale*0.2, 100, 100));
@@ -209,8 +230,10 @@ function animate(){
   requestAnimationFrame(animate);
 
   if (rotate > 1) rotate = 1;
-  rotate = rotate + 0.01;
+  rotate = rotate + 0.1;
 
+  if (button) button.position.y = buttonOn ? 0.1 : 0.3;
+  if (buttonOn) rotate = 0;
   if (stickMesh) stickMesh.rotation.z = rotate;
   if (rackMesh) rackMesh.position.x = rotate;
   if (pinionMesh) pinionMesh.rotation.z = rotate;
@@ -238,9 +261,15 @@ function onDocumentMouseDown (event) {
   dir = vector.sub(camera.position).normalize()
   raycaster.set(camera.position, dir);
   var intersects = raycaster.intersectObjects(objects);
+  console.log(intersects);
   if (intersects.length > 0) {
     selected = intersects[0];
-    console.log(selected);
+
+    var object = selected.object
+    if (object.name == 'button') {
+      buttonOn = true;
+    }
+
   }
 }
 
@@ -273,18 +302,22 @@ function onDocumentMouseMove (event) {
 
 function onDocumentMouseUp (event) {
   controls.enabled = true;
-  hover = false;
+  if (buttonOn) {
+    buttonOn = false;
+  } else {
+    hover = false;
+  }
   selected = undefined;
 }
 
 $( function () {
   init();
   drawObjects();
-  // dragObjects();
   animate();
 
-  var dragcontrols = new THREE.DragControls( camera, boxHelperObjects, renderer.domElement ); //
+  var dragcontrols = new THREE.DragControls( camera, objects, renderer.domElement ); //
   dragcontrols.on('hoveron', function (event) {
+    console.log('hover')
     hover = true;
   })
   dragcontrols.on('hoveroff', function (event) {
