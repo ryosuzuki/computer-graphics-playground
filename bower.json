@@ -21,6 +21,8 @@
     "lodash": "~3.10.1",
     "three.js": "mrdoob/three.js",
     "cannon.js": "~0.6.2",
-    "OpenJSCAD.org": "Spiritdude/OpenJSCAD.org"
+    "OpenJSCAD.org": "Spiritdude/OpenJSCAD.org",
+    "csg.js": "evanw/csg.js",
+    "csg-wrapper": "kraag22/csg-wrapper"
   }
 }
