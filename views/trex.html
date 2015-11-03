@@ -1,0 +1,21 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+
+<script src="/js/modules/involute-gear.js"></script>
+<script src="/js/modules/rack-pinion.js"></script>
+<script src="js/examples/trex.js"></script>
+
+<div style="position:absolute;top:10px;left:10px;">
+  <div class="ui buttons">
+    <button class="ui blue button" id="init">Init</button>
+    <button class="ui blue button" id="xz">X-Z</button>
+    <button class="ui blue button" id="x">X</button>
+    <button class="ui blue button" id="y">Y</button>
+    <button class="ui blue button" id="z">Z</button>
+  </div>
+</div>
+
+<div id="viewport"></div>
+
+{% endblock %}
