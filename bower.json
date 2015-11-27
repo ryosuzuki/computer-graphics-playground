@@ -23,6 +23,8 @@
     "cannon.js": "~0.6.2",
     "OpenJSCAD.org": "Spiritdude/OpenJSCAD.org",
     "snap.svg": "~0.4.1",
-    "jqSimpleConnect": "jfmdev/jqSimpleConnect#~1.0.0"
+    "jqSimpleConnect": "jfmdev/jqSimpleConnect#~1.0.0",
+    "csg.js": "evanw/csg.js",
+    "csg-wrapper": "kraag22/csg-wrapper"
   }
 }

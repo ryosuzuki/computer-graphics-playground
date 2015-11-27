@@ -20,6 +20,8 @@ app.use( function *(next) {
 });
 app.use(route.get('/', index));
 app.use(route.get('/gear', gear));
+app.use(route.get('/drum', drum));
+app.use(route.get('/trex', trex));
 app.use(route.get('/involute', involute));
 app.use(route.get('/pinion', pinion));
 app.use(route.get('/basic', basic));
@@ -34,6 +36,14 @@ function *index() {
 
 function *gear() {
   this.body = yield this.render('gear');
+}
+
+function *drum() {
+  this.body = yield this.render('drum');
+}
+
+function *trex() {
+  this.body = yield this.render('trex');
 }
 
 function *involute() {
