@@ -1,0 +1,29 @@
+{
+  "name": "jqSimpleConnect",
+  "version": "1.0.0",
+  "authors": [
+    "JFMDev"
+  ],
+  "description": "A lightweight JavaScript library which allows to visually connect elements in a web page",
+  "main": "source/jqSimpleConnect.js",
+  "keywords": [
+    "jquery",
+    "library",
+    "connect",
+    "plugin",
+    "diagram",
+    "flow"
+  ],
+  "license": "LGPLv3",
+  "homepage": "https://github.com/jfmdev/jqsimpleconnect",
+  "_release": "1.0.0",
+  "_resolution": {
+    "type": "version",
+    "tag": "v1.0.0",
+    "commit": "218178bfaa347437f7cb8237a27d64d668f02e10"
+  },
+  "_source": "git://github.com/jfmdev/jqSimpleConnect.git",
+  "_target": "~1.0.0",
+  "_originalSource": "jfmdev/jqSimpleConnect",
+  "_direct": true
+}

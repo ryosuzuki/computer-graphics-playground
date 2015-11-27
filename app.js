@@ -26,6 +26,7 @@ app.use(route.get('/basic', basic));
 app.use(route.get('/physics', physics));
 app.use(route.get('/jenga', jenga));
 app.use(route.get('/hoge', hoge));
+app.use(route.get('/breadboard', breadboard));
 
 function *index() {
   this.body = yield this.render('index');
@@ -57,6 +58,10 @@ function *jenga() {
 
 function *hoge() {
   this.body = yield this.render('hoge');
+}
+
+function *breadboard() {
+  this.body = yield this.render('breadboard');
 }
 
 app.listen(port);

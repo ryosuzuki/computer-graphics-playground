@@ -21,6 +21,8 @@
     "lodash": "~3.10.1",
     "three.js": "mrdoob/three.js",
     "cannon.js": "~0.6.2",
-    "OpenJSCAD.org": "Spiritdude/OpenJSCAD.org"
+    "OpenJSCAD.org": "Spiritdude/OpenJSCAD.org",
+    "snap.svg": "~0.4.1",
+    "jqSimpleConnect": "jfmdev/jqSimpleConnect#~1.0.0"
   }
 }
