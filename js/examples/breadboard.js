@@ -10,13 +10,25 @@ var animateRunning = true;
 
 
 var dots = [{
-  'start': [0, 1],
-  'end':   [8, 8],
-  'color': 'green'
-}, {
-  'start': [1, 5],
-  'end':   [5, 7],
-  'color': 'black'
+  'start': [0, 0],
+  'end':   [1, 1],
+  'color': 'blue'
+},{
+  'start': [3, 1],
+  'end':   [3, 4],
+  'color': 'gray'
+},{
+  'start': [3, 5],
+  'end':   [5, 5],
+  'color': 'orange'
+},{
+  'start': [5, 4],
+  'end':   [6, 4],
+  'color': 'red'
+},{
+  'start': [6, 7],
+  'end':   [8, 0],
+  'color': 'gray'
 }]
 
 $(function(){
