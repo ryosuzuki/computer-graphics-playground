@@ -29,6 +29,7 @@ app.use(route.get('/physics', physics));
 app.use(route.get('/jenga', jenga));
 app.use(route.get('/hoge', hoge));
 app.use(route.get('/breadboard', breadboard));
+app.use(route.get('/svg-breadboard', svgBreadboard));
 
 function *index() {
   this.body = yield this.render('index');
@@ -72,6 +73,10 @@ function *hoge() {
 
 function *breadboard() {
   this.body = yield this.render('breadboard');
+}
+
+function *svgBreadboard() {
+  this.body = yield this.render('svg-breadboard');
 }
 
 app.listen(port);

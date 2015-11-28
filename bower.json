@@ -25,6 +25,10 @@
     "snap.svg": "~0.4.1",
     "jqSimpleConnect": "jfmdev/jqSimpleConnect#~1.0.0",
     "csg.js": "evanw/csg.js",
-    "csg-wrapper": "kraag22/csg-wrapper"
+    "csg-wrapper": "kraag22/csg-wrapper",
+    "snap.svg.zpd": "~0.0.10",
+    "d3": "~3.5.9",
+    "svg.js": "~2.2.2",
+    "svg.import.js": "~1.0.1"
   }
 }
