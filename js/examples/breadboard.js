@@ -84,12 +84,12 @@ var arduino;
 var pos;
 var line;
 
-var hoge;
 
 $(function(){
 
   var lx = 0;
   var ly = 0;
+
 
   moveFnc = function(dx, dy, x, y) {
     var thisBox = this.getBBox();
@@ -135,7 +135,12 @@ function drawArduino() {
     snap.append(arduino);
     initPos();
     arduino.drag(moveFnc, startFnc, endFnc);
+
+    snap.zpd({ pan: false });
+
   });
+
+
 }
 
 
