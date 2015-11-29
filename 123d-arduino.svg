@@ -1874,7 +1874,7 @@
 </rect>
 </g>
 <g transform="translate(35,95) rotate(90)" id="GND">
-  <rect x="-4" y="-4" width="8" height="8" fill="#ff0000" fill-opacity="0" stroke="none" title="GND">
+  <rect x="-4" y="-4" width="8" height="8" fill="#ff0000" fill-opacity="0" stroke="none" title="GND" id="hoge">
 </rect>
 <g>
 </g>
