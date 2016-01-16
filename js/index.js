@@ -61,7 +61,7 @@ var draggableMeshes = [];
 function init() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);
-  camera.position.set(scale*5, scale*5, scale*5)
+  camera.position.set(scale*2, scale*2, scale*2)
   camera.lookAt(new THREE.Vector3(0, 3, 0));
   scene.add( camera );
 
@@ -101,145 +101,123 @@ function init() {
   stats.domElement.style.right = '20px';
   stats.domElement.style.zIndex = 100;
   document.getElementById('viewport').appendChild(stats.domElement);
+
+  document.addEventListener('mousedown', onDocumentMouseDown, false);
+  document.addEventListener('mousemove', onDocumentMouseDown, false);
+  document.addEventListener('mouseup', onDocumentMouseUp, false);
+  document.addEventListener('touchstart', onDocumentTouchStart, false);
+
+  window.addEventListener('resize', onWindowResize, false);
 }
 
 var pinionMesh;
 var rackMesh;
+var geometry
+var materials = [];
+var basicMaterials = [];
+THREE.ImageUtils.crossOrigin = '';
+var texture = THREE.ImageUtils.loadTexture('/plaster.jpg');
+// materials[2] = material
+
+
 function drawObjects () {
-
-  var gear = new Gear({
-    circularPitch: 1,
-    toothCount: 15
-  })
-  var shape = new CAG();
-  pinionShape = shape.union(gear.getZeroedShape());
-  pinion = pinionShape.extrude({offset: [0, 0, 1]});
-  pinionMesh = createMesh(pinion.polygons, 'yellow')
-  pinionMesh.castShadow = true;
-  pinionMesh.receiveShadow = true;
-  pinionMesh.position.set(0, 2.6, 0)
-  scene.add(pinionMesh);
-
-  var gear = new Gear({
-    circularPitch: 1,
-    toothCount: 0
-  })
-  var shape = new CAG();
-  rackShape = shape.union(gear.getZeroedShape());
-  rack = rackShape.extrude({offset: [0, 0, 1]});
-  rackMesh = createMesh(rack.polygons, 0x00ff00)
-  rackMesh.castShadow = true;
-  rackMesh.receiveShadow = true;
-  rackMesh.rotateX( - Math.PI );
-  rackMesh.rotateY( - Math.PI );
-  rackMesh.rotateZ( - Math.PI / 2 );
-  rackMesh.position.set(0, 0, 0);
-  scene.add(rackMesh);
-
-}
-
-function createMesh (polygons, color) {
-  var polygons = polygons;
-  var color = color || 'yellow';
-  var vertices = [];
-  var faces = [];
-  for (var i=0; i<polygons.length; i++) {
-    var polygon = polygons[i];
-    var indices = polygon.vertices.map(function (vertex) {
-      var vertextag = vertex.getTag();
-      var vertexindex = vertices.length;
-      vertices.push(new THREE.Vector3(vertex.pos.x, vertex.pos.y, vertex.pos.z));
-      return vertexindex;
-    });
-    for (var j=2; j<indices.length; j++) {
-      var a = vertices[0];
-      var b = vertices[j-1];
-      var c = vertices[j];
-      // v = AB x BC = (b-a) x (c-a)
-      // sign = v * a
-      // sign < 0 -> counteclocwise
-      var ab = b.subVectors(b, a);
-      var bc = c.subVectors(c, b);
-      var ccw = ab.crossVectors(ab, bc).dot(a);
-      var face = (ccw > 0) ? new THREE.Face3(indices[0], indices[j-1], indices[j]) : new THREE.Face3(indices[0], indices[j], indices[j-1]);
-      faces.push(face);
-    }
+  geometry = new THREE.BoxGeometry(size, size, size);
+  var basicMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  for (var i=0; i<6; i++) {
+    basicMaterials.push(basicMaterial);
+    materials.push(basicMaterial);
   }
-  var geometry = new THREE.Geometry();
-  geometry.vertices = vertices;
-  geometry.faces = faces;
-  geometry.computeBoundingSphere();
-  var material = new THREE.MeshBasicMaterial( { color: color } );
-  material.side = THREE.DoubleSide;
-  var mesh = new THREE.Mesh( geometry, material );
-  return mesh;
+  box = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(materials));
+  box.material = new THREE.MeshFaceMaterial(materials);
+  // box = new THREE.Mesh(geometry, basicMaterial);
+
+  // geometry = new THREE.BoxGeometry( size, size, size );
+  // for ( var i = 0; i < geometry.faces.length; i ++ ) {
+  //   geometry.faces[ i ].color.setHex( Math.random() * 0xffffff );
+  // }
+  // var material = new THREE.MeshBasicMaterial( { color: 0xffffff, vertexColors: THREE.FaceColors } )
+  // box = new THREE.Mesh(geometry, material);
+
+  box.geometry.verticesNeedUpdate = true
+  box.material.verticesNeedUpdate = true
+
+  box.castShadow = true;
+  box.receiveShadow = true;
+  scene.add(box);
+  objects.push(box);
 }
 
 
-function onDocumentMouseDown (event) {
-  if (!hover) return false;
-  draggable = true;
-  controls.enabled = false;
-
-  var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-  var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-  vector = new THREE.Vector3(mouseX, mouseY, 1);
-  vector.unproject(camera);
-  dir = vector.sub(camera.position).normalize()
-  raycaster.set(camera.position, dir);
-  var intersects = raycaster.intersectObjects(objects);
-  if (intersects.length > 0) {
-    selected = intersects[0];
-    window.hoge = selected;
-    console.log(selected)
-  }
+function changeMaterial (intersects, material) {
+  window.current = intersects[0]
+  var materialIndex = intersects[0].face.materialIndex;
+  materials[materialIndex] = material;
+  box.material = new THREE.MeshFaceMaterial(materials);
 }
 
-
+function getIntersects (event) {
+  event.preventDefault();
+  mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+  mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+  raycaster.setFromCamera( mouse, camera );
+  var intersects = raycaster.intersectObjects( objects );
+  return intersects
+}
 
 function onDocumentMouseMove (event) {
-  if (!selected) return false;
-  event.preventDefault();
-
-  selectedBody = selected.object.body;
-
-  var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-  var mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-  vector = new THREE.Vector3(mouseX, mouseY, 1);
-  vector.unproject(camera);
-  dir = vector.sub(camera.position).normalize()
-  raycaster.set(camera.position, dir);
-  var point = raycaster.ray.intersectPlane(new THREE.Plane(groundBody.position));
-  var distance = -camera.position.z / dir.z;
-  pos = camera.position.clone().add(dir.multiplyScalar(distance));
-  if (dimention == 'xz') {
-    selectedBody.position.x = point.x;
-    selectedBody.position.z = point.z;
-  } else if (dimention == 'x') {
-    selectedBody.position.x = point.x;
-  } else if (dimention == 'y') {
-    if (pos.y < scale*1.1) return false;
-    selectedBody.position.y = pos.y;
-  } else if (dimention == 'z') {
-    selectedBody.position.z = point.z;
+  console.log('move')
+  var intersects = getIntersects(event);
+  if (intersects.length > 0) {
+    var basicMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    changeMaterial(intersects, basicMaterial);
   }
 }
 
+var changedIndex = []
+var oldIndex;
+var currentIndex;
+
 function onDocumentMouseUp (event) {
-  controls.enabled = true;
-  hover = false;
-  selected = undefined;
+  console.log('up')
+  var intersects = getIntersects(event);
+  if (intersects.length > 0) {
+    console.log(currentIndex);
+    if (changedIndex.indexOf(currentIndex) == -1) {
+      var specialMaterial = new THREE.MeshPhongMaterial({
+        color: 'gray',
+        map: texture,
+        bumpMap: texture,
+        bumpScale: 0.05
+      })
+      materials[currentIndex] = specialMaterial;
+      changedIndex.push(currentIndex);
+    }
+  }
 }
 
-var rotate = 0;
+function onDocumentMouseDown( event ) {
+  console.log('down')
+  var intersects = getIntersects(event)
+  if ( intersects.length > 0 ) {
+    window.current = intersects[0]
+    currentIndex = intersects[0].face.materialIndex
+    console.log(currentIndex);
+    if (oldIndex != currentIndex) {
+      if (changedIndex.indexOf(oldIndex) == -1) {
+        materials[oldIndex] = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      }
+      oldIndex = currentIndex;
+      if (changedIndex.indexOf(currentIndex) == -1) {
+        var material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+        materials[currentIndex] = material;
+      }
+    }
+  }
+}
+
 
 function animate(){
   requestAnimationFrame(animate);
-
-  if (rackMesh.position.x > 4) rotate = 0;
-  rotate = rotate + 0.01;
-  pinionMesh.rotation.z = rotate;
-  rackMesh.position.x = rotate;
   render();
   stats.update();
 }
@@ -250,26 +228,34 @@ function render() {
   renderer.render(scene, camera);
 }
 
+function onWindowResize () {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize( window.innerWidth, window.innerHeight );
+}
+
+function onDocumentTouchStart( event ) {
+  event.preventDefault();
+  event.clientX = event.touches[0].clientX;
+  event.clientY = event.touches[0].clientY;
+  onDocumentMouseDown( event );
+}
+
+
 $( function () {
   init();
   drawObjects();
   // dragObjects();
   animate();
 
-  $('#init').click( function() {
-    selectedBody.position.setZero();
+  $('#plaster').click( function() {
+    texture = THREE.ImageUtils.loadTexture('/plaster.jpg');
   });
-  $('#xz').click( function() {
-    dimention = 'xz';
+  $('#map').click( function() {
+    texture = THREE.ImageUtils.loadTexture('/map.jpg');
   });
-  $('#x').click( function() {
-    dimention = 'x';
-  });
-  $('#y').click( function() {
-    dimention = 'y';
-  });
-  $('#z').click( function() {
-    dimention = 'z';
+  $('#stone').click( function() {
+    texture = THREE.ImageUtils.loadTexture('/stone.jpg');
   });
 });
 
