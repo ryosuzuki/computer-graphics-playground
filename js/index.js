@@ -145,6 +145,27 @@ function drawObjects () {
   box.receiveShadow = true;
   scene.add(box);
   objects.push(box);
+
+
+  for (var i=0; i<10; i++) {
+    for (var j=0; j<10; j++) {
+      var radius = size/20;
+      var height = size/10;
+      var tetra = new THREE.Mesh(
+        new THREE.CylinderGeometry(0, radius, height, 8, 1),
+        new THREE.MeshBasicMaterial({color: 0x0000ff})
+      )
+      box.castShadow = true;
+      box.receiveShadow = true;
+      tetra.position.y = 0.5+radius;
+      tetra.position.x = -0.5+radius*(2*i + 1);
+      tetra.position.z = -0.5+radius*(2*j + 1);
+      scene.add(tetra);
+    }
+  }
+
+
+
 }
 
 
