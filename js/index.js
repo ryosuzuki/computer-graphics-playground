@@ -135,16 +135,13 @@ var triangle;
 
 function drawObjects () {
   var geometry = new THREE.BoxGeometry(size, size, size);
-  // geometry = new THREE.PlaneGeometry(size, size)
-  var basicMaterial = new THREE.MeshBasicMaterial({ color: 0xff00000 });
-  for (var i=0; i<6; i++) {
-    basicMaterials.push(basicMaterial);
-    materials.push(basicMaterial);
-  }
-  box = new THREE.Mesh(geometry, new THREE.MeshFaceMaterial(materials));
-  box.material = new THREE.MeshFaceMaterial(materials);
-  // box = new THREE.Mesh(geometry, basicMaterial);
-
+  geometry.verticesNeedUpdate = true;
+  // for (var i = 0; i < geometry.faces.length; i ++ ) {
+  //   var face = geometry.faces[i];
+  //   face.color.setRGB( Math.random(), Math.random(), Math.random() );
+  // }
+  var boxMaterial = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors });
+  box = new THREE.Mesh(geometry, boxMaterial);
 
   // geometry = new THREE.BoxGeometry( size, size, size );
   // for ( var i = 0; i < geometry.faces.length; i ++ ) {
@@ -158,7 +155,7 @@ function drawObjects () {
 
   // var quaternion = new THREE.Quaternion();
   // quaternion.setFromAxisAngle(normal, Math.PI/2);
-  box.rotateOnAxis(new THREE.Vector3(1,1,1).normalize(), Math.PI/2);
+  // box.rotateOnAxis(new THREE.Vector3(1,1,1).normalize(), Math.PI/2);
   // box.rotateOnAxis(new THREE.Vector3(1,0,0).normalize(), Math.PI/4);
   // box.rotateOnAxis(new THREE.Vector3(0,1,0).normalize(), Math.PI/4);
 
@@ -167,12 +164,12 @@ function drawObjects () {
   // var theta_z = Math.abs(Math.atan(normal.y, normal.x));
   // box.rotation.set(theta_x, theta_y, theta_z);
 
-  box.geometry.verticesNeedUpdate = true
-  box.material.verticesNeedUpdate = true
+  // box.material.verticesNeedUpdate = true;
+  box.dynamic = true;
   box.castShadow = true;
   box.receiveShadow = true;
   // box.rotation.y = Math.PI/4;
-  // scene.add(box);
+  scene.add(box);
   objects.push(box);
 
 
@@ -185,7 +182,7 @@ function drawObjects () {
   triangle.castShadow = true;
   triangle.receiveShadow = true;
   triangle.rotation.y = Math.PI/4;
-  scene.add(triangle);
+  // scene.add(triangle);
   objects.push(triangle);
 
   // var meshes = [], geometry, material, mesh;
@@ -245,9 +242,6 @@ function mergeMeshes (meshes) {
 }
 
 function getAllTetra (v1, v2, v3) {
-  var v1 = new THREE.Vector3(0,0,1);
-  var v2 = new THREE.Vector3(1,0,0);
-  var v3 = new THREE.Vector3(0,1,0);
   var geometry = new THREE.Geometry();
   geometry.vertices.push(v1);
   geometry.vertices.push(v2);
@@ -282,6 +276,9 @@ function getAllTetra (v1, v2, v3) {
 
   var all = new THREE.Mesh(
     geometry, new THREE.MeshBasicMaterial({color: 'black'}));
+  all.castShadow = true;
+  all.receiveShadow = true;
+
   scene.add(all);
   return all;
 }
@@ -295,7 +292,10 @@ function onDocumentMouseUp (event) {
     console.log(currentIndex);
     if (changedIndex.indexOf(currentIndex) == -1) {
 
-      var all = getAllTetra();
+      var v1 = current.object.geometry.vertices[current.face.a];
+      var v2 = current.object.geometry.vertices[current.face.b];
+      var v3 = current.object.geometry.vertices[current.face.c];
+      var all = getAllTetra(v1, v2, v3);
       // console.log(all)
       // var normal = current.face.normal;
       // window.normal = normal;
@@ -318,21 +318,24 @@ function onDocumentMouseUp (event) {
   }
 }
 
+var oldColor = new THREE.Color('white');
+var selectColor = new THREE.Color('yellow');
+
 function onDocumentMouseDown( event ) {
   console.log('down')
   var intersects = getIntersects(event)
   if ( intersects.length > 0 ) {
     window.current = intersects[0]
-    currentIndex = intersects[0].face.materialIndex
+    currentIndex = current.faceIndex;
     console.log(currentIndex);
     if (oldIndex != currentIndex) {
-      if (changedIndex.indexOf(oldIndex) == -1) {
-        materials[oldIndex] = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      if (oldIndex) {
+        current.object.geometry.faces[oldIndex].color.set(oldColor);
       }
+      current.object.geometry.faces[currentIndex].color.set(selectColor);
+      current.object.geometry.colorsNeedUpdate = true;
       oldIndex = currentIndex;
       if (changedIndex.indexOf(currentIndex) == -1) {
-        var material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-        materials[currentIndex] = material;
       }
     }
   }
