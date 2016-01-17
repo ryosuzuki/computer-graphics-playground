@@ -112,7 +112,6 @@ function init() {
 
 var pinionMesh;
 var rackMesh;
-var geometry
 var materials = [];
 var basicMaterials = [];
 THREE.ImageUtils.crossOrigin = '';
@@ -135,7 +134,7 @@ normal.normalize()
 var triangle;
 
 function drawObjects () {
-  geometry = new THREE.BoxGeometry(size, size, size);
+  var geometry = new THREE.BoxGeometry(size, size, size);
   // geometry = new THREE.PlaneGeometry(size, size)
   var basicMaterial = new THREE.MeshBasicMaterial({ color: 0xff00000 });
   for (var i=0; i<6; i++) {
@@ -189,6 +188,20 @@ function drawObjects () {
   scene.add(triangle);
   objects.push(triangle);
 
+  // var meshes = [], geometry, material, mesh;
+
+  // geometry = new THREE.BoxGeometry(size,size,size);
+  // material = new THREE.MeshLambertMaterial({color: 0xCC0000});
+  // mesh = new THREE.Mesh(geometry, material);
+  // meshes.push(mesh);
+
+  // mesh = new THREE.Mesh(geometry, material);
+  // mesh.position.x = size*2;
+  // meshes.push(mesh);
+  // //merge both geometries
+  // geometry = mergeMeshes(meshes);
+  // mesh = new THREE.Mesh(geometry, material);
+  // scene.add(mesh);
 
 }
 
@@ -222,10 +235,35 @@ var changedIndex = []
 var oldIndex;
 var currentIndex;
 
-function getAllTetra () {
-  var allTetra = new THREE.Geometry();
+function mergeMeshes (meshes) {
+  var combined = new THREE.Geometry();
+  for (var i = 0; i < meshes.length; i++) {
+    meshes[i].updateMatrix();
+    combined.merge(meshes[i].geometry, meshes[i].matrix);
+  }
+  return combined;
+}
+
+function getAllTetra (v1, v2, v3) {
+  var v1 = new THREE.Vector3(0,0,1);
+  var v2 = new THREE.Vector3(1,0,0);
+  var v3 = new THREE.Vector3(0,1,0);
+  var geometry = new THREE.Geometry();
+  geometry.vertices.push(v1);
+  geometry.vertices.push(v2);
+  geometry.vertices.push(v3);
+  geometry.faces.push(new THREE.Face3(0, 1, 2));
+  geometry.verticesNeedUpdate = true;
   for (var i=0; i<10; i++) {
     for (var j=0; j<10; j++) {
+      var c1 = v1.clone()
+      var c2 = v2.clone()
+      var c3 = v3.clone()
+      var a = c1.multiplyScalar( (10-i)/10 * j/10 )
+      var b = c2.multiplyScalar( (10-i)/10 * (10-j)/10 )
+      var c = c3.multiplyScalar( i/10 )
+      var vec = a.add(b).add(c)
+
       var radius = size/20;
       var height = size/10;
       var tetra = new THREE.Mesh(
@@ -234,25 +272,16 @@ function getAllTetra () {
       )
       tetra.castShadow = true;
       tetra.receiveShadow = true;
-      // tetra.rotation.x = theta_x;
-      // tetra.rotation.y = theta_y;
-      // tetra.rotation.z = theta_z;
-
-      // tetra.position.set(
-      //   p0.y+(p.y-p0.y)*j/20,
-      //   p0.x-(p.x-p0.x)*j/20,
-      //   p0.z+(p.z-p0.z)*j/20
-      // )
-      tetra.position.y = 0;
-      tetra.position.z = 0+(2*radius*j);
-      tetra.position.x = 0+(2*radius*i);
-      allTetra.mergeMesh(tetra);
+      tetra.position.set(vec.x, vec.y, vec.z)
+      // tetra.position.y = 0;
+      // tetra.position.z = 0+(2*radius*j);
+      // tetra.position.x = 0+(2*radius*i);
+      geometry.mergeMesh(tetra);
     }
   }
 
   var all = new THREE.Mesh(
-    allTetra, new THREE.MeshBasicMaterial({color: 'red'}));
-  all.geometry.verticesNeedUpdate = true
+    geometry, new THREE.MeshBasicMaterial({color: 'black'}));
   scene.add(all);
   return all;
 }
@@ -267,13 +296,13 @@ function onDocumentMouseUp (event) {
     if (changedIndex.indexOf(currentIndex) == -1) {
 
       var all = getAllTetra();
-      console.log(all)
-      var normal = current.face.normal;
-      window.normal = normal;
+      // console.log(all)
+      // var normal = current.face.normal;
+      // window.normal = normal;
       // all.setRotationFromAxisAngle(normal, Math.PI)
       // all.rotation.y = Math.atan2(-normal.z, normal.x);
-      all.rotation.z = Math.atan2(-normal.x, normal.y);
-      all.rotation.x = Math.atan2(-normal.y, normal.z);
+      // all.rotation.z = Math.atan2(-normal.x, normal.y);
+      // all.rotation.x = Math.atan2(-normal.y, normal.z);
       // all.rotation.x = Math.PI/4;
       console.log(current.face)
 
