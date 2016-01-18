@@ -67,7 +67,7 @@ function init() {
 
   scene.add(new THREE.AmbientLight(0xf0f0f0));
   var light = new THREE.SpotLight(0xffffff, 1.5);
-  light.position.set(scale*2, scale*2, -scale*2);
+  light.position.set(scale*7, scale*7, -scale*7);
   light.castShadow = true;
   light.shadowCameraNear = scale*3;
   light.shadowCameraFar = camera.far;
@@ -132,82 +132,47 @@ normal.crossVectors(ab, bc)
 normal.normalize()
 
 var triangle;
+var cylinder;
 
 function drawObjects () {
-  var geometry = new THREE.BoxGeometry(size, size, size);
-  geometry.verticesNeedUpdate = true;
-  // for (var i = 0; i < geometry.faces.length; i ++ ) {
-  //   var face = geometry.faces[i];
-  //   face.color.setRGB( Math.random(), Math.random(), Math.random() );
-  // }
-  var boxMaterial = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors });
-  box = new THREE.Mesh(geometry, boxMaterial);
-
-  // geometry = new THREE.BoxGeometry( size, size, size );
-  // for ( var i = 0; i < geometry.faces.length; i ++ ) {
-  //   geometry.faces[ i ].color.setHex( Math.random() * 0xffffff );
-  // }
-  // var material = new THREE.MeshBasicMaterial( { color: 0xffffff, vertexColors: THREE.FaceColors } )
-  // box = new THREE.Mesh(geometry, material);
-
-  var theta = Math.PI/8;
-
-
-  // var quaternion = new THREE.Quaternion();
-  // quaternion.setFromAxisAngle(normal, Math.PI/2);
-  // box.rotateOnAxis(new THREE.Vector3(1,1,1).normalize(), Math.PI/2);
-  // box.rotateOnAxis(new THREE.Vector3(1,0,0).normalize(), Math.PI/4);
-  // box.rotateOnAxis(new THREE.Vector3(0,1,0).normalize(), Math.PI/4);
-
-  // var theta_x = Math.abs(Math.atan(normal.z, normal.y));
-  // var theta_y = Math.abs(Math.atan(normal.x, normal.z));
-  // var theta_z = Math.abs(Math.atan(normal.y, normal.x));
-  // box.rotation.set(theta_x, theta_y, theta_z);
-
-  // box.material.verticesNeedUpdate = true;
+  box = new THREE.Mesh(
+    new THREE.BoxGeometry(size, size, size),
+    new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
+  );
+  box.geometry.verticesNeedUpdate = true;
   box.dynamic = true;
   box.castShadow = true;
   box.receiveShadow = true;
-  // box.rotation.y = Math.PI/4;
+  box.position.set(-2, 0, 1);
   scene.add(box);
   objects.push(box);
 
-
   triangle = new THREE.Mesh(
     new THREE.TetrahedronGeometry(size),
-    new THREE.MeshFaceMaterial(materials)
+    new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
   )
   triangle.geometry.verticesNeedUpdate = true
   triangle.material.verticesNeedUpdate = true
   triangle.castShadow = true;
   triangle.receiveShadow = true;
   triangle.rotation.y = Math.PI/4;
-  // scene.add(triangle);
+  scene.add(triangle);
   objects.push(triangle);
 
-  // var meshes = [], geometry, material, mesh;
-
-  // geometry = new THREE.BoxGeometry(size,size,size);
-  // material = new THREE.MeshLambertMaterial({color: 0xCC0000});
-  // mesh = new THREE.Mesh(geometry, material);
-  // meshes.push(mesh);
-
-  // mesh = new THREE.Mesh(geometry, material);
-  // mesh.position.x = size*2;
-  // meshes.push(mesh);
-  // //merge both geometries
-  // geometry = mergeMeshes(meshes);
-  // mesh = new THREE.Mesh(geometry, material);
-  // scene.add(mesh);
-
-}
+  cylinder = new THREE.Mesh(
+    new THREE.CylinderGeometry(size, size, size*2, 20),
+    new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
+  );
+  cylinder.geometry.verticesNeedUpdate = true;
+  cylinder.dynamic = true;
+  cylinder.castShadow = true;
+  cylinder.receiveShadow = true;
+  cylinder.position.set(1, 0, -2);
+  scene.add(cylinder);
+  objects.push(cylinder);
 
 
-function changeMaterial (intersects, material) {
-  window.current = intersects[0]
-  var materialIndex = intersects[0].face.materialIndex;
-  materials[materialIndex] = material;
-  box.material = new THREE.MeshFaceMaterial(materials);
+
 }
 
 function getIntersects (event) {
@@ -232,22 +197,24 @@ var changedIndex = []
 var oldIndex;
 var currentIndex;
 
-function mergeMeshes (meshes) {
-  var combined = new THREE.Geometry();
-  for (var i = 0; i < meshes.length; i++) {
-    meshes[i].updateMatrix();
-    combined.merge(meshes[i].geometry, meshes[i].matrix);
-  }
-  return combined;
-}
+function getTexture (current) {
+  var v1 = current.object.geometry.vertices[current.face.a];
+  var v2 = current.object.geometry.vertices[current.face.b];
+  var v3 = current.object.geometry.vertices[current.face.c];
+  var pos = current.object.position;
+  var normal = current.face.normal
 
-function getAllTetra (v1, v2, v3) {
   var geometry = new THREE.Geometry();
   geometry.vertices.push(v1);
   geometry.vertices.push(v2);
   geometry.vertices.push(v3);
   geometry.faces.push(new THREE.Face3(0, 1, 2));
   geometry.verticesNeedUpdate = true;
+
+  var rot = current.object.rotation;
+  var axis = new THREE.Vector3(0, 1, 0);
+  var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
+  var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
   for (var i=0; i<10; i++) {
     for (var j=0; j<10; j++) {
       var c1 = v1.clone()
@@ -256,7 +223,7 @@ function getAllTetra (v1, v2, v3) {
       var a = c1.multiplyScalar( (10-i)/10 * j/10 )
       var b = c2.multiplyScalar( (10-i)/10 * (10-j)/10 )
       var c = c3.multiplyScalar( i/10 )
-      var vec = a.add(b).add(c)
+      var point = a.add(b).add(c)
 
       var radius = size/20;
       var height = size/10;
@@ -264,23 +231,22 @@ function getAllTetra (v1, v2, v3) {
         new THREE.CylinderGeometry(0, radius, height, 8, 1),
         new THREE.MeshLambertMaterial({color: 0x0000ff})
       )
+      tetra.applyMatrix(matrix);
       tetra.castShadow = true;
       tetra.receiveShadow = true;
-      tetra.position.set(vec.x, vec.y, vec.z)
-      // tetra.position.y = 0;
-      // tetra.position.z = 0+(2*radius*j);
-      // tetra.position.x = 0+(2*radius*i);
+      tetra.position.set(point.x, point.y, point.z)
       geometry.mergeMesh(tetra);
     }
   }
 
-  var all = new THREE.Mesh(
-    geometry, new THREE.MeshBasicMaterial({color: 'black'}));
-  all.castShadow = true;
-  all.receiveShadow = true;
-
-  scene.add(all);
-  return all;
+  var texture = new THREE.Mesh(
+    geometry, new THREE.MeshBasicMaterial({color: 'yellow'}));
+  texture.rotation.set(rot.x, rot.y, rot.z, rot.order)
+  texture.castShadow = true;
+  texture.receiveShadow = true;
+  texture.position.set(pos.x, pos.y, pos.z);
+  scene.add(texture);
+  return texture;
 }
 
 
@@ -291,28 +257,8 @@ function onDocumentMouseUp (event) {
   if (intersects.length > 0) {
     console.log(currentIndex);
     if (changedIndex.indexOf(currentIndex) == -1) {
-
-      var v1 = current.object.geometry.vertices[current.face.a];
-      var v2 = current.object.geometry.vertices[current.face.b];
-      var v3 = current.object.geometry.vertices[current.face.c];
-      var all = getAllTetra(v1, v2, v3);
-      // console.log(all)
-      // var normal = current.face.normal;
-      // window.normal = normal;
-      // all.setRotationFromAxisAngle(normal, Math.PI)
-      // all.rotation.y = Math.atan2(-normal.z, normal.x);
-      // all.rotation.z = Math.atan2(-normal.x, normal.y);
-      // all.rotation.x = Math.atan2(-normal.y, normal.z);
-      // all.rotation.x = Math.PI/4;
+      var texture = getTexture(current);
       console.log(current.face)
-
-      // var specialMaterial = new THREE.MeshPhongMaterial({
-      //   color: 'gray',
-      //   map: texture,
-      //   bumpMap: texture,
-      //   bumpScale: 0.05
-      // })
-      // materials[currentIndex] = specialMaterial;
       changedIndex.push(currentIndex);
     }
   }
@@ -325,11 +271,12 @@ function onDocumentMouseDown( event ) {
   console.log('down')
   var intersects = getIntersects(event)
   if ( intersects.length > 0 ) {
+    // if (current !== intersects[0]) oldIndex = undefined;
     window.current = intersects[0]
     currentIndex = current.faceIndex;
     console.log(currentIndex);
     if (oldIndex != currentIndex) {
-      if (oldIndex) {
+      if (oldIndex && current.object.geometry.faces[oldIndex]) {
         current.object.geometry.faces[oldIndex].color.set(oldColor);
       }
       current.object.geometry.faces[currentIndex].color.set(selectColor);
