@@ -133,8 +133,55 @@ normal.normalize()
 
 var triangle;
 var cylinder;
+var mesh;
 
 function drawObjects () {
+
+  var xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function () {
+    if ( xhr.readyState == 4 ) {
+      if ( xhr.status == 200 || xhr.status == 0 ) {
+        var rep = xhr.response; // || xhr.mozResponseArrayBuffer;
+        console.log(rep);
+        parseStlBinary(rep);
+        //parseStl(xhr.responseText);
+        mesh.rotation.x = 5;
+        mesh.rotation.z = .25;
+        console.log('done parsing');
+      }
+    }
+  }
+  xhr.onerror = function(e) {
+    console.log(e);
+  }
+  xhr.open( "GET", 'assets/colored.stl', true );
+  xhr.responseType = "arraybuffer";
+  //xhr.setRequestHeader("Accept","text/plain");
+  //xhr.setRequestHeader("Content-Type","text/plain");
+  //xhr.setRequestHeader('charset', 'x-user-defined');
+  xhr.send( null );
+
+  // parseStl('/assets/bunny-low.stl');
+
+  /*
+  var loader = new THREE.STLLoader();
+  loader.load('/assets/pr2_head_pan.stl', function (geometry) {
+    mesh = new THREE.Mesh(
+      geometry,
+      new THREE.MeshBasicMaterial({color: 'red', vertexColors: THREE.FaceColors })
+    );
+    // mesh.scale.set(5, 5, 5);
+    mesh.geometry.verticesNeedUpdate = true;
+    mesh.dynamic = true;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    objects.push(mesh);
+  })
+  */
+
+
+  /*
   box = new THREE.Mesh(
     new THREE.BoxGeometry(size, size, size),
     new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
@@ -170,7 +217,7 @@ function drawObjects () {
   cylinder.position.set(1, 0, -2);
   scene.add(cylinder);
   objects.push(cylinder);
-
+  */
 
 
 }

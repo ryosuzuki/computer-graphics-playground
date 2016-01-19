@@ -91,7 +91,7 @@ $(function(){
   var lx = 0;
   var ly = 0;
 
-  Snap.load("breadboard.svg", function (f) {
+  Snap.load("assets/breadboard.svg", function (f) {
     breadboard = f.select("g");
     breadboard.name = 'breadboard';
     breadboard.ox = 0;//50;
@@ -166,7 +166,7 @@ function drawRegister() {
 }
 
 function drawArduino() {
-  Snap.load("arduino.svg", function (f) {
+  Snap.load("assets/arduino.svg", function (f) {
     arduino = f.select("g");
     arduino.name = 'arduino';
     arduino.ox = 0;//500;

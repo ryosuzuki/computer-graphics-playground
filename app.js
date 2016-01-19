@@ -19,6 +19,10 @@ app.use( function *(next) {
   yield next;
 });
 app.use(route.get('/', index));
+app.use(route.get('/simple-texture', simpleTexture));
+app.use(route.get('/image-texture', imageTexture));
+app.use(route.get('/stl', stl));
+app.use(route.get('/test-stl', testStl));
 app.use(route.get('/gear', gear));
 app.use(route.get('/drum', drum));
 app.use(route.get('/trex', trex));
@@ -33,6 +37,18 @@ app.use(route.get('/svg-breadboard', svgBreadboard));
 
 function *index() {
   this.body = yield this.render('index');
+}
+function *simpleTexture() {
+  this.body = yield this.render('simple-texture');
+}
+function *imageTexture() {
+  this.body = yield this.render('image-texture');
+}
+function *stl() {
+  this.body = yield this.render('stl');
+}
+function *testStl() {
+  this.body = yield this.render('test-stl');
 }
 
 function *gear() {
