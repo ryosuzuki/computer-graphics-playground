@@ -22,6 +22,7 @@ app.use(route.get('/', index));
 app.use(route.get('/simple-texture', simpleTexture));
 app.use(route.get('/image-texture', imageTexture));
 app.use(route.get('/stl', stl));
+app.use(route.get('/stl-export', stlExport));
 app.use(route.get('/test-stl', testStl));
 app.use(route.get('/gear', gear));
 app.use(route.get('/drum', drum));
@@ -46,6 +47,9 @@ function *imageTexture() {
 }
 function *stl() {
   this.body = yield this.render('stl');
+}
+function *stlExport() {
+  this.body = yield this.render('stl-export');
 }
 function *testStl() {
   this.body = yield this.render('test-stl');

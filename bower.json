@@ -29,6 +29,7 @@
     "snap.svg.zpd": "~0.0.10",
     "d3": "~3.5.9",
     "svg.js": "~2.2.2",
-    "svg.import.js": "~1.0.1"
+    "svg.import.js": "~1.0.1",
+    "FileSaver.js": "git@github.com:eligrey/FileSaver.js.git"
   }
 }
