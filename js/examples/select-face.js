@@ -143,38 +143,212 @@ function drawObjects () {
   cylinder.dynamic = true;
   cylinder.castShadow = true;
   cylinder.receiveShadow = true;
-  scene.add(cylinder);
-  objects.push(cylinder);
-}
+  // scene.add(cylinder);
+  // objects.push(cylinder);
 
-function getIntersects (event) {
-  event.preventDefault();
-  mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
-  mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
-  raycaster.setFromCamera( mouse, camera );
-  var intersects = raycaster.intersectObjects( objects );
-  return intersects
-}
+  box = new THREE.Mesh(
+    new THREE.BoxGeometry(size, size, size),
+    new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
+  );
+  box.geometry.verticesNeedUpdate = true;
+  box.dynamic = true;
+  box.castShadow = true;
+  box.receiveShadow = true;
+  scene.add(box);
+  objects.push(box);
 
-function onDocumentMouseMove (event) {
-  console.log('move')
-  var intersects = getIntersects(event);
-  if (intersects.length > 0) {
-    var basicMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-    changeMaterial(intersects, basicMaterial);
+
+
+  var xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function () {
+    if ( xhr.readyState == 4 ) {
+      if ( xhr.status == 200 || xhr.status == 0 ) {
+        var rep = xhr.response;
+        console.log(rep);
+        parseStlBinary(rep);
+        mesh.material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors});
+        mesh.geometry.verticesNeedUpdate = true;
+        mesh.dynamic = true;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.rotation.x = 5;
+        mesh.rotation.z = .25;
+        console.log('done parsing');
+      }
+    }
   }
+  xhr.onerror = function(e) {
+    console.log(e);
+  }
+  xhr.open( "GET", 'assets/colored.stl', true );
+  xhr.responseType = "arraybuffer";
+  xhr.send( null );
+
 }
 
 var changedIndex = []
 var oldIndex;
 var currentIndex;
 
+
+var oldColor = new THREE.Color('white');
+var selectColor = new THREE.Color('yellow');
+
+function onDocumentMouseDown( event ) {
+  var intersects = getIntersects(event)
+  if ( intersects.length > 0 ) {
+    // if (current !== intersects[0]) oldIndex = undefined;
+    window.current = intersects[0];
+    currentIndex = current.faceIndex;
+
+    var v1 = current.object.geometry.vertices[current.face.a];
+    var v2 = current.object.geometry.vertices[current.face.b];
+    var v3 = current.object.geometry.vertices[current.face.c];
+    var pos = current.object.position;
+    var faces = current.object.geometry.faces;
+
+    var n = current.face.normal.normalize();
+    var sameNormal = [];
+    faces.forEach( function (face, index) {
+      var m = face.normal.normalize();
+      if (compareVector(n, m)) {
+        // face.color.set(new THREE.Color('yellow'));
+        sameNormal.push(face);
+      }
+    });
+    // console.log(sameNormal)
+    current.object.geometry.colorsNeedUpdate = true;
+
+
+    var n = current.face.normal.normalize();
+    var index = current.faceIndex;
+    var sameInverse = [];
+    while (true) {
+      var face = faces[index+1];
+      if (!face) break;
+      var m = face.normal.normalize();
+      if (compareVector(n.negate(), m)) {
+        face.color.set(new THREE.Color('yellow'));
+        sameInverse.push(face);
+      }
+      index = index + 1;
+    }
+    while (true) {
+      var face = faces[index-1];
+      if (!face) break;
+      var m = face.normal.normalize();
+      if (compareVector(n.negate(), m)) {
+        face.color.set(new THREE.Color('yellow'));
+        sameInverse.push(face);
+      }
+      index = index + 1;
+    }
+    // console.log(sameNormal)
+    current.object.geometry.colorsNeedUpdate = true;
+
+
+    var n = calcurateArea(current.face);
+    var sameArea = [];
+    faces.forEach( function (face, index) {
+      var m = calcurateArea(face);
+      if (m.toPrecision(2) == n.toPrecision(2)) {
+        // face.color.set(new THREE.Color('yellow'));
+        sameArea.push(face);
+      }
+    });
+    // console.log(sameArea)
+    current.object.geometry.colorsNeedUpdate = true;
+
+
+    var index = current.faceIndex;
+    var sameDiff = [];
+    while (true) {
+      var face = faces[index];
+      if (!faces[index+1] || !faces[index+2]) break;
+      var n = calcurateDiff(index, index+1)
+      var m = calcurateDiff(index+1, index+2)
+      if (compareVector(n, m)) {
+        // face.color.set(new THREE.Color('yellow'));
+        sameDiff.push(face);
+      }
+      index = index + 1;
+    }
+    var index = current.faceIndex;
+    while (true) {
+      var face = faces[index];
+      if (!faces[index-1] || !faces[index-2]) break;
+      var n = calcurateDiff(index, index-1)
+      var m = calcurateDiff(index-1, index-2)
+      if (compareVector(n, m)) {
+        // face.color.set(new THREE.Color('yellow'));
+        sameDiff.push(face);
+      }
+      index = index - 1;
+    }
+    console.log(sameDiff)
+    current.object.geometry.colorsNeedUpdate = true;
+
+
+    function compareVector(n, m) {
+      var p = 1;
+      if (
+        n.x.toPrecision(p) == m.x.toPrecision(p)
+        && n.y.toPrecision(p) == m.y.toPrecision(p)
+        && n.z.toPrecision(p) == m.z.toPrecision(p)
+      ) {
+        return true;
+      } else {
+        false;
+      }
+    }
+
+    function calcurateDiff(i, j) {
+      var face = current.object.geometry.faces[i];
+      var next = current.object.geometry.faces[j];
+      var a = face.normal.normalize();
+      var b = next.normal.normalize();
+      var diff = a.clone().sub(b);
+      return diff;
+    }
+
+
+    function calcurateArea (face) {
+      var va = current.object.geometry.vertices[face.a];
+      var vb = current.object.geometry.vertices[face.b];
+      var vc = current.object.geometry.vertices[face.c];
+      var ab = vb.clone().sub(va);
+      var ac = vc.clone().sub(va);
+      var cross = new THREE.Vector3();
+      cross.crossVectors( ab, ac );
+      var area = cross.lengthSq() / 2;
+      return area;
+    }
+
+
+    // console.log(currentIndex);
+    /*
+    if (oldIndex != currentIndex) {
+      if (oldIndex && current.object.geometry.faces[oldIndex]) {
+        current.object.geometry.faces[oldIndex].color.set(oldColor);
+      }
+      current.object.geometry.faces[currentIndex].color.set(selectColor);
+      current.object.geometry.colorsNeedUpdate = true;
+      oldIndex = currentIndex;
+      if (changedIndex.indexOf(currentIndex) == -1) {
+      }
+    }
+    */
+  }
+}
+
+
+
 function getTexture (current) {
   var v1 = current.object.geometry.vertices[current.face.a];
   var v2 = current.object.geometry.vertices[current.face.b];
   var v3 = current.object.geometry.vertices[current.face.c];
   var pos = current.object.position;
-  var normal = current.face.normal
+  var n = current.face.normal.normalize();
 
   var geometry = new THREE.Geometry();
   geometry.vertices.push(v1);
@@ -224,39 +398,34 @@ function getTexture (current) {
 
 
 function onDocumentMouseUp (event) {
-  console.log('up')
+  // console.log('up')
   var intersects = getIntersects(event);
   if (intersects.length > 0) {
-    console.log(currentIndex);
+    // console.log(currentIndex);
     if (changedIndex.indexOf(currentIndex) == -1) {
-      var texture = getTexture(current);
+      // var texture = getTexture(current);
       console.log(current.face)
-      changedIndex.push(currentIndex);
+      // changedIndex.push(currentIndex);
     }
   }
 }
 
-var oldColor = new THREE.Color('white');
-var selectColor = new THREE.Color('yellow');
 
-function onDocumentMouseDown( event ) {
-  console.log('down')
-  var intersects = getIntersects(event)
-  if ( intersects.length > 0 ) {
-    // if (current !== intersects[0]) oldIndex = undefined;
-    window.current = intersects[0]
-    currentIndex = current.faceIndex;
-    console.log(currentIndex);
-    if (oldIndex != currentIndex) {
-      if (oldIndex && current.object.geometry.faces[oldIndex]) {
-        current.object.geometry.faces[oldIndex].color.set(oldColor);
-      }
-      current.object.geometry.faces[currentIndex].color.set(selectColor);
-      current.object.geometry.colorsNeedUpdate = true;
-      oldIndex = currentIndex;
-      if (changedIndex.indexOf(currentIndex) == -1) {
-      }
-    }
+function getIntersects (event) {
+  event.preventDefault();
+  mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
+  mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
+  raycaster.setFromCamera( mouse, camera );
+  var intersects = raycaster.intersectObjects( objects );
+  return intersects
+}
+
+function onDocumentMouseMove (event) {
+  console.log('move')
+  var intersects = getIntersects(event);
+  if (intersects.length > 0) {
+    var basicMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    changeMaterial(intersects, basicMaterial);
   }
 }
 

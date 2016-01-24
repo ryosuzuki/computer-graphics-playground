@@ -49,15 +49,14 @@ var parseStlBinary = function(stl) {
   // once we've assembled our geometry. This is a relatively
   // expensive operation, but only needs to be done once.
   geo.computeFaceNormals();
+  geo.colorsNeedUpdate = true;
   mesh = new THREE.Mesh(
     geo,
-    // new THREE.MeshNormalMaterial({
-    //   overdraw:true
-    // }
     new THREE.MeshLambertMaterial({
       overdraw:true,
       color: 0xaa0000,
-      shading: THREE.FlatShading
+      shading: THREE.FlatShading,
+      vertexColors: THREE.FaceColors
     }
   ));
   scene.add(mesh);
