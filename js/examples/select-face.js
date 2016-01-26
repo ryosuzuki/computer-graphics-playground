@@ -212,7 +212,7 @@ function onDocumentMouseDown( event ) {
     faces.forEach( function (face, index) {
       var m = face.normal.normalize();
       if (compareVector(n, m)) {
-        // face.color.set(new THREE.Color('yellow'));
+        face.color.set(new THREE.Color('yellow'));
         sameNormal.push(face);
       }
     });
@@ -220,71 +220,71 @@ function onDocumentMouseDown( event ) {
     current.object.geometry.colorsNeedUpdate = true;
 
 
-    var n = current.face.normal.normalize();
-    var index = current.faceIndex;
-    var sameInverse = [];
-    while (true) {
-      var face = faces[index+1];
-      if (!face) break;
-      var m = face.normal.normalize();
-      if (compareVector(n.negate(), m)) {
-        face.color.set(new THREE.Color('yellow'));
-        sameInverse.push(face);
-      }
-      index = index + 1;
-    }
-    while (true) {
-      var face = faces[index-1];
-      if (!face) break;
-      var m = face.normal.normalize();
-      if (compareVector(n.negate(), m)) {
-        face.color.set(new THREE.Color('yellow'));
-        sameInverse.push(face);
-      }
-      index = index + 1;
-    }
-    // console.log(sameNormal)
-    current.object.geometry.colorsNeedUpdate = true;
+    // var n = current.face.normal.normalize();
+    // var index = current.faceIndex;
+    // var sameInverse = [];
+    // while (true) {
+    //   var face = faces[index+1];
+    //   if (!face) break;
+    //   var m = face.normal.normalize();
+    //   if (compareVector(n.negate(), m)) {
+    //     face.color.set(new THREE.Color('yellow'));
+    //     sameInverse.push(face);
+    //   }
+    //   index = index + 1;
+    // }
+    // while (true) {
+    //   var face = faces[index-1];
+    //   if (!face) break;
+    //   var m = face.normal.normalize();
+    //   if (compareVector(n.negate(), m)) {
+    //     face.color.set(new THREE.Color('yellow'));
+    //     sameInverse.push(face);
+    //   }
+    //   index = index + 1;
+    // }
+    // // console.log(sameNormal)
+    // current.object.geometry.colorsNeedUpdate = true;
 
 
-    var n = calcurateArea(current.face);
-    var sameArea = [];
-    faces.forEach( function (face, index) {
-      var m = calcurateArea(face);
-      if (m.toPrecision(2) == n.toPrecision(2)) {
-        // face.color.set(new THREE.Color('yellow'));
-        sameArea.push(face);
-      }
-    });
-    // console.log(sameArea)
-    current.object.geometry.colorsNeedUpdate = true;
+    // var n = calcurateArea(current.face);
+    // var sameArea = [];
+    // faces.forEach( function (face, index) {
+    //   var m = calcurateArea(face);
+    //   if (m.toPrecision(2) == n.toPrecision(2)) {
+    //     // face.color.set(new THREE.Color('yellow'));
+    //     sameArea.push(face);
+    //   }
+    // });
+    // // console.log(sameArea)
+    // current.object.geometry.colorsNeedUpdate = true;
 
 
-    var index = current.faceIndex;
-    var sameDiff = [];
-    while (true) {
-      var face = faces[index];
-      if (!faces[index+1] || !faces[index+2]) break;
-      var n = calcurateDiff(index, index+1)
-      var m = calcurateDiff(index+1, index+2)
-      if (compareVector(n, m)) {
-        // face.color.set(new THREE.Color('yellow'));
-        sameDiff.push(face);
-      }
-      index = index + 1;
-    }
-    var index = current.faceIndex;
-    while (true) {
-      var face = faces[index];
-      if (!faces[index-1] || !faces[index-2]) break;
-      var n = calcurateDiff(index, index-1)
-      var m = calcurateDiff(index-1, index-2)
-      if (compareVector(n, m)) {
-        // face.color.set(new THREE.Color('yellow'));
-        sameDiff.push(face);
-      }
-      index = index - 1;
-    }
+    // var index = current.faceIndex;
+    // var sameDiff = [];
+    // while (true) {
+    //   var face = faces[index];
+    //   if (!faces[index+1] || !faces[index+2]) break;
+    //   var n = calcurateDiff(index, index+1)
+    //   var m = calcurateDiff(index+1, index+2)
+    //   if (compareVector(n, m)) {
+    //     // face.color.set(new THREE.Color('yellow'));
+    //     sameDiff.push(face);
+    //   }
+    //   index = index + 1;
+    // }
+    // var index = current.faceIndex;
+    // while (true) {
+    //   var face = faces[index];
+    //   if (!faces[index-1] || !faces[index-2]) break;
+    //   var n = calcurateDiff(index, index-1)
+    //   var m = calcurateDiff(index-1, index-2)
+    //   if (compareVector(n, m)) {
+    //     // face.color.set(new THREE.Color('yellow'));
+    //     sameDiff.push(face);
+    //   }
+    //   index = index - 1;
+    // }
     console.log(sameDiff)
     current.object.geometry.colorsNeedUpdate = true;
 
