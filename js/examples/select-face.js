@@ -144,12 +144,39 @@ function drawObjects () {
   cylinder.dynamic = true;
   cylinder.castShadow = true;
   cylinder.receiveShadow = true;
-  scene.add(cylinder);
-  objects.push(cylinder);
-  window.geometry = cylinder.geometry;
+  // scene.add(cylinder);
+  // objects.push(cylinder);
 
 
 
+  var xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function () {
+    if ( xhr.readyState == 4 ) {
+      if ( xhr.status == 200 || xhr.status == 0 ) {
+        var rep = xhr.response; // || xhr.mozResponseArrayBuffer;
+        console.log(rep);
+        parseStlBinary(rep);
+        //parseStl(xhr.responseText);
+        window.geometry = mesh.geometry;
+        mesh.rotation.x = 5;
+        mesh.rotation.z = .25;
+        console.log('done parsing');
+        compute();
+      }
+    }
+  }
+  xhr.onerror = function(e) {
+    console.log(e);
+  }
+  xhr.open( "GET", 'assets/colored.stl', true );
+  xhr.responseType = "arraybuffer";
+  //xhr.setRequestHeader("Accept","text/plain");
+  //xhr.setRequestHeader("Content-Type","text/plain");
+  //xhr.setRequestHeader('charset', 'x-user-defined');
+  xhr.send( null );
+
+  function compute () {
+    console.log('start');
 
   computeUniq(geometry, function (geometry) {
     computeLaplacian(geometry, function (geometry) {
@@ -189,7 +216,7 @@ function drawObjects () {
     })
   })
 
-
+  }
 
   box = new THREE.Mesh(
     new THREE.BoxGeometry(size, size, size),

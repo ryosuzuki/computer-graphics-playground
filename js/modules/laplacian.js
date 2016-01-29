@@ -6,23 +6,27 @@ function computeHarmonicField(geometry, callback) {
   var q = Math.round(Math.random()*n);
   var laplacian = geometry.laplacian;
   var w = 1000;
-  var b = math.zeros(1, n+2);
-  b.subset(math.index(0, n), 1);
-  b.subset(math.index(0, n+1), 0);
+  var b = Array.apply(null, Array(n+2)).map(Number.prototype.valueOf, 0);
+  b[n] = 1;
+  b[n+1] = 0;
 
-  var A = math.zeros(n, n+2);
+  var A = [];
+  for (var i=0; i<n; ++i) {
+    var a = Array.apply(null, Array(n+2)).map(Number.prototype.valueOf, 0)
+    A.push(a);
+  }
+
   laplacian.forEach( function (value, index) {
-    A.subset(math.index(index[0], index[1]), value);
+    A[index[0]][index[1]] = value;
   });
-  A.subset(math.index(p, n), w);
-  A.subset(math.index(q, n+1), w);
+  A[p][n] = w;
+  A[q][n+1] = w;
 
-  var A_T = math.transpose(A);
-  var M = math.multiply(A_T, A);
-  var N = math.multiply(math.inv(M), A_T)
-  var T = math.multiply(b, N);
-
-  var theta = T.toArray()[0];
+  var A_T = numeric.transpose(A);
+  var M = numeric.dot(A_T, A);
+  var Minv = numeric.inv(M);
+  var N = numeric.dot(Minv, A_T)
+  var theta = numeric.dot(b, N);
   geometry.theta = theta;
   return callback(geometry);
 }

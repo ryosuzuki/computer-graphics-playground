@@ -31,6 +31,7 @@
     "svg.js": "~2.2.2",
     "svg.import.js": "~1.0.1",
     "FileSaver.js": "git@github.com:eligrey/FileSaver.js.git",
-    "mathjs": "~2.6.0"
+    "mathjs": "~2.6.0",
+    "numericjs": "~1.2.6"
   }
 }
