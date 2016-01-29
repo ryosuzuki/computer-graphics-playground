@@ -137,8 +137,7 @@ var cylinder;
 function drawObjects () {
   cylinder = new THREE.Mesh(
     new THREE.CylinderGeometry(size, size, size*2, 20),
-    new THREE.MeshBasicMaterial({vertexColors: THREE.vertexColors})
-    // new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
+    new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
   );
   cylinder.geometry.verticesNeedUpdate = true;
   cylinder.dynamic = true;
@@ -146,77 +145,8 @@ function drawObjects () {
   cylinder.receiveShadow = true;
   // scene.add(cylinder);
   // objects.push(cylinder);
-
-
-
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function () {
-    if ( xhr.readyState == 4 ) {
-      if ( xhr.status == 200 || xhr.status == 0 ) {
-        var rep = xhr.response; // || xhr.mozResponseArrayBuffer;
-        console.log(rep);
-        parseStlBinary(rep);
-        //parseStl(xhr.responseText);
-        window.geometry = mesh.geometry;
-        mesh.rotation.x = 5;
-        mesh.rotation.z = .25;
-        console.log('done parsing');
-        compute();
-      }
-    }
-  }
-  xhr.onerror = function(e) {
-    console.log(e);
-  }
-  xhr.open( "GET", 'assets/colored.stl', true );
-  xhr.responseType = "arraybuffer";
-  //xhr.setRequestHeader("Accept","text/plain");
-  //xhr.setRequestHeader("Content-Type","text/plain");
-  //xhr.setRequestHeader('charset', 'x-user-defined');
-  xhr.send( null );
-
-  function compute () {
-    console.log('start');
-
-  computeUniq(geometry, function (geometry) {
-    computeLaplacian(geometry, function (geometry) {
-      computeHarmonicField(geometry, function () {
-        console.log('done');
-        var lines = [];
-        for (var i=0; i<5; i++) {
-          var line = new THREE.Line(
-            new THREE.Geometry(),
-            new THREE.LineBasicMaterial({color: Math.random() * 0xffffff})
-          );
-          lines.push(line);
-        }
-        var uniq = geometry.uniq;
-        var theta = geometry.theta;
-
-        for (var i=0; i<uniq.length; i++) {
-          var vertex = uniq[i].vertex;
-          if (d3.quantile(theta, 0.2) > theta[i]) {
-            lines[0].geometry.vertices.push(vertex);
-          } else if (d3.quantile(theta, 0.2) < theta[i] && theta[i] <= d3.quantile(theta, 0.4)) {
-            lines[1].geometry.vertices.push(vertex);
-          } else if (d3.quantile(theta, 0.4) < theta[i] && theta[i] <= d3.quantile(theta, 0.6)) {
-            lines[2].geometry.vertices.push(vertex);
-          } else if (d3.quantile(theta, 0.6) < theta[i] && theta[i] <= d3.quantile(theta, 0.8)) {
-            lines[3].geometry.vertices.push(vertex);
-          } else if (d3.quantile(theta, 0.8) < theta[i] && theta[i] <= d3.quantile(theta, 1.0)) {
-            lines[4].geometry.vertices.push(vertex);
-          }
-        }
-        scene.add(lines[0]);
-        scene.add(lines[1]);
-        scene.add(lines[2]);
-        scene.add(lines[3]);
-        scene.add(lines[4]);
-      });
-    })
-  })
-
-  }
+  // window.geometry = cylinder.geometry
+  // compute();
 
   box = new THREE.Mesh(
     new THREE.BoxGeometry(size, size, size),
@@ -229,65 +159,117 @@ function drawObjects () {
   // scene.add(box);
   // objects.push(box);
 
-  /*
-  var loader = new THREE.STLLoader();
-  loader.load('/assets/pr2_head_pan.stl', function (geometry) {
-    window.geometry = geometry;
-    mesh = new THREE.Mesh(
-      geometry,
-      new THREE.MeshBasicMaterial({color: 'red', vertexColors: THREE.FaceColors })
-    );
-    // mesh.scale.set(5, 5, 5);
-    mesh.geometry.verticesNeedUpdate = true;
-    mesh.dynamic = true;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
-    objects.push(mesh);
 
-  })
-  */
-
-  /*
-  var loader = new THREE.OBJLoader();
-  loader.load( '/assets/male02.obj', function ( object ) {
-    object.traverse( function ( child ) {
-      if ( child instanceof THREE.Mesh ) {
-        child.material.map = texture;
+  var xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function () {
+    if ( xhr.readyState == 4 ) {
+      if ( xhr.status == 200 || xhr.status == 0 ) {
+        var rep = xhr.response; // || xhr.mozResponseArrayBuffer;
+        console.log(rep);
+        parseStlBinary(rep);
+        //parseStl(xhr.responseText);
+        window.geometry = mesh.geometry;
+        mesh.material.color.set(new THREE.Color('blue'))
+        mesh.rotation.x = 5;
+        mesh.rotation.z = .25;
+        console.log('done parsing');
+        computeUniq(geometry);
+        computeLaplacian(geometry);
       }
-    } );
-    object.position.y = - 80;
-    scene.add( object );
-    window.object = object;
-  });
-  */
-
-  // var xhr = new XMLHttpRequest();
-  // xhr.onreadystatechange = function () {
-  //   if ( xhr.readyState == 4 ) {
-  //     if ( xhr.status == 200 || xhr.status == 0 ) {
-  //       var rep = xhr.response;
-  //       console.log(rep);
-  //       parseStlBinary(rep);
-  //       mesh.material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors});
-  //       mesh.geometry.verticesNeedUpdate = true;
-  //       mesh.dynamic = true;
-  //       mesh.castShadow = true;
-  //       mesh.receiveShadow = true;
-  //       mesh.rotation.x = 5;
-  //       mesh.rotation.z = .25;
-  //       console.log('done parsing');
-  //     }
-  //   }
-  // }
-  // xhr.onerror = function(e) {
-  //   console.log(e);
-  // }
-  // xhr.open( "GET", 'assets/colored.stl', true );
-  // xhr.responseType = "arraybuffer";
-  // xhr.send( null );
+    }
+  }
+  xhr.onerror = function(e) {
+    console.log(e);
+  }
+  xhr.open( "GET", 'assets/mini_knight.stl', true );
+  xhr.responseType = "arraybuffer";
+  xhr.send( null );
 
 }
+
+
+
+function onDocumentMouseUp (event) {
+  var intersects = getIntersects(event);
+  if (intersects.length > 0) {
+    if (changedIndex.indexOf(currentIndex) == -1) {
+      console.log(current.face)
+      if (!p) {
+        p = map[current.face.a];
+        current.face.color.set(new THREE.Color('yellow'));
+      } else if (!q) {
+        q = map[current.face.b];
+        current.face.color.set(new THREE.Color('blue'));
+        compute();
+      }
+      current.object.geometry.colorsNeedUpdate = true;
+    }
+  }
+}
+
+
+function compute () {
+  console.log('Start compute');
+
+  computeHarmonicField(geometry, function () {
+    console.log('done');
+    var lines = [];
+    for (var i=0; i<5; i++) {
+      var line = new THREE.Line(
+        new THREE.Geometry(),
+        new THREE.LineBasicMaterial({color: Math.random() * 0xffffff})
+      );
+      lines.push(line);
+    }
+    var uniq = geometry.uniq;
+    var theta = geometry.theta;
+    var faces = geometry.faces;
+    var map = geometry.map;
+    var val = 100;//d3.mean(theta);
+    window.seg = []
+
+    for (var i=0; i<faces.length; i++) {
+      var face = faces[i];
+      var theta_a = theta[map[face.a]];
+      var theta_b = theta[map[face.b]];
+      var theta_c = theta[map[face.c]];
+
+      if ( theta_a>val || theta_b>val || theta_c>val) {
+        face.color.set(new THREE.Color('yellow'));
+        seg.push(face);
+      }
+    }
+    console.log(seg);
+    geometry.colorsNeedUpdate = true;
+
+    /*
+    seg = []
+    for (var i=0; i<uniq.length; i++) {
+      var vertex = uniq[i].vertex;
+      // if ( 0 < theta[i] <= 0.2) {
+      //   lines[0].geometry.vertices.push(vertex);
+      if (theta[i] <= 0.1) {
+        lines[1].geometry.vertices.push(vertex);
+        seg.push(vertex)
+      // } else if (0.4 < theta[i] && theta[i] <= 0.6) {
+      //   lines[2].geometry.vertices.push(vertex);
+      // } else if (0.6 < theta[i] && theta[i] <= 0.8) {
+      //   lines[3].geometry.vertices.push(vertex);
+      // } else if (0.8 < theta[i] && theta[i] <= 1.0) {
+      //   lines[4].geometry.vertices.push(vertex);
+      }
+    }
+    console.log(seg)
+    scene.add(lines[0]);
+    scene.add(lines[1]);
+    scene.add(lines[2]);
+    scene.add(lines[3]);
+    scene.add(lines[4]);
+    */
+  });
+}
+
+
 
 var changedIndex = []
 var oldIndex;
@@ -312,15 +294,15 @@ function onDocumentMouseDown( event ) {
 
     var n = current.face.normal.normalize();
     var sameNormal = [];
-    faces.forEach( function (face, index) {
-      var m = face.normal.normalize();
-      if (compareVector(n, m)) {
-        face.color.set(new THREE.Color('yellow'));
-        sameNormal.push(face);
-      }
-    });
+    // faces.forEach( function (face, index) {
+    //   var m = face.normal.normalize();
+    //   if (compareVector(n, m)) {
+    //     face.color.set(new THREE.Color('yellow'));
+    //     sameNormal.push(face);
+    //   }
+    // });
     // console.log(sameNormal)
-    current.object.geometry.colorsNeedUpdate = true;
+    // current.object.geometry.colorsNeedUpdate = true;
 
 
     // var n = current.face.normal.normalize();
@@ -496,21 +478,6 @@ function getTexture (current) {
   texture.position.set(pos.x, pos.y, pos.z);
   scene.add(texture);
   return texture;
-}
-
-
-
-function onDocumentMouseUp (event) {
-  // console.log('up')
-  var intersects = getIntersects(event);
-  if (intersects.length > 0) {
-    // console.log(currentIndex);
-    if (changedIndex.indexOf(currentIndex) == -1) {
-      // var texture = getTexture(current);
-      console.log(current.face)
-      // changedIndex.push(currentIndex);
-    }
-  }
 }
 
 

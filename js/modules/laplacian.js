@@ -1,33 +1,58 @@
+var p;//Math.round(Math.random()*n);
+var q;//n-1
+
+/*
+computeUniq(geometry)
+computeLaplacian(geometry)
+*/
 
 function computeHarmonicField(geometry, callback) {
   var geometry = window.geometry;
   var n = geometry.uniq.length;
-  var p = Math.round(Math.random()*n);
-  var q = Math.round(Math.random()*n);
-  var laplacian = geometry.laplacian;
+  if (!p) p = 0;
+  if (!q) q = n-1
+
   var w = 1000;
   var b = Array.apply(null, Array(n+2)).map(Number.prototype.valueOf, 0);
-  b[n] = 1;
+  b[n] = w;
   b[n+1] = 0;
 
-  var A = [];
-  for (var i=0; i<n; ++i) {
-    var a = Array.apply(null, Array(n+2)).map(Number.prototype.valueOf, 0)
+  var A = _.clone(geometry.laplacian);
+  var zeros = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
+  var c = 1;
+  for (var i=0; i<2*c; i++) {
+    var a = _.clone(zeros)
     A.push(a);
   }
+  A[n][p] = 1;
+  A[n+1][q] = 1;
 
-  laplacian.forEach( function (value, index) {
-    A[index[0]][index[1]] = value;
-  });
-  A[p][n] = w;
-  A[q][n+1] = w;
+  // var M = numeric.ccsSparse(A);
+  // var LUP = numeric.ccsLUP(M);
+  // var x = numeric.ccsLUPSolve(LUP, b)
 
+  // [[1, 0]]   = [1, 0]
+  //
+  // [[1], [0]] = |1|
+  //              |0|
+  //
+  // (0,0) (0,1)
+  // (1.0) (1.1)
+  // (2,0) (2,1)
+  // ...
+  // (n,0) (n,1)
+
+  console.log('Start calculation')
   var A_T = numeric.transpose(A);
+  console.log('M')
   var M = numeric.dot(A_T, A);
+  console.log('Minv')
   var Minv = numeric.inv(M);
+  console.log('N')
   var N = numeric.dot(Minv, A_T)
-  var theta = numeric.dot(b, N);
+  var theta = numeric.dot(N, b);
   geometry.theta = theta;
+  console.log('Finish clculation')
   return callback(geometry);
 }
 
@@ -36,23 +61,28 @@ function computeLaplacian(geometry, callback) {
   var geometry = window.geometry;
   var uniq = geometry.uniq;
   var n = uniq.length;
-  var matrix = math.zeros(n, n);
+
+  var L = [];
+  for (var i=0; i<n; ++i) {
+    var zeros = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0)
+    L.push(zeros);
+  }
+
   for (var i=0; i< uniq.length; i++) {
     var e = uniq[i];
-    var delta = 0;
     var edges = e.edges;
-    for (var j=0; j<edges.length; j++) {
-      var index = edges[j];
-      if (index == i) {
-        delta = -1;
+    edges.forEach( function (j) {
+      if (i==j) {
+        L[i][j] = -1;
       } else {
-        delta = 1 / edges.length;
+        L[i][j] = 1/edges.length;
       }
-      matrix.subset(math.index(i,index), delta);
-    }
+    })
   }
-  geometry.laplacian = matrix;
-  return callback(geometry);
+  geometry.laplacian = L;
+
+  console.log('Finish computeLaplacian')
+  if (callback) callback(geometry);
 }
 
 
@@ -93,16 +123,19 @@ function computeUniq(geometry, callback) {
     var b = map[face.b];
     var c = map[face.c];
 
+    edges[a].push(a)
     edges[a].push(b)
     edges[a].push(c)
     edges[a] = _.uniq(edges[a])
     uniq[a].edges = edges[a];
 
+    edges[b].push(b)
     edges[b].push(a)
     edges[b].push(c)
     edges[b] = _.uniq(edges[b])
     uniq[b].edges = edges[b];
 
+    edges[c].push(c)
     edges[c].push(a)
     edges[c].push(b)
     edges[c] = _.uniq(edges[c]);
@@ -121,5 +154,6 @@ function computeUniq(geometry, callback) {
   geometry.map = map;
   geometry.edges = edges;
 
-  return callback(geometry);
+  console.log('Finish computeUniq')
+  if (callback) callback(geometry);
 }
