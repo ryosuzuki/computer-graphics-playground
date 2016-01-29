@@ -27,9 +27,10 @@
     "csg.js": "evanw/csg.js",
     "csg-wrapper": "kraag22/csg-wrapper",
     "snap.svg.zpd": "~0.0.10",
-    "d3": "~3.5.9",
+    "d3": "~3.5.14",
     "svg.js": "~2.2.2",
     "svg.import.js": "~1.0.1",
-    "FileSaver.js": "git@github.com:eligrey/FileSaver.js.git"
+    "FileSaver.js": "git@github.com:eligrey/FileSaver.js.git",
+    "mathjs": "~2.6.0"
   }
 }

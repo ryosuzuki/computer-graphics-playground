@@ -19,6 +19,7 @@ app.use( function *(next) {
   yield next;
 });
 app.use(route.get('/', index));
+app.use(route.get('/favicon.ico', null));
 app.use(route.get('/:id', show));
 
 function *index() {
