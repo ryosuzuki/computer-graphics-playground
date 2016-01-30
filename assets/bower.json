@@ -1,0 +1,39 @@
+{
+  "name": "vizq",
+  "version": "0.0.0",
+  "homepage": "https://github.com/ryosuzuki/vizq",
+  "authors": [
+    "Ryo Suzuki <ryosuzk@gmail.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "ace-builds": "~1.2.0",
+    "angular": "~1.4.6",
+    "jquery": "~2.1.4",
+    "semantic-ui": "~2.1.4",
+    "lodash": "~3.10.1",
+    "three.js": "mrdoob/three.js",
+    "cannon.js": "~0.6.2",
+    "OpenJSCAD.org": "Spiritdude/OpenJSCAD.org",
+    "snap.svg": "~0.4.1",
+    "jqSimpleConnect": "jfmdev/jqSimpleConnect#~1.0.0",
+    "csg.js": "evanw/csg.js",
+    "csg-wrapper": "kraag22/csg-wrapper",
+    "snap.svg.zpd": "~0.0.10",
+    "d3": "~3.5.14",
+    "svg.js": "~2.2.2",
+    "svg.import.js": "~1.0.1",
+    "FileSaver.js": "git@github.com:eligrey/FileSaver.js.git",
+    "mathjs": "~2.6.0",
+    "numericjs": "~1.2.6",
+    "vectorious": "~4.1.4",
+    "request": "~2.69.1"
+  }
+}

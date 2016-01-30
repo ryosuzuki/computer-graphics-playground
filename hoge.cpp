@@ -1,21 +1,30 @@
-#include <cusp/hyb_matrix.h>
-#include <cusp/io/matrix_market.h>
-#include <cusp/krylov/cg.h>
-
-int main(void)
+#include <iostream>
+#include <Eigen/Sparse>
+#include <vector>
+typedef Eigen::SparseMatrix<double> SpMat; // declares a column-major sparse matrix type of double
+typedef Eigen::Triplet<double> T;
+// void buildProblem(std::vector<T>& coefficients, Eigen::VectorXd& b, int n);
+// void saveAsBitmap(const Eigen::VectorXd& x, int n, const char* filename);
+int main(int argc, char** argv)
 {
-  // create an empty sparse matrix structure (HYB format)
-  cusp::hyb_matrix<int, float, cusp::device_memory> A;
+  // assert(argc==2);
 
-  // load a matrix stored in MatrixMarket format
-  cusp::io::read_matrix_market_file(A, "5pt_10x10.mtx");
+  int n = 300;  // size of the image
+  int m = n*n;  // number of unknows (=number of pixels)
+  // assert(argc>1);
+  // Assembly:
+  std::vector<T> coefficients;            // list of non-zeros coefficients
+  Eigen::VectorXd b(m);                   // the right hand side-vector resulting from the constraints
 
-  // allocate storage for solution (x) and right hand side (b)
-  cusp::array1d<float, cusp::device_memory> x(A.num_rows, 0);
-  cusp::array1d<float, cusp::device_memory> b(A.num_rows, 1);
-
-  // solve the linear system A * x = b with the Conjugate Gradient method
-  cusp::krylov::cg(A, x, b);
-
+  // buildProblem(coefficients, b, n);
+  SpMat A(m,m);
+  A.setFromTriplets(coefficients.begin(), coefficients.end());
+  // Solving:
+  Eigen::SimplicialCholesky<SpMat> chol(A);  // performs a Cholesky factorization of A
+  Eigen::VectorXd x = chol.solve(b);         // use the factorization to solve for the given right hand side
+  // Export the result to a file:
+  // saveAsBitmap(x, n, argv[1]);
+  std::cout << x << std::endl;
   return 0;
+
 }

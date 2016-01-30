@@ -146,7 +146,6 @@ function drawObjects () {
   // scene.add(cylinder);
   // objects.push(cylinder);
   // window.geometry = cylinder.geometry
-  // compute();
 
   box = new THREE.Mesh(
     new THREE.BoxGeometry(size, size, size),
@@ -158,6 +157,9 @@ function drawObjects () {
   box.receiveShadow = true;
   // scene.add(box);
   // objects.push(box);
+  // window.geometry = box.geometry
+  // computeUniq(geometry);
+  // computeLaplacian(geometry);
 
 
   var xhr = new XMLHttpRequest();
@@ -172,6 +174,8 @@ function drawObjects () {
         mesh.material.color.set(new THREE.Color('blue'))
         mesh.rotation.x = 5;
         mesh.rotation.z = .25;
+        // for mavin
+        // mesh.scale.set(0.1, 0.1, 0.1);
         console.log('done parsing');
         computeUniq(geometry);
         computeLaplacian(geometry);
@@ -181,7 +185,8 @@ function drawObjects () {
   xhr.onerror = function(e) {
     console.log(e);
   }
-  xhr.open( "GET", 'assets/mini_knight.stl', true );
+  // xhr.open( "GET", 'assets/mini_knight.stl', true );
+  xhr.open( "GET", 'assets/marvin-original.stl', true );
   xhr.responseType = "arraybuffer";
   xhr.send( null );
 
@@ -194,7 +199,7 @@ function onDocumentMouseUp (event) {
   if (intersects.length > 0) {
     if (changedIndex.indexOf(currentIndex) == -1) {
       console.log(current.face)
-      if (!p) {
+      if (!p && !q) {
         p = map[current.face.a];
         current.face.color.set(new THREE.Color('yellow'));
       } else if (!q) {

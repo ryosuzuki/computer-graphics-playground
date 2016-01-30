@@ -9,16 +9,40 @@ computeLaplacian(geometry)
 function computeHarmonicField(geometry, callback) {
   var geometry = window.geometry;
   var n = geometry.uniq.length;
-  if (!p) p = 0;
-  if (!q) q = n-1
-
   var w = 1000;
+  if (!p) p = 0;
+  if (!q) q = n-1;
+
+
+  var b = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
+
+  var zeros = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
+  var G = [];
+  for (var i=0; i<n; i++) {
+    var g = _.clone(zeros);
+    G.push(g);
+  }
+  G[p][p] = w^2;
+  G[q][q] = w^2;
+
+  var P = numeric.ccsSparse(G);
+
+  var L = _.clone(geometry.laplacian);
+  var CL = numeric.ccsSparse(L);
+  var CL_T = numeric.ccsSparse(numeric.transpose(L));
+  var M = numeric.ccsDot(CL_T, CL);
+
+  var A = numeric.ccsadd(M, P);
+  var LUP = numeric.ccsLUP(A);
+
+
+
+
   var b = Array.apply(null, Array(n+2)).map(Number.prototype.valueOf, 0);
   b[n] = w;
   b[n+1] = 0;
 
   var A = _.clone(geometry.laplacian);
-  var zeros = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
   var c = 1;
   for (var i=0; i<2*c; i++) {
     var a = _.clone(zeros)
