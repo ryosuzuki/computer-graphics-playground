@@ -1,10 +1,21 @@
 var p;//Math.round(Math.random()*n);
 var q;//n-1
+var Z;
 
-/*
-computeUniq(geometry)
-computeLaplacian(geometry)
-*/
+
+
+
+function colorChange (val, color) {
+  if (!color) color = 'yellow';
+  var faces = geometry.faces;
+  geometry.phiFaces.forEach( function (p, index) {
+    if (p > val) {
+      var face = faces[index];
+      face.color.set(new THREE.Color(color));
+      geometry.colorsNeedUpdate = true;
+    }
+  })
+}
 
 function computeHarmonicField(geometry, callback) {
   var geometry = window.geometry;
@@ -12,76 +23,41 @@ function computeHarmonicField(geometry, callback) {
   var w = 1000;
   if (!p) p = 0;
   if (!q) q = n-1;
-
-
   var b = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
+  b[p] = w;
 
-  var zeros = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
-  var G = [];
-  for (var i=0; i<n; i++) {
-    var g = _.clone(zeros);
-    G.push(g);
+  if (!Z) {
+    var zeros = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
+    var Z = [];
+    for (var i=0; i<n; i++) {
+      var z = _.clone(zeros);
+      Z.push(z);
+    }
   }
+  var G = _.clone(Z);
   G[p][p] = w^2;
   G[q][q] = w^2;
 
-  var P = numeric.ccsSparse(G);
+  var LU = _.clone(geometry.LU);
+  var A = numeric.add(LU.LU, G)
+  LU.LU = A;
+  // var phi = numeric.ccsLUPSolve(geometry.ccsLU, b);
+  var phi = numeric.LUsolve(LU, b);
+  geometry.phi = phi;
 
-  var L = _.clone(geometry.laplacian);
-  var CL = numeric.ccsSparse(L);
-  var CL_T = numeric.ccsSparse(numeric.transpose(L));
-  var M = numeric.ccsDot(CL_T, CL);
+  geometry.phiFaces = geometry.faces.map( function (face) {
+    var phi = geometry.phi;
+    var a = phi[map[face.a]];
+    var b = phi[map[face.b]];
+    var c = phi[map[face.c]];
+    return (a+b+c)/3;
+  });
 
-  var A = numeric.ccsadd(M, P);
-  var LUP = numeric.ccsLUP(A);
-
-
-
-
-  var b = Array.apply(null, Array(n+2)).map(Number.prototype.valueOf, 0);
-  b[n] = w;
-  b[n+1] = 0;
-
-  var A = _.clone(geometry.laplacian);
-  var c = 1;
-  for (var i=0; i<2*c; i++) {
-    var a = _.clone(zeros)
-    A.push(a);
-  }
-  A[n][p] = 1;
-  A[n+1][q] = 1;
-
-  // var M = numeric.ccsSparse(A);
-  // var LUP = numeric.ccsLUP(M);
-  // var x = numeric.ccsLUPSolve(LUP, b)
-
-  // [[1, 0]]   = [1, 0]
-  //
-  // [[1], [0]] = |1|
-  //              |0|
-  //
-  // (0,0) (0,1)
-  // (1.0) (1.1)
-  // (2,0) (2,1)
-  // ...
-  // (n,0) (n,1)
-
-  console.log('Start calculation')
-  var A_T = numeric.transpose(A);
-  console.log('M')
-  var M = numeric.dot(A_T, A);
-  console.log('Minv')
-  var Minv = numeric.inv(M);
-  console.log('N')
-  var N = numeric.dot(Minv, A_T)
-  var theta = numeric.dot(N, b);
-  geometry.theta = theta;
-  console.log('Finish clculation')
-  return callback(geometry);
+  if (callback) callback(geometry);
 }
 
-
 function computeLaplacian(geometry, callback) {
+  console.log('Start Laplacian')
   var geometry = window.geometry;
   var uniq = geometry.uniq;
   var n = uniq.length;
@@ -97,13 +73,20 @@ function computeLaplacian(geometry, callback) {
     var edges = e.edges;
     edges.forEach( function (j) {
       if (i==j) {
-        L[i][j] = -1;
+        L[i][j] = 1;
       } else {
-        L[i][j] = 1/edges.length;
+        L[i][j] = -1/edges.length;
       }
     })
   }
   geometry.laplacian = L;
+
+  console.log('Start Cholesky decomposition');
+  // var ccsL = numeric.ccsSparse(L);
+  // var ccsLU = numeric.ccsLUP(ccsL);
+  // geometry.ccsLU = ccsLU;
+  var LU = numeric.LU(L);
+  geometry.LU = LU;
 
   console.log('Finish computeLaplacian')
   if (callback) callback(geometry);
@@ -181,3 +164,68 @@ function computeUniq(geometry, callback) {
   console.log('Finish computeUniq')
   if (callback) callback(geometry);
 }
+
+
+/*
+function computeHamonicField (geometry) {
+  var zeros = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
+  var G = [];
+  for (var i=0; i<n; i++) {
+    var g = _.clone(zeros);
+    G.push(g);
+  }
+  G[p][p] = w^2;
+  G[q][q] = w^2;
+
+  var P = numeric.ccsSparse(G);
+
+  var L = _.clone(geometry.laplacian);
+  var CL = numeric.ccsSparse(L);
+  var CL_T = numeric.ccsSparse(numeric.transpose(L));
+  var M = numeric.ccsDot(CL_T, CL);
+
+  var A = numeric.ccsadd(M, P);
+  var LUP = numeric.ccsLUP(A);
+
+  var b = Array.apply(null, Array(n+2)).map(Number.prototype.valueOf, 0);
+  b[n] = w;
+  b[n+1] = 0;
+
+  var A = _.clone(geometry.laplacian);
+  var c = 1;
+  for (var i=0; i<2*c; i++) {
+    var a = _.clone(zeros)
+    A.push(a);
+  }
+  A[n][p] = 1;
+  A[n+1][q] = 1;
+
+  // var M = numeric.ccsSparse(A);
+  // var LUP = numeric.ccsLUP(M);
+  // var x = numeric.ccsLUPSolve(LUP, b)
+
+  // [[1, 0]]   = [1, 0]
+  //
+  // [[1], [0]] = |1|
+  //              |0|
+  //
+  // (0,0) (0,1)
+  // (1.0) (1.1)
+  // (2,0) (2,1)
+  // ...
+  // (n,0) (n,1)
+
+  console.log('Start calculation')
+  var A_T = numeric.transpose(A);
+  console.log('M')
+  var M = numeric.dot(A_T, A);
+  console.log('Minv')
+  var Minv = numeric.inv(M);
+  console.log('N')
+  var N = numeric.dot(Minv, A_T)
+  var phi = numeric.dot(N, b);
+  geometry.phi = phi;
+  console.log('Finish clculation')
+  return callback(geometry);
+}
+*/

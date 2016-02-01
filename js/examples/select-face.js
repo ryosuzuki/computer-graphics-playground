@@ -172,21 +172,24 @@ function drawObjects () {
         //parseStl(xhr.responseText);
         window.geometry = mesh.geometry;
         mesh.material.color.set(new THREE.Color('blue'))
+        mesh.position.y = 1;
         mesh.rotation.x = 5;
         mesh.rotation.z = .25;
         // for mavin
         // mesh.scale.set(0.1, 0.1, 0.1);
         console.log('done parsing');
-        computeUniq(geometry);
-        computeLaplacian(geometry);
+        computeUniq(geometry, function (geometry) {
+          computeLaplacian(geometry);
+        });
       }
     }
   }
   xhr.onerror = function(e) {
     console.log(e);
   }
-  // xhr.open( "GET", 'assets/mini_knight.stl', true );
-  xhr.open( "GET", 'assets/marvin-original.stl', true );
+  xhr.open( "GET", 'assets/mini_knight.stl', true );
+  // xhr.open( "GET", 'assets/marvin-original.stl', true );
+  // xhr.open( "GET", 'assets/marvin-original.stl', true );
   xhr.responseType = "arraybuffer";
   xhr.send( null );
 
@@ -206,6 +209,7 @@ function onDocumentMouseUp (event) {
         q = map[current.face.b];
         current.face.color.set(new THREE.Color('blue'));
         compute();
+        q = undefined;
       }
       current.object.geometry.colorsNeedUpdate = true;
     }
@@ -215,6 +219,24 @@ function onDocumentMouseUp (event) {
 
 function compute () {
   console.log('Start compute');
+
+  var N = 15;
+  var t = N/2;
+
+  var c = [];
+  for (var i=0; i<N; i++) {
+    c[i] = Math.exp(- Math.pow(i-t, 2) / (2*Math.pow(t, 2)) )
+  }
+
+  var c = [];
+  var phi = geometry.phi;
+  var a = _.sortBy(phi);
+  for (var i=0; i<N; i++) {
+    var q = i/N;
+    var k = d3.quantile(a, q);
+    c[i] = Math.exp(- Math.pow(k-t, 2) / (2*Math.pow(k, 2)) )
+  }
+
 
   computeHarmonicField(geometry, function () {
     console.log('done');
@@ -226,41 +248,47 @@ function compute () {
       );
       lines.push(line);
     }
+    colorChange(10);
+    p = undefined;
+    q = undefined;
+
+    /*
     var uniq = geometry.uniq;
-    var theta = geometry.theta;
+    var phi = geometry.phi;
     var faces = geometry.faces;
     var map = geometry.map;
-    var val = 100;//d3.mean(theta);
+    var val = 50;//d3.mean(phi);
     window.seg = []
 
     for (var i=0; i<faces.length; i++) {
       var face = faces[i];
-      var theta_a = theta[map[face.a]];
-      var theta_b = theta[map[face.b]];
-      var theta_c = theta[map[face.c]];
+      var phi_a = phi[map[face.a]];
+      var phi_b = phi[map[face.b]];
+      var phi_c = phi[map[face.c]];
 
-      if ( theta_a>val || theta_b>val || theta_c>val) {
+      if ( phi_a>val || phi_b>val || phi_c>val) {
         face.color.set(new THREE.Color('yellow'));
         seg.push(face);
       }
     }
     console.log(seg);
     geometry.colorsNeedUpdate = true;
+    */
 
     /*
     seg = []
     for (var i=0; i<uniq.length; i++) {
       var vertex = uniq[i].vertex;
-      // if ( 0 < theta[i] <= 0.2) {
+      // if ( 0 < phi[i] <= 0.2) {
       //   lines[0].geometry.vertices.push(vertex);
-      if (theta[i] <= 0.1) {
+      if (phi[i] <= 0.1) {
         lines[1].geometry.vertices.push(vertex);
         seg.push(vertex)
-      // } else if (0.4 < theta[i] && theta[i] <= 0.6) {
+      // } else if (0.4 < phi[i] && phi[i] <= 0.6) {
       //   lines[2].geometry.vertices.push(vertex);
-      // } else if (0.6 < theta[i] && theta[i] <= 0.8) {
+      // } else if (0.6 < phi[i] && phi[i] <= 0.8) {
       //   lines[3].geometry.vertices.push(vertex);
-      // } else if (0.8 < theta[i] && theta[i] <= 1.0) {
+      // } else if (0.8 < phi[i] && phi[i] <= 1.0) {
       //   lines[4].geometry.vertices.push(vertex);
       }
     }
