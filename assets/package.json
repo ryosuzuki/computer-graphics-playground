@@ -6,23 +6,26 @@
   "directories": {
     "test": "test"
   },
+  "engines": {
+    "node": "0.12.x"
+  },
   "scripts": {
     "start": "node --harmony app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ryosuzuki/vizq-web.git"
+    "url": "https://github.com/ryosuzuki/three-js-example.git"
   },
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ryosuzuki/vizq-web/issues"
+    "url": "https://github.com/ryosuzuki/three-js-example/issues"
   },
   "engine": {
     "node": "^0.11.9"
   },
-  "homepage": "https://github.com/ryosuzuki/vizq-web",
+  "homepage": "https://github.com/ryosuzuki/three-js-example",
   "dependencies": {
     "browserify": "^11.1.0",
     "co-views": "^2.1.0",
