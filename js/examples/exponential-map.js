@@ -143,9 +143,15 @@ function drawObjects () {
   cylinder.dynamic = true;
   cylinder.castShadow = true;
   cylinder.receiveShadow = true;
-  scene.add(cylinder);
-  objects.push(cylinder);
-  window.geometry = cylinder.geometry
+  // scene.add(cylinder);
+  // objects.push(cylinder);
+  // window.geometry = cylinder.geometry
+
+  // mesh = cylinder;
+  // computeUniq(geometry, function () {
+  //   computeExponentialMap();
+  // })
+
 
   box = new THREE.Mesh(
     new THREE.BoxGeometry(size, size, size),
@@ -155,13 +161,14 @@ function drawObjects () {
   box.dynamic = true;
   box.castShadow = true;
   box.receiveShadow = true;
+
+
   // scene.add(box);
   // objects.push(box);
   // window.geometry = box.geometry
   // computeUniq(geometry);
   // computeLaplacian(geometry);
 
-  /*
   var xhr = new XMLHttpRequest();
   xhr.onreadystatechange = function () {
     if ( xhr.readyState == 4 ) {
@@ -179,7 +186,11 @@ function drawObjects () {
         // mesh.scale.set(0.1, 0.1, 0.1);
         console.log('done parsing');
         computeUniq(geometry, function (geometry) {
-          computeLaplacian(geometry);
+          // computeLaplacian(geometry, function (geometry) {
+            computeExponentialMap( function () {
+              hoge();
+            });
+          // });
         });
       }
     }
@@ -192,7 +203,7 @@ function drawObjects () {
   // xhr.open( "GET", 'assets/marvin-original.stl', true );
   xhr.responseType = "arraybuffer";
   xhr.send( null );
-  */
+
 }
 
 
@@ -203,13 +214,14 @@ var candidtates;
 // - the order of edges should be clockwise
 //
 
-function computeExponentialMap () {
-  var maxDistance = 100;
+var maxDistance = 1;
+function computeExponentialMap (callback) {
+  console.log('Start computeExponentialMap');
   geometry.uniq.map( function (node) {
     node.distance = undefined;
     return node;
   })
-  var start = 42;
+  var start = 1150;
   candidtates = [];
   initializeGamma(start);
   var s = map[start];
@@ -221,6 +233,8 @@ function computeExponentialMap () {
     }
     candidtates.shift();
   }
+  console.log('Finish computeExponentialMap')
+  if (callback) callback();
 }
 
 function initializeGamma (index) {
@@ -245,11 +259,34 @@ function initializeGamma (index) {
     // console.log("Delta: " + delta + " Theta: " + theta);
     node.theta = theta;
     theta = theta + delta;
-    node.u = node.distance * Math.cos(node.theta);
-    node.v = node.distance * Math.sin(node.theta);
+    getUV(node);
     candidtates.push(node);
   }
   return theta;
+}
+
+function getUV (node) {
+  node.u = (node.distance / (Math.sqrt(2)*maxDistance)) * Math.cos(node.theta) + 0.5;
+  node.v = (node.distance / (Math.sqrt(2)*maxDistance)) * Math.sin(node.theta) + 0.5;
+
+  node.uv = new THREE.Vector2(node.u, node.v);
+  return node;
+}
+
+function hoge () {
+  geometry.faceVertexUvs = [[]];
+  for (var i=0; i<geometry.faces.length; i++) {
+    var face = geometry.faces[i];
+    var a = uniq[map[face.a]];
+    var b = uniq[map[face.b]];
+    var c = uniq[map[face.c]];
+    geometry.faceVertexUvs[0].push([a.uv, b.uv, c.uv]);
+  }
+  geometry.uvsNeedUpdate = true;
+  var texture = new THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
+  // texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  // texture.repeat.set( 10, 10 );
+  mesh.material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
 }
 
 
@@ -273,7 +310,7 @@ function computeAngle (node, node_j, node_k, alpha) {
 }
 
 function computeDistance (node) {
-  console.log('Start computeDistance()');
+  // console.log('Start computeDistance()');
   var distance;
   var alpha;
   var theta;
@@ -353,9 +390,8 @@ function computeDistance (node) {
 
   node.distance = distance;
   node.theta = theta;
-  node.u = node.distance * Math.cos(node.theta);
-  node.v = node.distance * Math.sin(node.theta);
-  console.log(node);
+  getUV(node);
+  // console.log(node);
   return distance;
 }
 
