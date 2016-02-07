@@ -198,6 +198,11 @@ function drawObjects () {
 
 var candidtates;
 
+// TODO
+// - candidates should be heap data structure
+// - the order of edges should be clockwise
+//
+
 function computeExponentialMap () {
   var maxDistance = 100;
   geometry.uniq.map( function (node) {
@@ -240,7 +245,8 @@ function initializeGamma (index) {
     // console.log("Delta: " + delta + " Theta: " + theta);
     node.theta = theta;
     theta = theta + delta;
-
+    node.u = node.distance * Math.cos(node.theta);
+    node.v = node.distance * Math.sin(node.theta);
     candidtates.push(node);
   }
   return theta;
@@ -306,9 +312,16 @@ function computeDistance (node) {
     var e = new THREE.Vector3();
     e.crossVectors(e_j, e_k);
     var A = Math.sqrt(e.dot(e));
-    var h1 = sq_ekj - Math.pow(U_j - U_k, 2);
-    var h2 = Math.pow(U_j + U_k, 2) - sq_ekj;
-    var H = Math.sqrt(h1 * h2);
+    var array = [U_j, U_k, Math.sqrt(sq_ekj)].sort();
+    var a = array[2];
+    var b = array[1];
+    var c = array[0];
+    var H = Math.sqrt(
+      (a + (b + c)) *
+      (c - (a - b)) *
+      (c + (a - b)) *
+      (a + (b - c))
+    )
     var x_j = (A * (sq_ekj + U_k*U_k - U_j*U_j) + e_k.dot(e_kj) * H ) / ( 2 * A * sq_ekj);
     var x_k = (A * (sq_ekj + U_j*U_j - U_k*U_k) - e_j.dot(e_kj) * H ) / ( 2 * A * sq_ekj);
 
@@ -340,6 +353,8 @@ function computeDistance (node) {
 
   node.distance = distance;
   node.theta = theta;
+  node.u = node.distance * Math.cos(node.theta);
+  node.v = node.distance * Math.sin(node.theta);
   console.log(node);
   return distance;
 }
