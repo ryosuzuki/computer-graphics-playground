@@ -134,7 +134,17 @@ normal.normalize()
 var triangle;
 var cylinder;
 
+var start = 880;
+// start = 2000
+var maxDistance = 4;
+
 function drawObjects () {
+  drawCylinder();
+  // drawSTL();
+}
+
+function drawCylinder () {
+  start = 13;
   cylinder = new THREE.Mesh(
     new THREE.CylinderGeometry(size, size, size*2, 20),
     new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
@@ -143,16 +153,20 @@ function drawObjects () {
   cylinder.dynamic = true;
   cylinder.castShadow = true;
   cylinder.receiveShadow = true;
-  // scene.add(cylinder);
-  // objects.push(cylinder);
-  // window.geometry = cylinder.geometry
+  scene.add(cylinder);
+  objects.push(cylinder);
+  window.geometry = cylinder.geometry
 
-  // mesh = cylinder;
-  // computeUniq(geometry, function () {
-  //   computeExponentialMap();
-  // })
+  mesh = cylinder;
+  computeUniq(geometry, function () {
+    computeExponentialMap( function () {
+      hoge();
+    });
+  })
+}
 
 
+function drawBox () {
   box = new THREE.Mesh(
     new THREE.BoxGeometry(size, size, size),
     new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
@@ -161,14 +175,14 @@ function drawObjects () {
   box.dynamic = true;
   box.castShadow = true;
   box.receiveShadow = true;
+  scene.add(box);
+  objects.push(box);
+  window.geometry = box.geometry
+  computeUniq(geometry);
+  computeLaplacian(geometry);
+}
 
-
-  // scene.add(box);
-  // objects.push(box);
-  // window.geometry = box.geometry
-  // computeUniq(geometry);
-  // computeLaplacian(geometry);
-
+function drawSTL () {
   var xhr = new XMLHttpRequest();
   xhr.onreadystatechange = function () {
     if ( xhr.readyState == 4 ) {
@@ -203,35 +217,35 @@ function drawObjects () {
   // xhr.open( "GET", 'assets/marvin-original.stl', true );
   xhr.responseType = "arraybuffer";
   xhr.send( null );
-
 }
 
 
-var candidtates;
+var candidates;
 
 // TODO
 // - candidates should be heap data structure
 // - the order of edges should be clockwise
 //
 
-var maxDistance = 1;
+
 function computeExponentialMap (callback) {
   console.log('Start computeExponentialMap');
   geometry.uniq.map( function (node) {
     node.distance = undefined;
     return node;
   })
-  var start = 1150;
-  candidtates = [];
+  candidates = [];
   initializeGamma(start);
   var s = map[start];
-  while (candidtates.length > 0) {
-    var candidate = candidtates[0];
+  while (candidates.length > 0) {
+    var candidate = candidates[0];
     for (var i=0; i<candidate.edges.length; i++) {
       var node = geometry.uniq[candidate.edges[i]];
-      computeDistance(node);
+      if (!node.distance) {
+        computeDistance(node);
+      }
     }
-    candidtates.shift();
+    candidates.shift();
   }
   console.log('Finish computeExponentialMap')
   if (callback) callback();
@@ -240,6 +254,9 @@ function computeExponentialMap (callback) {
 function initializeGamma (index) {
   var s = map[index];
   var origin = geometry.uniq[s];
+  origin.distance = Math.pow(10, -12);
+  origin.theta = 0;
+  getUV(origin);
   var theta = 0;
   var edges = origin.edges.slice(1);
   var num = edges.length;
@@ -256,36 +273,51 @@ function initializeGamma (index) {
     v2.subVectors(next.vertex, origin.vertex).normalize();
     var cos_delta = v1.dot(v2);
     var delta = Math.acos(cos_delta);
-    // console.log("Delta: " + delta + " Theta: " + theta);
+    console.log('#' + i)
+    console.log("Distance: " + (node.distance).toPrecision(2));
+    console.log("Theta: " + (theta/Math.PI).toPrecision(2) + " pi");
     node.theta = theta;
     theta = theta + delta;
     getUV(node);
-    candidtates.push(node);
+    console.log('');
+    console.log('UV: ' + node.uv.x + ', ' + node.uv.y);
+    console.log('----------');
+    candidates.push(node);
   }
+  // candidates = []
   return theta;
 }
 
 function getUV (node) {
   node.u = (node.distance / (Math.sqrt(2)*maxDistance)) * Math.cos(node.theta) + 0.5;
   node.v = (node.distance / (Math.sqrt(2)*maxDistance)) * Math.sin(node.theta) + 0.5;
-
+  // node.u = (node.distance / maxDistance) * Math.cos(node.theta) + 0.5;
+  // node.v = (node.distance / maxDistance) * Math.sin(node.theta) + 0.5;
+  // node.u = node.distance*Math.cos(node.theta) + 0.5;
+  // node.v = node.distance*Math.sin(node.theta) + 0.5;
   node.uv = new THREE.Vector2(node.u, node.v);
   return node;
 }
 
 function hoge () {
   geometry.faceVertexUvs = [[]];
+  // var faces = uniq[map[start]].faces;
   for (var i=0; i<geometry.faces.length; i++) {
     var face = geometry.faces[i];
+  // for (var i=0; i<faces.length; i++) {
+  //   var index = faces[i];
+  //   var face = geometry.faces[index];
     var a = uniq[map[face.a]];
     var b = uniq[map[face.b]];
     var c = uniq[map[face.c]];
-    geometry.faceVertexUvs[0].push([a.uv, b.uv, c.uv]);
+    if (a.uv && b.uv && c.uv) {
+      geometry.faceVertexUvs[0].push([a.uv, b.uv, c.uv]);
+      geometry.uvsNeedUpdate = true;
+    }
   }
-  geometry.uvsNeedUpdate = true;
-  var texture = new THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
-  // texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  // texture.repeat.set( 10, 10 );
+  var texture = new THREE.ImageUtils.loadTexture('/assets/checkerboard-3.jpg');
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  // texture.repeat.set(1, 1);
   mesh.material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
 }
 
@@ -391,6 +423,12 @@ function computeDistance (node) {
   node.distance = distance;
   node.theta = theta;
   getUV(node);
+  if (node.distance < maxDistance) {
+    for (var j=0; j<node.edges.length; j++) {
+      var edge = geometry.uniq[node.edges[j]]
+      if (!edge.distance) candidates.push(edge);
+    }
+  }
   // console.log(node);
   return distance;
 }
