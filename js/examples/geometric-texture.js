@@ -137,7 +137,7 @@ var cylinder;
 var start = 880;
 // start = 2000
 var maxDistance = 4;
-var limit = 0.1;
+var limit = 0.15;
 
 function drawObjects () {
   drawCylinder();
@@ -163,6 +163,7 @@ function drawCylinder () {
   computeUniq(geometry, function () {
     computeExponentialMap( function () {
       hoge();
+      computePositions();
     });
   })
 }
@@ -299,7 +300,7 @@ function addGeometricTexture (point) {
   var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
   var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
 
-  var radius = size/30;
+  var radius = size/40;
   var height = size/10;
   var tetra = new THREE.Mesh(
     new THREE.CylinderGeometry(0, radius, height, 8, 1),
