@@ -137,6 +137,7 @@ var cylinder;
 var start = 880;
 // start = 2000
 var maxDistance = 4;
+var limit = 0.1;
 
 function drawObjects () {
   drawCylinder();
@@ -144,6 +145,7 @@ function drawObjects () {
 }
 
 function drawCylinder () {
+  limit = 0.4;
   start = 13;
   cylinder = new THREE.Mesh(
     new THREE.CylinderGeometry(size, size, size*2, 20),
@@ -229,33 +231,38 @@ function checkInTriangle (p, a, b, c) {
   return ((b1==b2) && (b2==b3));
 }
 
-var points = []
-
+var points = [];
+var faces = [];
 function computePositions () {
-  for (var i=0; i<10; i++) {
-    var p = new Array(10);
-    points.push(p)
-    for (var j=0; j<10; j++) {
-      points[i][j] = { u: 0.1*i, v: 0.1*j };
-    }
-  }
-  var faces = geometry.faces.filter( function (face) {
+  faces = geometry.faces.filter( function (face) {
     var a = uniq[map[face.a]];
     var b = uniq[map[face.b]];
     var c = uniq[map[face.c]];
-    return (a.uv && b.uv && c.uv);
+    if (a.uv && b.uv && c.uv) {
+      if (a.u==b.u && b.u==c.u) return false;
+      if (a.v==b.v && b.v==c.v) return false;
+      if (a.u>0.5+limit||a.v>0.5+limit) return false;
+      if (b.u>0.5+limit||b.v>0.5+limit) return false;
+      if (c.u>0.5+limit||c.v>0.5+limit) return false;
+      if (a.u<0.5-limit||a.v<0.5-limit) return false;
+      if (b.u<0.5-limit||b.v<0.5-limit) return false;
+      if (c.u<0.5-limit||c.v<0.5-limit) return false;
+      return true;
+    } else {
+      return false;
+    }
   })
+  points = [];
+  var num = 100;
   for (var k=0; k<faces.length; k++) {
     var face = faces[k];
-    for (var i=0; i<10; i++) {
-      for (var j=0; j<10; j++) {
-        var point = points[i][j];
+    for (var i=0; i<num; i++) {
+      for (var j=0; j<num; j++) {
+        var point = { u: (1/num)*i, v: (1/num)*j }
         var a = uniq[map[face.a]];
         var b = uniq[map[face.b]];
         var c = uniq[map[face.c]];
         if (!checkInTriangle(point, a, b, c)) continue;
-        if (a.u==b.u && b.u==c.u) continue;
-        if (a.v==b.v && b.v==c.v) continue;
         var A = [[a.u-c.u, b.u-c.u], [a.v-c.v, b.v-c.v]];
         var B = [point.u-c.u, point.v-c.v];
         var M = numeric.solve(A, B);
@@ -263,25 +270,55 @@ function computePositions () {
         point.y = M[0]*a.vertex.y + M[1]*b.vertex.y + (1-M[0]-M[1])*c.vertex.y;
         point.z = M[0]*a.vertex.z + M[1]*b.vertex.z + (1-M[0]-M[1])*c.vertex.z;
         point.pos = new THREE.Vector3(point.x, point.y, point.z);
+        point.face = face;
         point.normal = face.normal;
         console.log(point);
+        points.push(point);
+        addGeometricTexture(point);
       }
     }
-
   }
+}
 
+function addGeometricTexture (point) {
+  var v1 = window.geometry.vertices[point.face.a];
+  var v2 = window.geometry.vertices[point.face.b];
+  var v3 = window.geometry.vertices[point.face.c];
+  var pos = mesh.position;
+  var n = point.face.normal.normalize();
 
+  var geometry = new THREE.Geometry();
+  geometry.vertices.push(v1);
+  geometry.vertices.push(v2);
+  geometry.vertices.push(v3);
+  geometry.faces.push(new THREE.Face3(0, 1, 2));
+  geometry.verticesNeedUpdate = true;
 
-  for (var i=0; i<geometry.faces.length; i++) {
-    var face = geometry.faces[i];
-    var a = uniq[map[face.a]];
-    var b = uniq[map[face.b]];
-    var c = uniq[map[face.c]];
-    if (a.uv && b.uv && c.uv) {
-      geometry.faceVertexUvs[0].push([a.uv, b.uv, c.uv]);
-      geometry.uvsNeedUpdate = true;
-    }
-  }
+  var rot = mesh.rotation;
+  var axis = new THREE.Vector3(0, 1, 0);
+  var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
+  var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
+
+  var radius = size/30;
+  var height = size/10;
+  var tetra = new THREE.Mesh(
+    new THREE.CylinderGeometry(0, radius, height, 8, 1),
+    new THREE.MeshLambertMaterial({color: 0x0000ff})
+  )
+  tetra.applyMatrix(matrix);
+  tetra.castShadow = true;
+  tetra.receiveShadow = true;
+  tetra.position.set(point.x, point.y, point.z)
+  geometry.mergeMesh(tetra);
+
+  var texture = new THREE.Mesh(
+    geometry, new THREE.MeshBasicMaterial({color: 'yellow'}));
+  texture.rotation.set(rot.x, rot.y, rot.z, rot.order)
+  texture.castShadow = true;
+  texture.receiveShadow = true;
+  texture.position.set(pos.x, pos.y, pos.z);
+  scene.add(texture);
+  return texture;
 }
 
 
