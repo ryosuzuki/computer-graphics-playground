@@ -1,0 +1,19 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+
+<script src="js/setup.js"></script>
+<script src="js/event.js"></script>
+<script src="js/select.js"></script>
+<script src="js/prototype.js"></script>
+<script src="js/modules/stljs.js"></script>
+
+<div style="position:absolute;top:10px;left:10px;">
+  <button class="ui blue button" id="export">STL Export</button>
+  <button class="ui grey button" id="mode">View Mode (⌘ + Mouse)</button>
+  <p>⌘ + Mouse: Select <br>⌥ + Mouse: Undo</p>
+</div>
+
+<div id="viewport"></div>
+
+{% endblock %}

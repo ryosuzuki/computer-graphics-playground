@@ -4,19 +4,6 @@ var Z;
 
 
 
-
-function colorChange (val, color) {
-  if (!color) color = 'yellow';
-  var faces = geometry.faces;
-  geometry.phiFaces.forEach( function (p, index) {
-    if (p > val) {
-      var face = faces[index];
-      face.color.set(new THREE.Color(color));
-      geometry.colorsNeedUpdate = true;
-    }
-  })
-}
-
 function computeHarmonicField(geometry, callback) {
   var geometry = window.geometry;
   var n = geometry.uniq.length;

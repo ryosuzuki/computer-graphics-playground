@@ -34,6 +34,7 @@
     "mathjs": "~2.6.0",
     "numericjs": "~1.2.6",
     "vectorious": "~4.1.4",
-    "request": "~2.69.1"
+    "request": "~2.69.1",
+    "mousetrap": "~1.5.3"
   }
 }
