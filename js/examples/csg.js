@@ -44,8 +44,9 @@ function getTexture (current) {
       tetra.applyMatrix(matrix);
       tetra.castShadow = true;
       tetra.receiveShadow = true;
-      tetra.position.set(point.x, point.y-0.01, point.z)
-      geometry.mergeMesh(tetra);
+      tetra.position.set(point.x, point.y, point.z)
+      csgUnion(tetra);
+      // geometry.mergeMesh(tetra);
     }
   }
 
@@ -57,7 +58,7 @@ function getTexture (current) {
   texture.position.set(pos.x, pos.y, pos.z);
   scene.add(texture);
 
-  textures.push(texture);
+  // textures.push(texture);
 
   return texture;
 }
@@ -68,25 +69,20 @@ $(document).on('click', '#csg', function () {
 
 var csgMesh;
 var textures = [];
-function csgUnion () {
+function csgUnion (tetra) {
   var hoge = new THREE.Mesh(
     new THREE.CylinderGeometry(size*0.5, size*2, size*2, 20),
     new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
   );
   hoge.position.set(1, -0.1, -2);
-  // var matrix = new THREE.Matrix4();
-  // matrix.setPosition( new THREE.Vector3(0, 0, 1) );
-  // hoge.applyMatrix( matrix );
   hoge.material = new THREE.MeshBasicMaterial({color: 'black'});
-  scene.add(hoge);
+  // scene.add(hoge);
 
   var cm = new ThreeBSP(cylinder);
-  var cb = new ThreeBSP(hoge)
-  window.cm = cm;
-  window.cb = cb;
-  var csgMesh = cm.union(cb);
+  var cb = new ThreeBSP(tetra)
+  csgMesh = cm.union(cb);
   var mesh = csgMesh.toMesh();
-  mesh.position.set(-4, 0, -4);
+  mesh.material = new THREE.MeshBasicMaterial({color: 'blue'});
   scene.add(mesh);
 
 }
