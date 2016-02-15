@@ -6,6 +6,12 @@ var raycaster = new THREE.Raycaster()
 var mouse = new THREE.Vector2();
 var size = 1;
 
+$(function () {
+  init();
+  drawObjects();
+  animate();
+});
+
 function init() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 10000);

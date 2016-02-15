@@ -2,16 +2,23 @@
 
 {% block main %}
 
-<script src="js/setup.js"></script>
-<script src="js/event.js"></script>
-<script src="js/select.js"></script>
-<script src="js/prototype.js"></script>
-<script src="js/modules/stljs.js"></script>
+<script src="/js/prototype/setup.js"></script>
+<script src="/js/prototype/event.js"></script>
+<script src="/js/prototype/select.js"></script>
+<script src="/js/prototype/mapping.js"></script>
+<script src="/js/prototype/texture.js"></script>
+<script src="/js/prototype/draw.js"></script>
 
-<div style="position:absolute;top:10px;left:10px;">
-  <button class="ui blue button" id="export">STL Export</button>
+<div class="top-buttons">
+  <button class="ui blue button" id="import">STL Import</button>
   <button class="ui grey button" id="mode">View Mode (⌘ + Mouse)</button>
   <p>⌘ + Mouse: Select <br>⌥ + Mouse: Undo</p>
+</div>
+
+<div class="bottom-buttons" style="display:none">
+  <button class="ui grey button" id="map">View Mapping</button>
+  <button class="ui teal button" id="add">Add Texture</button>
+  <button class="ui green button" id="export">STL Export</button>
 </div>
 
 <div id="viewport"></div>

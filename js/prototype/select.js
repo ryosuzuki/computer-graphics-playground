@@ -1,5 +1,6 @@
+var selectIndex = [];
 
-function compute (undoMode) {
+function computeSelect (undoMode) {
   var undoMode = undoMode;
   var N = 15;
   var t = N/2;
@@ -23,8 +24,6 @@ function compute (undoMode) {
     q = undefined;
   });
 }
-
-var selectIndex;
 
 function colorChange (val, undoMode) {
   var color;
@@ -52,4 +51,3 @@ function colorChange (val, undoMode) {
     }
   })
 }
-
