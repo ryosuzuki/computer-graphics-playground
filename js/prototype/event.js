@@ -8,11 +8,47 @@ $(document).on('click', '#add', function (event) {
 });
 
 $(document).on('click', '#export', function() {
-  var exporter = new THREE.STLExporter();
-  var stlString = exporter.parse( scene );
-  var blob = new Blob([stlString], {type: 'text/plain'});
-  saveAs(blob, 'demo.stl');
+  generateVoxel( function (str) {
+    var blob = new Blob([str], {type: 'text/plain'});
+    saveAs(blob, 'demo.stl');
+  })
 });
+
+function generateVoxel (callback) {
+  console.log('Start voxelization...')
+  var cells = geometry.faces.map( function (face) {
+    var map = geometry.map;
+    return [map[face.a], map[face.b], map[face.c]];
+  })
+  var positions = geometry.uniq.map( function (object) {
+    var vertex = object.vertex;
+    return [vertex.x, vertex.y, vertex.z];
+  })
+  var json = { "cells": cells, "positions": positions };
+  var object = voxelize(json.cells, json.positions, 0.02);
+  var str = normalSTL(object.voxels);
+  console.log('done');
+  if (callback) callback(str);
+}
+
+function saveVoxel () {
+  var cells = geometry.faces.map( function (face) {
+    var map = geometry.map;
+    return [map[face.a], map[face.b], map[face.c]];
+  })
+  var positions = geometry.uniq.map( function (object) {
+    var vertex = object.vertex;
+    return [vertex.x, vertex.y, vertex.z];
+  })
+  var json = { "cells": cells, "positions": positions };
+  $.ajax({
+    url: '/stl',
+    method: 'POST',
+    dataType: 'JSON',
+    data: { json: JSON.stringify(json) }
+  })
+}
+
 
 function finishSelect () {
   if (selectIndex.length <= 0) return false;

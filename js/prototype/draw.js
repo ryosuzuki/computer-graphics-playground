@@ -31,6 +31,35 @@ function drawObjects () {
   drawSTL();
 }
 
+function drawSTL () {
+  var xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function () {
+    if ( xhr.readyState == 4 ) {
+      if ( xhr.status == 200 || xhr.status == 0 ) {
+        var rep = xhr.response; // || xhr.mozResponseArrayBuffer;
+        console.log(rep);
+        parseStlBinary(rep);
+        //parseStl(xhr.responseText);
+        window.geometry = mesh.geometry;
+        mesh.material.color.set(new THREE.Color('blue'))
+        mesh.position.y = 1;
+        mesh.rotation.x = 5;
+        mesh.rotation.z = .25;
+        // for mavin
+        // mesh.scale.set(0.1, 0.1, 0.1);
+        console.log('done parsing');
+        loadObjects();
+      }
+    }
+  }
+  xhr.onerror = function(e) {
+    console.log(e);
+  }
+  xhr.open( "GET", 'assets/mini_knight.stl', true );
+  xhr.responseType = "arraybuffer";
+  xhr.send( null );
+}
+
 function drawCylinder () {
   limit = 0.4;
   start = 13;
@@ -64,36 +93,6 @@ function drawBox () {
   window.geometry = box.geometry
   mesh = box;
 }
-
-function drawSTL () {
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function () {
-    if ( xhr.readyState == 4 ) {
-      if ( xhr.status == 200 || xhr.status == 0 ) {
-        var rep = xhr.response; // || xhr.mozResponseArrayBuffer;
-        console.log(rep);
-        parseStlBinary(rep);
-        //parseStl(xhr.responseText);
-        window.geometry = mesh.geometry;
-        mesh.material.color.set(new THREE.Color('blue'))
-        mesh.position.y = 1;
-        mesh.rotation.x = 5;
-        mesh.rotation.z = .25;
-        // for mavin
-        // mesh.scale.set(0.1, 0.1, 0.1);
-        console.log('done parsing');
-        loadObjects();
-      }
-    }
-  }
-  xhr.onerror = function(e) {
-    console.log(e);
-  }
-  xhr.open( "GET", 'assets/mini_knight.stl', true );
-  xhr.responseType = "arraybuffer";
-  xhr.send( null );
-}
-
 
 
 

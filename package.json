@@ -31,16 +31,21 @@
     "bunny": "^1.0.1",
     "co-views": "^2.1.0",
     "hanson": "^1.1.1",
+    "json-native": "0.0.4",
     "koa": "^1.0.0",
+    "koa-better-body": "^1.0.17",
     "koa-bodyparser": "^2.0.1",
+    "koa-favicon": "^1.2.0",
     "koa-route": "^2.4.2",
     "koa-static": "^1.4.9",
     "lodash": "^3.10.1",
+    "ndarray-stl": "^1.0.1",
     "numeric": "^1.2.6",
     "openscad-openjscad-translator": "0.0.7",
     "swig": "^1.4.2",
     "voxel": "^0.5.0",
     "voxel-engine": "^0.20.2",
-    "voxel-geometry": "0.0.3"
+    "voxel-geometry": "0.0.3",
+    "voxelize": "^1.0.0"
   }
 }
