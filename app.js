@@ -58,23 +58,13 @@ var jn = require('json-native');
 function *generateSTL () {
   var body = this.request.body;
   var json = this.request.body.json;
-  // console.log(json);
-  fs.writeFileSync('hoge.json', JSON.stringify(json), 'utf8');
   json = JSON.parse(json);
-  console.log('voxelization...')
+  console.log('Start voxelization...')
   var object = voxelize(json.cells, json.positions, 0.02);
-  var str = stl(object.voxels);
-  fs.writeFileSync('hoge.stl', str, 'utf8');
+  var data = stl(object.voxels);
   console.log('done')
-  // console.log(json);
-  // var cells = geometry.faces.map( function (face) {
-  //   var map = geometry.map;
-  //   return [map[face.a], map[face.b], map[face.c]];
-  // })
-  // var positions = geometry.uniq.map( function (object) {
-  //   var vertex = object.vertex;
-  //   return [vertex.x, vertex.y, vertex.z];
-  // })
+  this.status = 200;
+  this.response.body = JSON.stringify(data);
 }
 
 

@@ -8,13 +8,13 @@ $(document).on('click', '#add', function (event) {
 });
 
 $(document).on('click', '#export', function() {
-  generateVoxel( function (str) {
-    var blob = new Blob([str], {type: 'text/plain'});
+  generateVoxel( function (data) {
+    var blob = new Blob([data], {type: 'text/plain'});
     saveAs(blob, 'demo.stl');
   })
 });
 
-function generateVoxel (callback) {
+function generateVoxel (callback, client) {
   console.log('Start voxelization...')
   var cells = geometry.faces.map( function (face) {
     var map = geometry.map;
@@ -25,10 +25,24 @@ function generateVoxel (callback) {
     return [vertex.x, vertex.y, vertex.z];
   })
   var json = { "cells": cells, "positions": positions };
-  var object = voxelize(json.cells, json.positions, 0.02);
-  var str = normalSTL(object.voxels);
-  console.log('done');
-  if (callback) callback(str);
+  if (client) {
+    var object = voxelize(json.cells, json.positions, 0.02);
+    var data = normalSTL(object.voxels);
+    console.log('done');
+    if (callback) callback(data);
+  } else {
+    $.ajax({
+      url: '/stl',
+      method: 'POST',
+      dataType: 'JSON',
+      data: { json: JSON.stringify(json) },
+      success: function (data) {
+        console.log('done');
+        if (callback) callback(data);
+      }
+    })
+
+  }
 }
 
 function saveVoxel () {
@@ -41,12 +55,6 @@ function saveVoxel () {
     return [vertex.x, vertex.y, vertex.z];
   })
   var json = { "cells": cells, "positions": positions };
-  $.ajax({
-    url: '/stl',
-    method: 'POST',
-    dataType: 'JSON',
-    data: { json: JSON.stringify(json) }
-  })
 }
 
 
