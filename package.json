@@ -28,6 +28,7 @@
   "homepage": "https://github.com/ryosuzuki/three-js-example",
   "dependencies": {
     "browserify": "^11.1.0",
+    "bunny": "^1.0.1",
     "co-views": "^2.1.0",
     "hanson": "^1.1.1",
     "koa": "^1.0.0",
@@ -37,6 +38,9 @@
     "lodash": "^3.10.1",
     "numeric": "^1.2.6",
     "openscad-openjscad-translator": "0.0.7",
-    "swig": "^1.4.2"
+    "swig": "^1.4.2",
+    "voxel": "^0.5.0",
+    "voxel-engine": "^0.20.2",
+    "voxel-geometry": "0.0.3"
   }
 }

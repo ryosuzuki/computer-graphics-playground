@@ -82,6 +82,7 @@ function drawSTL () {
         // for mavin
         // mesh.scale.set(0.1, 0.1, 0.1);
         console.log('done parsing');
+        loadObjects();
       }
     }
   }
