@@ -62,6 +62,7 @@ function *generateSTL () {
   console.log('Start voxelization...')
   var object = voxelize(json.cells, json.positions, 0.02);
   var data = stl(object.voxels);
+  // fs.writeFileSync('hoge.stl', str, 'utf8');
   console.log('done')
   this.status = 200;
   this.response.body = JSON.stringify(data);

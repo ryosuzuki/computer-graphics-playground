@@ -42,6 +42,7 @@
     "ndarray-stl": "^1.0.1",
     "numeric": "^1.2.6",
     "openscad-openjscad-translator": "0.0.7",
+    "spatial-grid": "^0.1.1",
     "swig": "^1.4.2",
     "voxel": "^0.5.0",
     "voxel-engine": "^0.20.2",

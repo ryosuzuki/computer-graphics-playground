@@ -56,6 +56,7 @@ function drawSTL () {
     console.log(e);
   }
   xhr.open( "GET", 'assets/mini_knight.stl', true );
+  // xhr.open( "GET", 'assets/noah-2.stl', true );
   xhr.responseType = "arraybuffer";
   xhr.send( null );
 }

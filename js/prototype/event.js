@@ -27,6 +27,7 @@ function generateVoxel (callback, client) {
   var json = { "cells": cells, "positions": positions };
   if (client) {
     var object = voxelize(json.cells, json.positions, 0.02);
+    window.object = object;
     var data = normalSTL(object.voxels);
     console.log('done');
     if (callback) callback(data);
@@ -41,7 +42,6 @@ function generateVoxel (callback, client) {
         if (callback) callback(data);
       }
     })
-
   }
 }
 
