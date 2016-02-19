@@ -1,4 +1,4 @@
-var start;
+var start = 100;
 var maxDistance = 4;
 
 function computeMapping () {

@@ -14,17 +14,40 @@ $(document).on('click', '#export', function() {
   })
 });
 
+function saveGeometry () {
+
+  var maps =
+
+  $.ajax({
+    url: '/save',
+    method: 'POST',
+    dataType: 'JSON',
+    data: {
+      json: geometry.uniq[0],
+      // map: geometry.map
+    },
+    success: function (data) {
+      console.log('done');
+    }
+  })
+}
+
 function generateVoxel (callback, client) {
   console.log('Start voxelization...')
   var cells = geometry.faces.map( function (face) {
     var map = geometry.map;
     return [map[face.a], map[face.b], map[face.c]];
-  })
-  var positions = geometry.uniq.map( function (object) {
+  });
+  var uniq = geometry.uniq;
+  var positions = [];
+  var mappings = [];
+  for (var i=0; i<uniq.length; i++) {
+    var object = uniq[i];
     var vertex = object.vertex;
-    return [vertex.x, vertex.y, vertex.z];
-  })
-  var json = { "cells": cells, "positions": positions };
+    positions.push([vertex.x, vertex.y, vertex.z]);
+    mappings.push([object.u, object.v]);
+  }
+  var json = { cells: cells, positions: positions, mappings: mappings };
   if (client) {
     var object = voxelize(json.cells, json.positions, 0.02);
     window.object = object;

@@ -16,7 +16,7 @@ var voxelCompare = new Function('a', 'b', [
   'return 0;'
 ].join('\n'));
 
-function rasterize(cells, positions, faceNormals, removes) {
+function rasterize(cells, positions, mappings, faceNormals) {
   if(cells.cells) {
     faceNormals = cells.faceNormals;
     positions = cells.positions;
@@ -31,15 +31,54 @@ function rasterize(cells, positions, faceNormals, removes) {
     if(isNaN(d) || Math.abs(d) > 1.0) {
       continue;
     } else {
-      var cells = grid.closestCells(coord).cells;
-      // for (var i=2000; i<8000; i++) {
-      //   if (cells.indexOf(i) !== -1) d = 0;
-      // }
-      if (cells[0]%2 == 0) d = 0;
-      if(d < 0) {
-        result.push([coord[0], coord[1], coord[2], 1, -d]);
+      var cs = grid.closestCells(coord).cells;
+      var c = cs[0];
+      var vertices = cells[c];
+      var va = positions[vertices[0]];
+      var vb = positions[vertices[1]];
+      var vc = positions[vertices[2]];
+      va = va.map(function (pos) { return pos / grid.tolerance });
+      vb = vb.map(function (pos) { return pos / grid.tolerance });
+      vc = vc.map(function (pos) { return pos / grid.tolerance });
+      /*
+      coord[0] = a*va[0] + b*vb[0] + c*vc[0]
+      coord[1] = a*va[1] + b*vb[1] + c*vc[1]
+      coord[2] = a*va[2] + b*vb[2] + c*vc[2]
+      */
+      var A = [
+        [ va[0], vb[0], vc[0] ],
+        [ va[1], vb[1], vc[1] ],
+        [ va[2], vb[2], vc[2] ]
+      ];
+      var Ainv = numeric.inv(A);
+      var t = numeric.dot(Ainv, coord);
+      var alpha = t[0]+t[1]+t[2]-1;
+      t = t.map(function (i) { return i-(alpha/3); })
+      var a = t[0];
+      var b = t[1];
+      var c = t[2];
+      // u = a*va.u + b*vb.u + c*vc.u;
+      // v = a*va.v + b*vb.v + c*vc.v;
+
+      var ma = mappings[vertices[0]];
+      var mb = mappings[vertices[1]];
+      var mc = mappings[vertices[2]];
+      var u = a*ma[0] + b*mb[0] + c*mc[0];
+      var v = a*ma[1] + b*mb[1] + c*mc[1]
+      var mapping = [u, v];
+      var remove = false;
+      if (!isNaN(v)) {
+        for (var i=-150; i<150; i++) {
+          if (i%2 == 0) continue;
+          var l = 0.01*i;
+          var h = 0.01*(i+1);
+          if (l < v & v < h) remove = true;
+        }
+      }
+      if(d < 0 && !remove) {
+        result.push([coord[0], coord[1], coord[2], 1, -d, vertices, mapping]);
       } else {
-        result.push([coord[0], coord[1], coord[2], 0, d]);
+        result.push([coord[0], coord[1], coord[2], 0,  d, vertices, mapping]);
       }
     }
   }
@@ -49,6 +88,8 @@ function rasterize(cells, positions, faceNormals, removes) {
   var Z = new Array(result.length+1);
   var P = new Array(result.length+1);
   var D = new Array(result.length+1);
+  var V = new Array(result.length+1);
+  var M = new Array(result.length+1);
   X[0] = Y[0] = Z[0] = core.NEGATIVE_INFINITY;
   P[0] = 0;
   D[0] = 1.0;
@@ -59,9 +100,14 @@ function rasterize(cells, positions, faceNormals, removes) {
     Z[i+1] = r[2];
     P[i+1] = r[3];
     D[i+1] = r[4];
+    V[i+1] = r[5];
+    M[i+1] = r[6];
   }
   //return repair.removeDuplicates(new core.DynamicVolume([X,Y,Z], D, P));
-  return repair.removeDuplicates(new core.DynamicVolume([X,Y,Z], D, P));
+  var volume = repair.removeDuplicates(new core.DynamicVolume([X,Y,Z], D, P));
+  volume.vertices = V;
+  volume.mappings = M;
+  return volume;
 }
 
 module.exports = rasterize;

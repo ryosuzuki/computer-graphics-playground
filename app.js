@@ -9,6 +9,9 @@ var serve = require('koa-static');
 var parser = require('koa-bodyparser');
 var koa = require('koa');
 
+var voxelize = require('./voxelize');
+var stl = require('ndarray-stl');
+
 var app = koa();
 var server = http.createServer(app.callback());
 var port = process.env.PORT || 3000;
@@ -42,22 +45,15 @@ function *show(id) {
   this.body = yield this.render(id)
 }
 function *save() {
-  console.log(this.request);
-  console.log(this.request.body);
   var json = this.request.body.json;
-  console.log(json)
+  // json = JSON.parse(json);
+  console.log(json);
   fs.writeFileSync('hoge.json', json, 'utf8')
 }
-
-var fs = require('fs');
-var voxelize = require('voxelize');
-var stl = require('ndarray-stl');
-
-var jn = require('json-native');
-
 function *generateSTL () {
   var body = this.request.body;
   var json = this.request.body.json;
+  fs.writeFileSync('sample.json', json, 'utf8');
   json = JSON.parse(json);
   console.log('Start voxelization...')
   var object = voxelize(json.cells, json.positions, 0.02);

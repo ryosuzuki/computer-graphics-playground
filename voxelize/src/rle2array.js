@@ -17,13 +17,17 @@ function rle2array(volume, bounds) {
   }
   var phase = ndarray(new Int32Array(size), dims, stride, 0)
   var distance = ndarray(new Float32Array(size), dims, stride, 0)
+  var vertices = ndarray(new Int32Array(size), dims, stride, 0)
+  var transform = ndarray(new Float32Array(size), dims, stride, 0)
   var ptr = size
   var X = volume.coords[0],
       Y = volume.coords[1],
       Z = volume.coords[2],
       P = volume.phases,
       D = volume.distances,
-      x0,y0,z0,p,d,nptr,
+      V = volume.vertices,
+      M = volume.mappings,
+      x0,y0,z0,p,d,v,t,nptr,
       sx = bounds[0][0]|0,
       sy = bounds[0][1]|0,
       sz = bounds[0][2]|0
@@ -57,7 +61,9 @@ function rle2array(volume, bounds) {
   }
   return {
     phase: phase,
-    distance: distance
+    distance: distance,
+    vertices: V,
+    mappings: M
   };
 }
 module.exports = rle2array

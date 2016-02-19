@@ -9,17 +9,11 @@ var sample = require('./sample.json');
 var spatialGrid = require('./voxelize/src/spatial-grid');
 var signedDistance = require('./voxelize/src/signed-distance');
 
-var json = JSON.parse(sample);
-var grid = spatialGrid(json.cells, json.positions, 0.1);
-var faceNormals = normals.faceNormals(grid.cells, grid.positions);
-
-// coord -> the position of voxels [0,0,0] -> [0,1,0] -> ...
-// for(var id in grid.grid) {
-//   var coord = grid.grid[id].coord;
-// }
-// repl.start('> ').context.grid = grid;
-
-var object = voxelize(json.cells, json.positions, 0.02);
+// var json = JSON.parse(sample);
+var json = sample;
+// var grid = spatialGrid(json.cells, json.positions, 0.1);
+// var faceNormals = normals.faceNormals(grid.cells, grid.positions);
+var object = voxelize(json.cells, json.positions, 0.02, json.mappings);
 var data = stl(object.voxels);
 fs.writeFileSync('hoge.stl', data, 'utf8');
 
