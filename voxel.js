@@ -19,7 +19,7 @@ var faceNormals = normals.faceNormals(grid.cells, grid.positions);
 // }
 // repl.start('> ').context.grid = grid;
 
-var object = voxelize(json.cells, json.positions, 0.04);
+var object = voxelize(json.cells, json.positions, 0.02);
 var data = stl(object.voxels);
 fs.writeFileSync('hoge.stl', data, 'utf8');
 

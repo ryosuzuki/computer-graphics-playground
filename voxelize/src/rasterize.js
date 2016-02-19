@@ -32,9 +32,10 @@ function rasterize(cells, positions, faceNormals, removes) {
       continue;
     } else {
       var cells = grid.closestCells(coord).cells;
-      for (var i=2000; i<8000; i++) {
-        if (cells.indexOf(i) !== -1) d = 0;
-      }
+      // for (var i=2000; i<8000; i++) {
+      //   if (cells.indexOf(i) !== -1) d = 0;
+      // }
+      if (cells[0]%2 == 0) d = 0;
       if(d < 0) {
         result.push([coord[0], coord[1], coord[2], 1, -d]);
       } else {
