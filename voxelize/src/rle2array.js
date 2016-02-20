@@ -30,7 +30,9 @@ function rle2array(volume, bounds) {
       x0,y0,z0,p,d,v,t,nptr,
       sx = bounds[0][0]|0,
       sy = bounds[0][1]|0,
-      sz = bounds[0][2]|0
+      sz = bounds[0][2]|0,
+      fill = false;
+
   for(i=n-1; i>=0; --i) {
     nptr = ptr
     x0 = (X[i]-sx)|0
@@ -54,9 +56,14 @@ function rle2array(volume, bounds) {
     ptr = x0 + dims[0] * (y0 + dims[1] * z0)
     d = D[i]
     p = P[i]
-    for(j=nptr-1; j>=ptr; --j) {
-      phase.data[j] = p
-      distance.data[j] = d
+    if (fill) {
+      for(j=nptr-1; j>=ptr; --j) {
+        phase.data[j] = p
+        distance.data[j] = d
+      }
+    } else {
+      phase.data[ptr] = p;
+      distance.data[ptr] = d;
     }
   }
   return {
@@ -67,3 +74,29 @@ function rle2array(volume, bounds) {
   };
 }
 module.exports = rle2array
+
+
+/*
+  var hoga = 0;
+  var coords = volume.C;
+  console.log(coords.length, 'coords')
+  var k = 0;
+  var m = 0;
+  for (var z=1; z<=dims[2]; z++) {
+    for (var y=1; y<=dims[1]; y++) {
+      for (var x=1; x<=dims[0]; x++) {
+        var coord = [x, y, z].join(',');
+        if (coords.indexOf(coord) !== -1) {
+          var p = P[k+1];
+          phase.data[m] = p;
+          k++;
+          if (x == 21) hoga++;
+        } else {
+          phase.data[m] = 0;
+        }
+        m++;
+      }
+    }
+  }
+  console.log(hoga, 'hoga')
+*/

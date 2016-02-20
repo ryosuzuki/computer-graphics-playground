@@ -1,48 +1,80 @@
-var createGame = require('voxel-engine')
-var voxel = require('voxel')
-var voxelGeometry = require('voxel-geometry')
+var objects = [];
+var materials = [];
+THREE.ImageUtils.crossOrigin = '';
 
-window.game = createGame({
-  generate: voxel.generator['Valley'],
-  startingPosition: [35, 350, 35],
-  worldOrigin: [0,0,0],
-  controlOptions: {jump: 8}
-})
+var triangle;
+var cylinder;
 
-voxelGeometry.loadGeometry('http://thingiverse-production.s3.amazonaws.com/assets/dc/6b/db/6e/3e/steve2-flatback.stl', function(err, geometry) {
-  geometry.computeFaceNormals();
-  material = new THREE.MeshBasicMaterial( { color: 0xFF44FF, wireframe: true } )
-  material.side = THREE.DoubleSide;
-  var mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(-400, 400, 0);
-  mesh.scale.set(10, 10, 10);
-  mesh.rotation.y = Math.PI / 2.0;
-  game.scene.add(mesh);
-  voxelGeometry.voxelateMesh(game, mesh);
-});
-
-var currentMaterial = 3
+function loadObjects () {
+  computeUniq(geometry, function () {
+    computeLaplacian(geometry, function () {
+      console.log('done')
+    });
+  });
+}
 
 
-game.on('mousedown', function (pos) {
-  if (erase) {
-    game.getBlock(pos, 0)
-  } else {
-    game.createBlock(pos, currentMaterial)
+var size = 0.1;
+var shape = [ 26, 29, 49 ];
+
+size = 0.02;
+shape = [ 128, 144, 245 ];
+
+size = 0.06;
+shape = [ 43, 48, 82 ];
+
+size = 1.0;
+
+shape = [ 110, 108, 84 ];
+shape = [ 99, 97, 76 ];
+shape = [ 50, 49, 38 ];
+
+var geometry;
+
+var hoge = 0;
+function drawObjects () {
+  var n = 0;
+  geometry = new THREE.Geometry();
+  for (var y=1; y<=shape[2]; y++) {
+    for (var x=1; x<=shape[1]; x++) {
+      for (var z=1; z<=shape[0]; z++) {
+        var phase = a[n++];
+        if (phase > 0 && x>20) {
+          // setTimeout( function () {
+          drawBox(x, y, z);
+          // }, 1000);
+          // console.log(n);
+        }
+      }
+    }
   }
-})
+  // var material = new THREE.MeshLambertMaterial({color: 'blue'});
+  var mesh = new THREE.Mesh(geometry);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
 
-var erase = true
-window.addEventListener('keydown', function (ev) {
-  if (ev.keyCode === 'X'.charCodeAt(0)) {
-    erase = !erase
-  }
-})
+  var exporter = new THREE.STLExporter();
+  var stlString = exporter.parse( scene );
+  var blob = new Blob([stlString], {type: 'text/plain'});
+  // saveAs(blob, 'demo.stl');
+}
 
-function ctrlToggle (ev) { erase = !ev.ctrlKey }
-window.addEventListener('keyup', ctrlToggle)
-window.addEventListener('keydown', ctrlToggle)
+function drawBox (x, y, z) {
+  var size = 0.07;
+  x = size*x, y=size*y, z = size*z;
+  var box = new THREE.Mesh(
+    new THREE.BoxGeometry(size, size, size),
+    new THREE.MeshLambertMaterial({color: 'blue'})
+  );
+  box.geometry.verticesNeedUpdate = true;
+  box.dynamic = true;
+  box.castShadow = true;
+  box.receiveShadow = true;
+  box.position.set(x, y, z);
+  geometry.mergeMesh(box);
+}
 
-var container = document.body
-game.appendTo(container)
-game.setupPointerLock(container)
+
+
+

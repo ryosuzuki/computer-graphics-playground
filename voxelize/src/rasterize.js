@@ -4,6 +4,8 @@
 var normals = require('normals');
 var core = require('rle-core');
 var repair = require('rle-repair');
+var extents = require('rle-extents')
+
 
 var spatialGrid = require('./spatial-grid');
 var signedDistance = require('./signed-distance');
@@ -25,63 +27,27 @@ function rasterize(cells, positions, mappings, faceNormals) {
   var grid = spatialGrid(cells, positions, 1.0);
   var faceNormals = faceNormals || normals.faceNormals(grid.cells, grid.positions);
   var result = [];
+  var n = 0;
+
   for(var id in grid.grid) {
     var coord = grid.grid[id].coord;
     var d = signedDistance(grid, faceNormals, coord);
     if(isNaN(d) || Math.abs(d) > 1.0) {
       continue;
     } else {
-      var cs = grid.closestCells(coord).cells;
-      var c = cs[0];
-      var vertices = cells[c];
-      var va = positions[vertices[0]];
-      var vb = positions[vertices[1]];
-      var vc = positions[vertices[2]];
-      va = va.map(function (pos) { return pos / grid.tolerance });
-      vb = vb.map(function (pos) { return pos / grid.tolerance });
-      vc = vc.map(function (pos) { return pos / grid.tolerance });
-      /*
-      coord[0] = a*va[0] + b*vb[0] + c*vc[0]
-      coord[1] = a*va[1] + b*vb[1] + c*vc[1]
-      coord[2] = a*va[2] + b*vb[2] + c*vc[2]
-      */
-      var A = [
-        [ va[0], vb[0], vc[0] ],
-        [ va[1], vb[1], vc[1] ],
-        [ va[2], vb[2], vc[2] ]
-      ];
-      var Ainv = numeric.inv(A);
-      var t = numeric.dot(Ainv, coord);
-      var alpha = t[0]+t[1]+t[2]-1;
-      t = t.map(function (i) { return i-(alpha/3); })
-      var a = t[0];
-      var b = t[1];
-      var c = t[2];
-      // u = a*va.u + b*vb.u + c*vc.u;
-      // v = a*va.v + b*vb.v + c*vc.v;
-
-      var ma = mappings[vertices[0]];
-      var mb = mappings[vertices[1]];
-      var mc = mappings[vertices[2]];
-      var u = a*ma[0] + b*mb[0] + c*mc[0];
-      var v = a*ma[1] + b*mb[1] + c*mc[1]
-      var mapping = [u, v];
-      var remove = false;
-      if (!isNaN(v)) {
-        for (var i=-150; i<150; i++) {
-          if (i%2 == 0) continue;
-          var l = 0.01*i;
-          var h = 0.01*(i+1);
-          if (l < v & v < h) remove = true;
-        }
-      }
+      // var cells = grid.closestCells(coord).cells;
+      // for (var i=0; i<cells.length; i++) {
+      //   if (cells[i] > 2000) d = 0;
+      // }
+      var remove = checkRemove(cells, grid, coord, positions, mappings);
       if(d < 0 && !remove) {
-        result.push([coord[0], coord[1], coord[2], 1, -d, vertices, mapping]);
+        result.push([coord[0], coord[1], coord[2], 1, -d, [], faceNormals]);
       } else {
-        result.push([coord[0], coord[1], coord[2], 0,  d, vertices, mapping]);
+        result.push([coord[0], coord[1], coord[2], 0,  d, [], faceNormals]);
       }
     }
   }
+
   result.sort(voxelCompare);
   var X = new Array(result.length+1);
   var Y = new Array(result.length+1);
@@ -103,11 +69,57 @@ function rasterize(cells, positions, mappings, faceNormals) {
     V[i+1] = r[5];
     M[i+1] = r[6];
   }
-  //return repair.removeDuplicates(new core.DynamicVolume([X,Y,Z], D, P));
+
+  // return repair.removeDuplicates(new core.DynamicVolume([X,Y,Z], D, P));
   var volume = repair.removeDuplicates(new core.DynamicVolume([X,Y,Z], D, P));
   volume.vertices = V;
   volume.mappings = M;
   return volume;
 }
+
+function checkRemove (cells, grid, coord, positions, mappings) {
+  var cs = grid.closestCells(coord).cells;
+  var c = cs[0];
+  var vertices = cells[c];
+  var va = positions[vertices[0]];
+  var vb = positions[vertices[1]];
+  var vc = positions[vertices[2]];
+  va = va.map(function (pos) { return pos / grid.tolerance });
+  vb = vb.map(function (pos) { return pos / grid.tolerance });
+  vc = vc.map(function (pos) { return pos / grid.tolerance });
+  var A = [
+    [ va[0], vb[0], vc[0] ],
+    [ va[1], vb[1], vc[1] ],
+    [ va[2], vb[2], vc[2] ]
+  ];
+  var Ainv = numeric.inv(A);
+  var t = numeric.dot(Ainv, coord);
+  var alpha = t[0]+t[1]+t[2]-1;
+  t = t.map(function (i) { return i-(alpha/3); })
+  var a = t[0];
+  var b = t[1];
+  var c = t[2];
+  // u = a*va.u + b*vb.u + c*vc.u;
+  // v = a*va.v + b*vb.v + c*vc.v;
+  if (mappings && mappings.length > 0) {
+    var ma = mappings[vertices[0]];
+    var mb = mappings[vertices[1]];
+    var mc = mappings[vertices[2]];
+    var u = a*ma[0] + b*mb[0] + c*mc[0];
+    var v = a*ma[1] + b*mb[1] + c*mc[1]
+    var mapping = [u, v];
+    var remove = false;
+    if (!isNaN(v)) {
+      for (var i=-150; i<150; i++) {
+        if (i%2 == 0) continue;
+        var l = 0.01*i;
+        var h = 0.01*(i+1);
+        if (l < v && v < h) return true;
+      }
+    }
+  }
+  return false;
+}
+
 
 module.exports = rasterize;
