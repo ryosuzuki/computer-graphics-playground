@@ -29,6 +29,9 @@ shape = [ 110, 108, 84 ];
 shape = [ 99, 97, 76 ];
 shape = [ 50, 49, 38 ];
 
+// bunny 0.1
+shape = [ 99, 97, 76 ];
+
 var geometry;
 
 var hoge = 0;
@@ -39,7 +42,7 @@ function drawObjects () {
     for (var x=1; x<=shape[1]; x++) {
       for (var z=1; z<=shape[0]; z++) {
         var phase = a[n++];
-        if (phase > 0 && x>20) {
+        if (phase > 0) {
           // setTimeout( function () {
           drawBox(x, y, z);
           // }, 1000);

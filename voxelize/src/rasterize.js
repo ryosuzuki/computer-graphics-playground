@@ -28,19 +28,21 @@ function rasterize(cells, positions, mappings, faceNormals) {
   var faceNormals = faceNormals || normals.faceNormals(grid.cells, grid.positions);
   var result = [];
   var n = 0;
-
+  console.log('hoge')
   for(var id in grid.grid) {
     var coord = grid.grid[id].coord;
     var d = signedDistance(grid, faceNormals, coord);
     if(isNaN(d) || Math.abs(d) > 1.0) {
-      continue;
-    } else {
-      // var cells = grid.closestCells(coord).cells;
-      // for (var i=0; i<cells.length; i++) {
-      //   if (cells[i] > 2000) d = 0;
+      // var m = mapping(cells, grid, coord, positions, mappings);
+      // if (m) {
+      //   result.push([coord[0], coord[1], coord[2], 1,  d, [], faceNormals]);
+      // } else {
+        continue;
       // }
-      var remove = checkRemove(cells, grid, coord, positions, mappings);
-      if(d < 0 && !remove) {
+    } else {
+      var m = mapping(cells, grid, coord, positions, mappings);
+      if(d < 0 && !m) {
+      // if(d < 0) {
         result.push([coord[0], coord[1], coord[2], 1, -d, [], faceNormals]);
       } else {
         result.push([coord[0], coord[1], coord[2], 0,  d, [], faceNormals]);
@@ -77,7 +79,7 @@ function rasterize(cells, positions, mappings, faceNormals) {
   return volume;
 }
 
-function checkRemove (cells, grid, coord, positions, mappings) {
+function mapping (cells, grid, coord, positions, mappings) {
   var cs = grid.closestCells(coord).cells;
   var c = cs[0];
   var vertices = cells[c];
@@ -109,11 +111,13 @@ function checkRemove (cells, grid, coord, positions, mappings) {
     var v = a*ma[1] + b*mb[1] + c*mc[1]
     var mapping = [u, v];
     var remove = false;
+    console.log({u: u, v: v})
+    var stripe = 0.02;
     if (!isNaN(v)) {
       for (var i=-150; i<150; i++) {
         if (i%2 == 0) continue;
-        var l = 0.01*i;
-        var h = 0.01*(i+1);
+        var l = stripe*i;
+        var h = stripe*(i+1);
         if (l < v && v < h) return true;
       }
     }

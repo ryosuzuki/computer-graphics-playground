@@ -15,9 +15,6 @@ $(document).on('click', '#export', function() {
 });
 
 function saveGeometry () {
-
-  var maps =
-
   $.ajax({
     url: '/save',
     method: 'POST',
