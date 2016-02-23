@@ -26,7 +26,6 @@ function rasterize(geometry) {
   var faceNormals = faceNormals || normals.faceNormals(grid.cells, grid.positions);
   var result = [];
   var n = 0;
-  console.log('start')
   for(var id in grid.grid) {
     var coord = grid.grid[id].coord;
     var d = signedDistance(grid, faceNormals, coord);

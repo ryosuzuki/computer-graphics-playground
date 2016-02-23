@@ -158,8 +158,8 @@ function expand3(x) {
 
 function fill3(grid, lo, hi, c) {
   var scoord = [0,0,0];
-  // var tol = 3.0 * grid.tolerance * grid.tolerance;
-  var tol = 30000.0 * grid.tolerance * grid.tolerance;
+  var tol = 3.0 * grid.tolerance * grid.tolerance;
+  // var tol = 30000.0 * grid.tolerance * grid.tolerance;
   for(var i=lo[2]; i<=hi[2]; ++i) {
     var x = expand3(i)<<2;
     scoord[2] = grid.tolerance * i;

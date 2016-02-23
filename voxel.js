@@ -5,7 +5,7 @@ var stl = require('ndarray-stl');
 var fs = require('fs');
 var sample = require('./sample.json');
 var json = sample;
-var json = require('./mini-knight.json')
+// var json = require('./mini-knight.json')
 
 var geometry = new Geometry(json);
 var object = geometry.voxelize(0.02);

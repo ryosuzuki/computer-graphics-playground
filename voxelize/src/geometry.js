@@ -15,7 +15,7 @@ function Geometry (cells, positions, mappings, selected_cells, resolution, faceN
   }
   this.cells = cells;
   this.positions = positions;
-  this.mapppings = mappings || [];
+  this.mappings = mappings || [];
   this.selected_cells = selected_cells || [];
   this.resolution = resolution || 1.0;
   this.faceNormals = faceNormals || normals.faceNormals(this.cells, this.positions);
@@ -56,8 +56,18 @@ Geometry.prototype.updatePositions = function () {
 
 Geometry.prototype.voxelize = function (resolution) {
   if (resolution) this.resolution = resolution;
+  var output = {
+    cells: this.cells.length,
+    positions: this.positions.length,
+    selected_cells: this.selected_cells.length,
+    mapppings: this.mappings.length,
+    resolution: this.resolution
+  }
+  console.log(output)
   this.updatePositions()
+  console.log('Start rasterizing...')
   var volume = rasterize(this);
+  console.log('Generate voxels...')
   var result = rle2array(volume);
   return {
     voxels: result.phase,
@@ -72,8 +82,8 @@ Geometry.prototype.voxelize = function (resolution) {
 Geometry.prototype.mapping = function (grid, coord) {
   var current_cells = grid.closestCells(coord).cells;
   for (var i=0; i<current_cells.length; i++) {
-    if (this.selected_cells.indexOf(current_cells) == -1) continue;
     var cell = current_cells[i];
+    if (this.selected_cells.indexOf(cell) == -1) continue;
     var vertices = this.cells[cell];
     var va = this.positions[vertices[0]];
     var vb = this.positions[vertices[1]];
@@ -82,7 +92,7 @@ Geometry.prototype.mapping = function (grid, coord) {
     vb = vb.map(function (pos) { return pos / grid.tolerance });
     vc = vc.map(function (pos) { return pos / grid.tolerance });
 
-    var n = this.faceNormals[c];
+    var n = this.faceNormals[cell];
     var A = [
       [ va[0]-vc[0], vb[0]-vc[0], n[0] ],
       [ va[1]-vc[1], vb[1]-vc[1], n[1] ],
