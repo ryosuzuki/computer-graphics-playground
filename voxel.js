@@ -12,16 +12,17 @@ var signedDistance = require('./voxelize/src/signed-distance');
 // var json = JSON.parse(sample);
 var json = sample;
 // json.mappings = []
+var json = require('./mini-knight.json')
 
 // var json = require('bunny');
 // var grid = spatialGrid(json.cells, json.positions, 0.1);
 // var faceNormals = normals.faceNormals(grid.cells, grid.positions);
-var object = voxelize(json.cells, json.positions, 1.0, json.mappings);
+var object = voxelize(json.cells, json.positions, 0.02, json.mappings);
 var array = [];
 for (var d in object.voxels.data) {
   array.push(object.voxels.data[d]);
 }
-fs.writeFileSync('voxel-data.js', 'a = ['+array+']', 'utf8');
+fs.writeFileSync('voxel-data.js', 'a = ['+array+']; shape = ['+object.voxels.shape +']', 'utf8');
 
   // 0.1
   // shape: [ 26, 29, 49 ],

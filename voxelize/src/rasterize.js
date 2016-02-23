@@ -32,17 +32,17 @@ function rasterize(cells, positions, mappings, faceNormals) {
   for(var id in grid.grid) {
     var coord = grid.grid[id].coord;
     var d = signedDistance(grid, faceNormals, coord);
+    var m = mapping(cells, grid, coord, positions, mappings, faceNormals);
     if(isNaN(d) || Math.abs(d) > 1.0) {
-      // var m = mapping(cells, grid, coord, positions, mappings);
-      // if (m) {
-      //   result.push([coord[0], coord[1], coord[2], 1,  d, [], faceNormals]);
-      // } else {
+      if (d >= 0 && m) {
+        result.push([coord[0], coord[1], coord[2], 1, d, [], faceNormals]);
+      } else {
         continue;
-      // }
+      }
     } else {
-      var m = mapping(cells, grid, coord, positions, mappings);
-      if(d < 0 && !m) {
-      // if(d < 0) {
+      if(d < 0) {
+        // hallow
+        // result.push([coord[0], coord[1], coord[2], 1, -d, [], faceNormals]);
         result.push([coord[0], coord[1], coord[2], 1, -d, [], faceNormals]);
       } else {
         result.push([coord[0], coord[1], coord[2], 0,  d, [], faceNormals]);
@@ -79,46 +79,56 @@ function rasterize(cells, positions, mappings, faceNormals) {
   return volume;
 }
 
-function mapping (cells, grid, coord, positions, mappings) {
+function mapping (cells, grid, coord, positions, mappings, faceNormals) {
   var cs = grid.closestCells(coord).cells;
-  var c = cs[0];
-  var vertices = cells[c];
-  var va = positions[vertices[0]];
-  var vb = positions[vertices[1]];
-  var vc = positions[vertices[2]];
-  va = va.map(function (pos) { return pos / grid.tolerance });
-  vb = vb.map(function (pos) { return pos / grid.tolerance });
-  vc = vc.map(function (pos) { return pos / grid.tolerance });
-  var A = [
-    [ va[0], vb[0], vc[0] ],
-    [ va[1], vb[1], vc[1] ],
-    [ va[2], vb[2], vc[2] ]
-  ];
-  var Ainv = numeric.inv(A);
-  var t = numeric.dot(Ainv, coord);
-  var alpha = t[0]+t[1]+t[2]-1;
-  t = t.map(function (i) { return i-(alpha/3); })
-  var a = t[0];
-  var b = t[1];
-  var c = t[2];
-  // u = a*va.u + b*vb.u + c*vc.u;
-  // v = a*va.v + b*vb.v + c*vc.v;
-  if (mappings && mappings.length > 0) {
-    var ma = mappings[vertices[0]];
-    var mb = mappings[vertices[1]];
-    var mc = mappings[vertices[2]];
-    var u = a*ma[0] + b*mb[0] + c*mc[0];
-    var v = a*ma[1] + b*mb[1] + c*mc[1]
-    var mapping = [u, v];
-    var remove = false;
-    console.log({u: u, v: v})
-    var stripe = 0.02;
-    if (!isNaN(v)) {
-      for (var i=-150; i<150; i++) {
-        if (i%2 == 0) continue;
-        var l = stripe*i;
-        var h = stripe*(i+1);
-        if (l < v && v < h) return true;
+  for (var i=0; i<cs.length; i++) {
+    var c = cs[i];
+    var vertices = cells[c];
+    var va = positions[vertices[0]];
+    var vb = positions[vertices[1]];
+    var vc = positions[vertices[2]];
+    va = va.map(function (pos) { return pos / grid.tolerance });
+    vb = vb.map(function (pos) { return pos / grid.tolerance });
+    vc = vc.map(function (pos) { return pos / grid.tolerance });
+
+    var n = faceNormals[c];
+    var A = [
+      [ va[0]-vc[0], vb[0]-vc[0], n[0] ],
+      [ va[1]-vc[1], vb[1]-vc[1], n[1] ],
+      [ va[2]-vc[2], vb[2]-vc[2], n[2] ]
+    ];
+    var B = [
+      coord[0] - vc[0],
+      coord[1] - vc[1],
+      coord[2] - vc[2]
+    ]
+    var Ainv = numeric.inv(A);
+    var T = numeric.dot(Ainv, B);
+    var a = T[0];
+    var b = T[1];
+    var c = 1 - (a+b);
+    var k = T[2];
+    if (a<0 || b<0 || c<0) {
+      continue;
+    }
+    // u = a*va.u + b*vb.u + c*vc.u;
+    // v = a*va.v + b*vb.v + c*vc.v;
+    if (mappings && mappings.length > 0) {
+      var ma = mappings[vertices[0]];
+      var mb = mappings[vertices[1]];
+      var mc = mappings[vertices[2]];
+      var u = a*ma[0] + b*mb[0] + c*mc[0];
+      var v = a*ma[1] + b*mb[1] + c*mc[1]
+      var mapping = [u, v];
+      var remove = false;
+      var stripe = 0.02;
+      if (!isNaN(v)) {
+        for (var i=-150; i<150; i++) {
+          if (i%2 == 0) continue;
+          var l = stripe*i;
+          var h = stripe*(i+1);
+          if (l < u && u < h) return true;
+        }
       }
     }
   }

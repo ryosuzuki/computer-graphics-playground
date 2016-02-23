@@ -30,8 +30,7 @@ function rle2array(volume, bounds) {
       x0,y0,z0,p,d,v,t,nptr,
       sx = bounds[0][0]|0,
       sy = bounds[0][1]|0,
-      sz = bounds[0][2]|0,
-      fill = false;
+      sz = bounds[0][2]|0
 
   for(i=n-1; i>=0; --i) {
     nptr = ptr
@@ -56,6 +55,7 @@ function rle2array(volume, bounds) {
     ptr = x0 + dims[0] * (y0 + dims[1] * z0)
     d = D[i]
     p = P[i]
+    var fill = false;
     if (fill) {
       for(j=nptr-1; j>=ptr; --j) {
         phase.data[j] = p

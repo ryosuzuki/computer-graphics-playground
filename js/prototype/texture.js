@@ -3,6 +3,54 @@ var faces = [];
 var limit = 0.15;
 var num = 100;
 
+var texture;
+
+function addTexture () {
+  if (!texture) scene.remove(texture);
+  var geometry = new THREE.Geometry();
+  for (var i=0; i<selectIndex.length; i++) {
+    var index = selectIndex[i];
+    var face = window.geometry.faces[index];
+    var v1 = window.geometry.vertices[face.a];
+    var v2 = window.geometry.vertices[face.b];
+    var v3 = window.geometry.vertices[face.c];
+    var g = new THREE.Geometry();
+    g.vertices.push(v1);
+    g.vertices.push(v2);
+    g.vertices.push(v3);
+    g.faces.push(new THREE.Face3(0, 1, 2));
+    g.verticesNeedUpdate = true;
+    var m = new THREE.Mesh(g)
+    geometry.mergeMesh(m);
+
+    var a = uniq[map[face.a]];
+    var b = uniq[map[face.b]];
+    var c = uniq[map[face.c]];
+    geometry.faceVertexUvs[0].push([a.uv, b.uv, c.uv]);
+    geometry.uvsNeedUpdate = true;
+  }
+  var rot = mesh.rotation;
+  var pos = mesh.position;
+  var axis = new THREE.Vector3(0, 1, 0);
+  var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
+  var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
+
+  var image = THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
+  image.wrapS = THREE.RepeatWrapping;
+  image.wrapT = THREE.RepeatWrapping;
+  image.repeat.set(4, 4);
+
+  var material = new THREE.MeshBasicMaterial({ map: image });
+  texture = new THREE.Mesh(geometry, material);
+  texture.castShadow = true;
+  texture.receiveShadow = true;
+  texture.rotation.set(rot.x, rot.y, rot.z, rot.order)
+  texture.castShadow = true;
+  texture.receiveShadow = true;
+  texture.position.set(pos.x, pos.y, pos.z);
+  scene.add(texture);
+}
+
 function computeTexture () {
   faces = geometry.faces.filter( function (face, index) {
     var a = uniq[map[face.a]];

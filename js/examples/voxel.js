@@ -14,23 +14,24 @@ function loadObjects () {
 }
 
 
-var size = 0.1;
-var shape = [ 26, 29, 49 ];
+// var size = 0.1;
+// var shape = [ 26, 29, 49 ];
 
-size = 0.02;
-shape = [ 128, 144, 245 ];
+// size = 0.02;
+// shape = [ 128, 144, 245 ];
 
-size = 0.06;
-shape = [ 43, 48, 82 ];
+// size = 0.06;
+// shape = [ 43, 48, 82 ];
 
-size = 1.0;
+// size = 1.0;
 
-shape = [ 110, 108, 84 ];
-shape = [ 99, 97, 76 ];
-shape = [ 50, 49, 38 ];
+// shape = [ 110, 108, 84 ];
+// shape = [ 99, 97, 76 ];
+// shape = [ 50, 49, 38 ];
 
-// bunny 0.1
-shape = [ 99, 97, 76 ];
+// // bunny 0.1
+// shape = [ 99, 97, 76 ];
+// shape = [ 160, 128, 158 ];
 
 var geometry;
 

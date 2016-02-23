@@ -1,12 +1,13 @@
 var start = 100;
-var maxDistance = 4;
+var maxDistance = 2;
 
 function computeMapping () {
-  if (!start) return false;
+  if (selectIndex.length <= 0) return false;
+  start = geometry.faces[selectIndex[0]].a;
   computeExponentialMap(start, function () {
     hoge();
     console.log('start:' + start);
-    start = undefined;
+    // start = undefined;
   });
 }
 

@@ -4,7 +4,12 @@ var undoMode = false;
 
 $(document).on('click', '#add', function (event) {
   console.log('add')
-  computeTexture();
+  addTexture();
+});
+
+$(document).on('click', '#mapping', function() {
+  console.log('mapping')
+  computeMapping();
 });
 
 $(document).on('click', '#export', function() {
@@ -122,7 +127,7 @@ function getIntersects (event) {
   mouse.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
   mouse.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
   raycaster.setFromCamera( mouse, camera );
-  var intersects = raycaster.intersectObjects( objects );
+  var intersects = raycaster.intersectObjects(objects);
   return intersects
 }
 
