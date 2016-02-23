@@ -9,9 +9,6 @@ var serve = require('koa-static');
 var parser = require('koa-bodyparser');
 var koa = require('koa');
 
-var Geometry = require('./voxelize');
-var stl = require('ndarray-stl');
-
 var app = koa();
 var server = http.createServer(app.callback());
 var port = process.env.PORT || 3000;
@@ -50,13 +47,16 @@ function *save() {
   console.log(json);
   fs.writeFileSync('hoge.json', json, 'utf8')
 }
+
+var Geometry = require('./voxelize/src/geometry');
+var stl = require('ndarray-stl');
+
 function *generateSTL () {
   var body = this.request.body;
   var json = this.request.body.json;
   fs.writeFileSync('sample.json', json, 'utf8');
   json = JSON.parse(json);
   console.log('Start voxelization...')
-
   /*
   json = {
     cells:
@@ -66,8 +66,7 @@ function *generateSTL () {
     resolution:
   }
   */
-
-  var geometry = Geometry(json);
+  var geometry = new Geometry(json);
   var object = geometry.voxelize(0.02)
   var data = stl(object.voxels);
   // fs.writeFileSync('hoge.stl', str, 'utf8');

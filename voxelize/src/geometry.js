@@ -19,7 +19,7 @@ function Geometry (cells, positions, mappings, selected_cells, resolution, faceN
   this.selected_cells = selected_cells || [];
   this.resolution = resolution || 1.0;
   this.faceNormals = faceNormals || normals.faceNormals(this.cells, this.positions);
-  this.updatePositions()
+  return this;
 }
 
 Geometry.prototype.updatePositions = function () {
@@ -55,10 +55,8 @@ Geometry.prototype.updatePositions = function () {
 }
 
 Geometry.prototype.voxelize = function (resolution) {
-  if (resolution) {
-    this.resolution = resolution;
-    this.updatePositions()
-  }
+  if (resolution) this.resolution = resolution;
+  this.updatePositions()
   var volume = rasterize(this);
   var result = rle2array(volume);
   return {

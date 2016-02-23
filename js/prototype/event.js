@@ -49,9 +49,15 @@ function generateVoxel (callback, client) {
     positions.push([vertex.x, vertex.y, vertex.z]);
     mappings.push([object.u, object.v]);
   }
-  var json = { cells: cells, positions: positions, mappings: mappings };
+  var json = {
+    cells: cells,
+    positions: positions,
+    mappings: mappings,
+    selected_cells: selectIndex,
+    resolution: 0.02
+  };
   if (client) {
-    var object = voxelize(json.cells, json.positions, 0.02);
+    var object = voxelize(json);
     window.object = object;
     var data = normalSTL(object.voxels);
     console.log('done');
