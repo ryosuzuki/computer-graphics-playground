@@ -9,7 +9,7 @@ var serve = require('koa-static');
 var parser = require('koa-bodyparser');
 var koa = require('koa');
 
-var voxelize = require('./voxelize');
+var Geometry = require('./voxelize');
 var stl = require('ndarray-stl');
 
 var app = koa();
@@ -56,7 +56,19 @@ function *generateSTL () {
   fs.writeFileSync('sample.json', json, 'utf8');
   json = JSON.parse(json);
   console.log('Start voxelization...')
-  var object = voxelize(json.cells, json.positions, 0.02);
+
+  /*
+  json = {
+    cells:
+    positions:
+    mappings:
+    selected_cells:
+    resolution:
+  }
+  */
+
+  var geometry = Geometry(json);
+  var object = geometry.voxelize(0.02)
   var data = stl(object.voxels);
   // fs.writeFileSync('hoge.stl', str, 'utf8');
   console.log('done')

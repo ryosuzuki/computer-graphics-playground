@@ -1,2 +1,2 @@
-var voxelize = require('./src/voxelize');
-module.exports = voxelize;
+var Geometry = require('./src/geometry');
+module.exports = Geometry;
