@@ -1,54 +1,74 @@
 var points = [];
 var faces = [];
-var limit = 0.15;
+var limit = 1.5;
 var num = 100;
 
 var texture;
 
 function addTexture () {
   if (!texture) scene.remove(texture);
-  var geometry = new THREE.Geometry();
-  for (var i=0; i<selectIndex.length; i++) {
-    var index = selectIndex[i];
-    var face = window.geometry.faces[index];
-    var v1 = window.geometry.vertices[face.a];
-    var v2 = window.geometry.vertices[face.b];
-    var v3 = window.geometry.vertices[face.c];
-    var g = new THREE.Geometry();
-    g.vertices.push(v1);
-    g.vertices.push(v2);
-    g.vertices.push(v3);
-    g.faces.push(new THREE.Face3(0, 1, 2));
-    g.verticesNeedUpdate = true;
-    var m = new THREE.Mesh(g)
-    geometry.mergeMesh(m);
+  var random = _.random(0, selectIndex.length-1);
+  start = geometry.faces[selectIndex[random]].a;
+  start = 13;
+  maxDistance = 3;
+  computeExponentialMap(start, function () {
+    var geometry = new THREE.Geometry();
+    for (var i=0; i<selectIndex.length; i++) {
+      var index = selectIndex[i];
+      var face = window.geometry.faces[index];
+      var a = uniq[map[face.a]];
+      var b = uniq[map[face.b]];
+      var c = uniq[map[face.c]];
+      var limit = 0.25;
+      if (a.uv && b.uv && c.uv) {
+        if (isNaN(a.u) || isNaN(b.u) || isNaN(c.u)) continue;
+        if (isNaN(a.v) || isNaN(b.v) || isNaN(c.v)) continue;
+        // if (a.u>0.5+limit||a.v>0.5+limit) continue;
+        // if (b.u>0.5+limit||b.v>0.5+limit) continue;
+        // if (c.u>0.5+limit||c.v>0.5+limit) continue;
+        // if (a.u<0.5-limit||a.v<0.5-limit) continue;
+        // if (b.u<0.5-limit||b.v<0.5-limit) continue;
+        // if (c.u<0.5-limit||c.v<0.5-limit) continue;
+        if (a.u == b.u && b.u == c.u) console.log(index)
+        if (a.v == b.v && b.v == c.v) console.log(index)
 
-    var a = uniq[map[face.a]];
-    var b = uniq[map[face.b]];
-    var c = uniq[map[face.c]];
-    geometry.faceVertexUvs[0].push([a.uv, b.uv, c.uv]);
-    geometry.uvsNeedUpdate = true;
-  }
-  var rot = mesh.rotation;
-  var pos = mesh.position;
-  var axis = new THREE.Vector3(0, 1, 0);
-  var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
-  var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
+        var v1 = window.geometry.vertices[face.a];
+        var v2 = window.geometry.vertices[face.b];
+        var v3 = window.geometry.vertices[face.c];
+        var g = new THREE.Geometry();
+        g.vertices.push(v1);
+        g.vertices.push(v2);
+        g.vertices.push(v3);
+        g.faces.push(new THREE.Face3(0, 1, 2));
+        g.verticesNeedUpdate = true;
+        var m = new THREE.Mesh(g)
+        geometry.mergeMesh(m);
 
-  var image = THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
-  image.wrapS = THREE.RepeatWrapping;
-  image.wrapT = THREE.RepeatWrapping;
-  image.repeat.set(4, 4);
+        geometry.faceVertexUvs[0].push([a.uv, b.uv, c.uv]);
+        geometry.uvsNeedUpdate = true;
+      }
+    }
+    var rot = mesh.rotation;
+    var pos = mesh.position;
+    var axis = new THREE.Vector3(0, 1, 0);
+    var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
+    var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
 
-  var material = new THREE.MeshBasicMaterial({ map: image });
-  texture = new THREE.Mesh(geometry, material);
-  texture.castShadow = true;
-  texture.receiveShadow = true;
-  texture.rotation.set(rot.x, rot.y, rot.z, rot.order)
-  texture.castShadow = true;
-  texture.receiveShadow = true;
-  texture.position.set(pos.x, pos.y, pos.z);
-  scene.add(texture);
+    var image = THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
+    // image.wrapS = THREE.RepeatWrapping;
+    // image.wrapT = THREE.RepeatWrapping;
+    // image.repeat.set(1, 1);
+    var material = new THREE.MeshBasicMaterial({ map: image });
+    texture = new THREE.Mesh(geometry, material);
+    texture.castShadow = true;
+    texture.receiveShadow = true;
+    texture.rotation.set(rot.x, rot.y, rot.z, rot.order)
+    texture.castShadow = true;
+    texture.receiveShadow = true;
+    texture.position.set(pos.x, pos.y, pos.z);
+    scene.add(texture);
+
+  })
 }
 
 function computeTexture () {
@@ -56,22 +76,19 @@ function computeTexture () {
     var a = uniq[map[face.a]];
     var b = uniq[map[face.b]];
     var c = uniq[map[face.c]];
-    return selectIndex.includes(index);
-    /*
     if (a.uv && b.uv && c.uv) {
-      if (a.u==b.u && b.u==c.u) return false;
-      if (a.v==b.v && b.v==c.v) return false;
-      if (a.u>0.5+limit||a.v>0.5+limit) return false;
-      if (b.u>0.5+limit||b.v>0.5+limit) return false;
-      if (c.u>0.5+limit||c.v>0.5+limit) return false;
-      if (a.u<0.5-limit||a.v<0.5-limit) return false;
-      if (b.u<0.5-limit||b.v<0.5-limit) return false;
-      if (c.u<0.5-limit||c.v<0.5-limit) return false;
-      return true;
+      // if (a.u==b.u && b.u==c.u) return false;
+      // if (a.v==b.v && b.v==c.v) return false;
+      // if (a.u>0.5+limit||a.v>0.5+limit) return false;
+      // if (b.u>0.5+limit||b.v>0.5+limit) return false;
+      // if (c.u>0.5+limit||c.v>0.5+limit) return false;
+      // if (a.u<0.5-limit||a.v<0.5-limit) return false;
+      // if (b.u<0.5-limit||b.v<0.5-limit) return false;
+      // if (c.u<0.5-limit||c.v<0.5-limit) return false;
+      return selectIndex.includes(index);
     } else {
       return false;
     }
-    */
   })
   points = [];
   for (var k=0; k<faces.length; k++) {

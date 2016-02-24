@@ -92,7 +92,7 @@ function saveVoxel () {
 function finishSelect () {
   if (selectIndex.length <= 0) return false;
   $('.bottom-buttons').show();
-  computeMapping();
+  // computeMapping();
 }
 
 function onDocumentMouseDown( event ) {

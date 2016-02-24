@@ -1,5 +1,5 @@
 var start = 100;
-var maxDistance = 2;
+var maxDistance = 6;
 
 function computeMapping () {
   if (selectIndex.length <= 0) return false;

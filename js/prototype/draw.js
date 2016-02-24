@@ -27,8 +27,8 @@ function loadObjects () {
 }
 
 function drawObjects () {
-  // drawCylinder();
-  drawSTL();
+  drawCylinder();
+  // drawSTL();
 }
 
 function drawSTL () {

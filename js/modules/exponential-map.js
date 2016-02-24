@@ -9,6 +9,7 @@ function computeExponentialMap (start, callback) {
   candidates = [];
   initializeGamma(start);
   var s = map[start];
+  // candidates = [];
   while (candidates.length > 0) {
     var candidate = candidates[0];
     for (var i=0; i<candidate.edges.length; i++) {
@@ -23,39 +24,123 @@ function computeExponentialMap (start, callback) {
   if (callback) callback();
 }
 
-function initializeGamma (index) {
-  var s = map[index];
+function initializeGamma (start) {
+  var s = map[start];
   var origin = geometry.uniq[s];
   origin.distance = Math.pow(10, -12);
   origin.theta = 0;
   getUV(origin);
   var theta = 0;
-  var edges = origin.edges.slice(1);
-  var num = edges.length;
-  console.log(edges);
+  var neighbor = origin.edges.slice(1);
+  var num = neighbor.length;
+  window.origin = origin;
+  var axis = geometry.uniq[neighbor[0]];
+  edges = [];
+  edges.push(axis);
+  var prev = axis;
+  var checked = [];
+  var total = 0;
+  while (true) {
+    window.prev = prev;
+    var faces = _.intersection(prev.faces, origin.faces);
+    faces = _.pullAll(faces, checked);
+    if (faces.length <= 0) break;
+    var faceIndex = faces[0];
+    var face = geometry.faces[faceIndex];
+    var indexes = _.concat(origin.index, prev.index)
+    var ni;
+    if (_.includes(indexes, face.a) == false) ni = map[face.a];
+    if (_.includes(indexes, face.b) == false) ni = map[face.b];
+    if (_.includes(indexes, face.c) == false) ni = map[face.c];
+    console.log(ni);
+    var next = geometry.uniq[ni];
+    var v1 = new THREE.Vector3()
+    var v2 = new THREE.Vector3()
+    v1.subVectors(axis.vertex, origin.vertex).normalize();
+    v2.subVectors(next.vertex, origin.vertex).normalize();
+    var cos = v1.dot(v2);
+    var theta = Math.acos(cos);
+    next.id = ni;
+    next.theta = theta;
+    next.distance = next.vertex.distanceTo(origin.vertex);
+
+    var v1 = new THREE.Vector3()
+    var v2 = new THREE.Vector3()
+    v1.subVectors(prev.vertex, origin.vertex).normalize();
+    v2.subVectors(next.vertex, origin.vertex).normalize();
+    var cos_delta = v1.dot(v2);
+    var delta = Math.acos(cos_delta);
+    prev.delta = delta;
+
+    edges.push(next);
+    checked.push(faceIndex)
+    prev = next;
+  }
+  edges = _.sortBy(edges, 'theta');
+  var total = _.sumBy(edges, 'delta');
+  for (var i=0; i<edges.length; i++) {
+    var edge = edges[i];
+    var node = geometry.uniq[edge.id];
+    node.theta = edge.theta * (2*Math.PI) / total;
+    node.delta = edge.delta * (2*Math.PI) / total;
+    getUV(node);
+    var output = {
+      index: i,
+      distance: (node.distance).toPrecision(2),
+      theta: (node.theta/Math.PI).toPrecision(2) + ' pi',
+      u: (node.uv.x).toPrecision(3),
+      v: (node.uv.y).toPrecision(3)
+    }
+    console.log(output);
+    console.log('----------');
+    candidates.push(node);
+  }
+
+  window.edges = edges;
+
+  /*
   for (var i=0; i<num; i++) {
-    var node = geometry.uniq[edges[i]];
-    var ip = i+1;
-    if (ip>=num) ip=0;
-    var next = geometry.uniq[edges[ip]];
-    node.distance = node.vertex.distanceTo(origin.vertex);
+    var ip = (i+1<num) ? i+1 : 0;
+    var edge = edges[i];
+    var node = geometry.uniq[edges[i].index];
+    var next = geometry.uniq[edges[ip].index];
     var v1 = new THREE.Vector3()
     var v2 = new THREE.Vector3()
     v1.subVectors(node.vertex, origin.vertex).normalize();
     v2.subVectors(next.vertex, origin.vertex).normalize();
     var cos_delta = v1.dot(v2);
     var delta = Math.acos(cos_delta);
-    console.log('#' + i)
-    console.log("Distance: " + (node.distance).toPrecision(2));
-    console.log("Theta: " + (theta/Math.PI).toPrecision(2) + " pi");
-    node.theta = theta;
-    theta = theta + delta;
+    edge.delta = delta;
+  }
+  var total = _.sumBy(edges, 'delta');
+  edges.map( function (edge) {
+    return edge;
+  })
+  console.log(theta);
+
+  window.edges = edges;
+  var theta = 0;
+  for (var i=0; i<num; i++) {
+    var edge = edges[i];
+    edge.delta = edge.delta * (2*Math.PI) / total;
+    edge.theta = theta;
+    theta = theta + edge.delta;
+    var node = geometry.uniq[edge.index];
+    node.distance = node.vertex.distanceTo(origin.vertex);
+    node.theta = edge.theta;
     getUV(node);
-    console.log('');
-    console.log('UV: ' + node.uv.x + ', ' + node.uv.y);
+    var output = {
+      index: i,
+      distance: (node.distance).toPrecision(2),
+      theta: (theta/Math.PI).toPrecision(2) + ' pi',
+      u: (node.uv.x).toPrecision(3),
+      v: (node.uv.y).toPrecision(3)
+    }
+    console.log(output);
     console.log('----------');
     candidates.push(node);
   }
+  */
   // candidates = []
   return theta;
 }

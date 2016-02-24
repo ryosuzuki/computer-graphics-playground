@@ -18,7 +18,7 @@
     "angular": "~1.4.6",
     "jquery": "~2.1.4",
     "semantic-ui": "~2.1.4",
-    "lodash": "~3.10.1",
+    "lodash": "lodash/lodash",
     "three.js": "mrdoob/three.js",
     "cannon.js": "~0.6.2",
     "OpenJSCAD.org": "Spiritdude/OpenJSCAD.org",
