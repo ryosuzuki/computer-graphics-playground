@@ -1,5 +1,8 @@
 var candidates = [];
 
+lim = 100
+count;
+
 function computeExponentialMap (start, callback) {
   console.log('Start computeExponentialMap');
   geometry.uniq.map( function (node) {
@@ -7,36 +10,44 @@ function computeExponentialMap (start, callback) {
     return node;
   })
   candidates = [];
-  fuga = []
+  // finished = []
   initializeGamma(start);
   var s = map[start];
   // candidates = [];
-  var count = 0;
+  count = 0;
+
   while (candidates.length > 0) {
     candidates = _.sortBy(candidates, 'distance')
+    console.log('candidates: ' + candidates.map( function (candidate) { return candidate.index[0] }) )
     var candidate = candidates[0];
     console.log(candidate.index[0] + '->' + candidate.edges)
     for (var i=0; i<candidate.edges.length; i++) {
       var node = geometry.uniq[candidate.edges[i]];
+      // if (node.distance) continue;
       var result = computeDistance(node)
       if (!result.distance) continue;
       if (!node.distance || node.distance > result.distance) {
-        console.log('distance: ' + result.distance)
         node.distance = result.distance
         // console.log('j: ' + result.node_j.index[0] + ', k: ' + result.node_k.index[0])
         node.theta = computeAngle(node, result.node_j, result.node_k, result.alpha);
+        console.log('id: ' + node.index[0]);
+        console.log('distance: ' + node.distance);
+        console.log('theta: ' + node.theta);
+        console.log('alpha: ' + result.alpha);
+        console.log('---')
         getUV(node)
-        if (node.distance < maxDistance) {
-          for (var j=0; j<node.edges.length; j++) {
-            var edge = geometry.uniq[node.edges[j]]
-            if (!edge.distance) candidates.push(edge);
-          }
-        }
+        candidates = _.union(candidates, [node])
+        // if (node.distance < maxDistance) {
+        //   for (var j=0; j<node.edges.length; j++) {
+        //     var edge = geometry.uniq[node.edges[j]]
+        //     if (!edge.distance) candidates.push(edge);
+        //   }
+        // }
         window.node = node;
       }
     }
     count++;
-    // if (count > 10) break;
+    if (count > lim) break;
     candidates.shift();
   }
   console.log('Finish computeExponentialMap')
@@ -54,6 +65,9 @@ function initializeGamma (start) {
   var num = neighbor.length;
   window.origin = origin;
   var axis = geometry.uniq[neighbor[0]];
+  axis.theta = 0;
+  axis.distance = axis.vertex.distanceTo(origin.vertex);
+
   edges = [];
   edges.push(axis);
   var prev = axis;
@@ -79,7 +93,6 @@ function initializeGamma (start) {
     v2.subVectors(next.vertex, origin.vertex).normalize();
     var cos = v1.dot(v2);
     var theta = Math.acos(cos);
-    next.id = ni;
     next.theta = theta;
     next.distance = next.vertex.distanceTo(origin.vertex);
 
@@ -95,13 +108,13 @@ function initializeGamma (start) {
     checked.push(faceIndex)
     prev = next;
 
-    fuga = _.union(fuga, next.index)
+    // candidates.push(next)
   }
   edges = _.sortBy(edges, 'theta');
   var total = _.sumBy(edges, 'delta');
   for (var i=0; i<edges.length; i++) {
     var edge = edges[i];
-    var node = geometry.uniq[edge.id];
+    var node = geometry.uniq[map[edge.index[0]]];
     node.theta = edge.theta * (2*Math.PI) / total;
     node.delta = edge.delta * (2*Math.PI) / total;
     getUV(node);
@@ -114,7 +127,7 @@ function initializeGamma (start) {
     }
     console.log(output);
     console.log('----------');
-    candidates.push(node);
+    candidates = _.union(candidates, [node])
   }
 
   window.edges = edges;
@@ -135,8 +148,11 @@ function getUV (node) {
 function computeAngle (node, node_j, node_k, alpha) {
   var theta_j = node_j.theta;
   var theta_k = node_k.theta;
-  console.log('j: ' + node_j.index[0] + ', k: ' + node_k.index[0] + ', node: ' + node.index[0])
-  console.log((1-alpha).toPrecision(2) + ' * ' + theta_j.toPrecision(2) + ' + ' + alpha.toPrecision(2) + ' * ' + theta_k.toPrecision(2))
+  // if (count == lim) {
+  //   console.log('j: ' + node_j.index[0] + ', k: ' + node_k.index[0] + ', node: ' + node.index[0])
+  //   console.log('distance_j: ' + node_j.distance + ', distance_k: ' + node_k.distance + ', node: ' + node.distance)
+  //   console.log((1-alpha).toPrecision(2) + ' * ' + theta_j.toPrecision(2) + ' + ' + alpha.toPrecision(2) + ' * ' + theta_k.toPrecision(2))
+  // }
 
   if (theta_j == 0 && theta_k > Math.PI) {
     console.log('Hoge')
@@ -158,8 +174,6 @@ function computeAngle (node, node_j, node_k, alpha) {
     }
   }
   var theta = (1-alpha)*theta_j + alpha*theta_k;
-  console.log('theta: ' + theta.toPrecision(2))
-  console.log('---')
   if(theta > 2*Math.PI) theta -= 2*Math.PI;
   return theta;
 }
@@ -214,7 +228,21 @@ function computeDistance (node) {
     var x_j = (A * (sq_ekj + U_k*U_k - U_j*U_j) + e_k.dot(e_kj) * H ) / ( 2 * A * sq_ekj);
     var x_k = (A * (sq_ekj + U_j*U_j - U_k*U_k) - e_j.dot(e_kj) * H ) / ( 2 * A * sq_ekj);
 
-    if(x_j<0 || x_k<0) {
+    if (isNaN(x_j) || isNaN(x_k)) {
+      console.log("FJWEOFJEOWJFOEJOFJEOJFWO")
+      console.log(A * sq_ekj)
+      continue;
+    }
+    // console.log('x_j: ' + x_j.toPrecision(2) + ', x_k: ' + x_k.toPrecision(2))
+    if(x_j>0 && x_k>0) {
+      var e_i = new THREE.Vector3();
+      e_i.addVectors(e_j.clone().multiplyScalar(x_j) , e_k.clone().multiplyScalar(x_k));
+      U_i = Math.sqrt(e_i.dot(e_i));
+
+      var cos_jk = (U_j*U_j + U_k*U_k - sq_ekj) / (2*U_j*U_k);
+      var cos_ij = (U_i*U_i + U_j*U_j - sq_ej) / (2*U_i*U_j);
+      alpha = Math.acos(cos_ij) / Math.acos(cos_jk);
+    } else {
       var dijkstra_j = U_j + Math.sqrt(sq_ej);
       var dijkstra_k = U_k + Math.sqrt(sq_ek);
       if(dijkstra_j < dijkstra_k) {
@@ -224,21 +252,18 @@ function computeDistance (node) {
         alpha = 1;
         U_i = dijkstra_k;
       }
-    } else {
-      var e_i = new THREE.Vector3();
-      e_i.addVectors(e_j.clone().multiplyScalar(x_j) , e_k.clone().multiplyScalar(x_k));
-      U_i = Math.sqrt(e_i.dot(e_i));
-
-      var cos_jk = (U_j*U_j + U_k*U_k - sq_ekj) / (2*U_j*U_k);
-      var cos_ij = (U_i*U_i + U_j*U_j - sq_ej) / (2*U_i*U_j);
-      alpha = Math.acos(cos_ij) / Math.acos(cos_jk);
     }
 
     if (!result.distance || result.distance > U_i) {
+      // console.log('change from ' + result.distance + ' to ' + U_i);
       result.distance = U_i;
       result.alpha = alpha;
       result.node_j = node_j;
       result.node_k = node_k;
+
+      if (result.distance == 2) {
+        console.log('x_j: ' + x_j + ', x_k: ' + x_k)
+      }
       // theta = computeAngle(node, node_j, node_k, alpha)
     }
   }
