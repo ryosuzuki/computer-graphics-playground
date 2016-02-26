@@ -2,7 +2,6 @@ var objects = [];
 var materials = [];
 THREE.ImageUtils.crossOrigin = '';
 
-
 var a = new THREE.Vector3(1, 0, 0);
 var b = new THREE.Vector3(0, 0, 1);
 var c = new THREE.Vector3(0, 1, 0);
