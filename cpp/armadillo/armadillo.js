@@ -1,14 +1,13 @@
 
 var ffi = require('ffi');
+var ref = require('ref');
 var armadillo;
 
-armadillo = new ffi.Library('./hoge.dylib', {
-  '_main': ['int', []]
-  // 'zeros': [ 'int', 'int', ['sp_mat']],
-  // 'eye': ['int', 'int', ['mat']]
+armadillo = new ffi.Library('armadillo', {
+  'main': ['int', []],
+  'changeSize': ['void', [ ref.refType(ref.refType('int')) ]],
+  'createZeros': ['void', [ 'int' ]]
 });
 
-// console.log(dl.get);
-
 var repl = require('repl')
-repl.start('> ').context.armadillo = armadillo;
+repl.start('> ').context.a = armadillo;
