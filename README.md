@@ -1,1 +1,2 @@
-# Three.js Examples
+# Three.js Playground
+
