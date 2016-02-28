@@ -1,22 +1,18 @@
 #include <iostream>
-#include <Eigen/Core>
-#include <Eigen/Dense>
-#include <Eigen/SparseCore>
-#include <Eigen/LU>
-
+#include <armadillo>
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
 using namespace std;
-using namespace Eigen;
+using namespace arma;
 using namespace rapidjson;
 
 extern "C" {
 
 typedef void(*NodeCallback)(int);
 
-  void parseJSON(char *json, double array[]) {
+  int parseJSON(char *json) {
     Document d;
     d.Parse(json);
 
@@ -24,8 +20,8 @@ typedef void(*NodeCallback)(int);
     Value &faces = d["faces"];
 
     int T = faces.Size();
-    VectorXf FI(3*T);
-    VectorXf FN(3*T);
+    vec FI = zeros<vec>(3*T);
+    vec FN = zeros<vec>(3*T);
     for (SizeType i=0; i<T; i++) {
       FI(i*3 + 0) = faces[i]["a"].GetInt();
       FI(i*3 + 1) = faces[i]["b"].GetInt();
@@ -37,8 +33,9 @@ typedef void(*NodeCallback)(int);
     }
 
     int V = uniq.Size();
-    VectorXf VI(3*T);
-    MatrixXf A = MatrixXf::Zero(V, V);
+    vec VI = zeros<vec>(3*V);
+    mat A = zeros<mat>(V, V);
+
     for (SizeType i=0; i<V; i++) {
       VI(i*3 + 0) = uniq[i]["vertex"]["x"].GetDouble();
       VI(i*3 + 1) = uniq[i]["vertex"]["y"].GetDouble();
@@ -47,47 +44,65 @@ typedef void(*NodeCallback)(int);
       Value &edges = uniq[i]["edges"];
       int n = edges.Size();
       for (SizeType j=0; j<n; j++) {
-        int e = edges[j].GetInt();
-        if (i == e) {
-          A(i, e) = 1;
+        if (i == j) {
+          A(i, j) = 1;
         } else {
           double d = (double) 1/n;
-          A(i, e) = -d;
+          A(i, j) = -d;
         }
       }
     }
 
-    LLT <MatrixXf> lltOfA(A);
-    MatrixXf L = lltOfA.matrixL();
-    MatrixXf LL = L * L.transpose();
+    mat L, U, P;
+    lu(L, U, P, A);
+    cout << L.t() << endl;
 
-    VectorXf b = VectorXf::Zero(V);
-    MatrixXf GG = MatrixXf::Zero(V, V);
+    vec b = zeros<vec>(V);
+    mat G = zeros<mat>(V, V);
+
     int p = 0;
     int q = V-1;
     int w = 1000;
     b(p) = w;
-    GG(p, p) = w*w;
-    GG(q, q) = w*w;
+    G(p, p) = w*w;
+    G(q, q) = w*w;
 
-    MatrixXf M = LL + GG;
-    LLT <MatrixXf> llt;
-    llt.compute(M);
-    VectorXf phi = llt.solve(b);
 
-    int n = V;
 
-    typedef struct {
-      double* array;
-    } result;
 
-    result res = {new double[V]};
+    return 0;
+  }
 
-    for (int i=0; i<V; i++) {
-      res.array[i] = phi[i];
-    }
-    cout << *(res.array) << endl;
+  int *createMatrix(int uniq[], int faces[], int edges[][20]) {
+    int n = sizeof(*uniq);
+    int w = 1000;
 
+    const char* json = "{\"project\":\"rapidjson\",\"stars\":10}";
+    Document d;
+    d.Parse(json);
+
+    Value& s = d["stars"];
+
+    StringBuffer buffer;
+    Writer<StringBuffer> writer(buffer);
+    d.Accept(writer);
+
+    cout << buffer.GetString() << endl;
+
+    sp_mat L = zeros<sp_mat>(n, n);
+    int p = 0;
+    int q = n-1;
+    sp_mat b = zeros<sp_mat>(1, n);
+    b(0, p) = w;
+    sp_mat G = zeros<sp_mat>(n, n);
+    G(p, p) = w*w;
+    G(q, q) = w*w;
+
+    cout << G.t() << endl;
+    cout << edges[0] << endl;
+
+
+    return edges[0];
   }
 
 }
