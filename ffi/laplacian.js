@@ -6,13 +6,6 @@ var int = ref.types.int;
 var double = ref.types.double;
 var IntArray = ArrayType(int);
 var ArrayArray = ArrayType(IntArray);
-// var DoubleArray = ArrayType(double);
-
-// var funcPtr = ffi.Function('void', ['int']);
-var lib = ffi.Library('mylib', {
-  'parseJSON': [int, ['string']],
-  // 'createMatrix': [IntArray, [IntArray, IntArray, ArrayArray] ]
-});
 
 var THREE = require('three');
 var ms = require('./mesh-segmentation');
@@ -36,13 +29,29 @@ var json = {
   uniq: uniq,
   faces: faces
 }
-var result;
+var StructType = require('ref-struct');
+var DoubleArray = ArrayType(double);
+var Result = StructType({
+  'array': DoubleArray
+})
+
+
+var n = 10;
+var result = new Result({
+  array: new DoubleArray(n)
+});
+var lib = ffi.Library('mylib', {
+  'parseJSON': [int, ['string', 'pointer']],
+  // 'createMatrix': [IntArray, [IntArray, IntArray, ArrayArray] ]
+});
+// console.log(result.ref());
 var str = JSON.stringify(json);
-lib.parseJSON(str);
+
+lib.parseJSON(str, result.ref());
 
 // console.log(uniq);
 // var faces = new IntArray(sample.cells);
 // var uniq = new IntArray(sample.positions);
 // var result = lib.createMatrix(vertices, faces, edges);
 
-repl.start('> ').context.r = geometry;
+repl.start('> ').context.r = result;

@@ -16,7 +16,12 @@ extern "C" {
 
 typedef void(*NodeCallback)(int);
 
-  void parseJSON(char *json, double array[]) {
+
+  typedef struct {
+    double *array;
+  } result;
+
+  void parseJSON(char *json, result *res) {
     Document d;
     d.Parse(json);
 
@@ -76,18 +81,11 @@ typedef void(*NodeCallback)(int);
     VectorXf phi = llt.solve(b);
 
     int n = V;
-
-    typedef struct {
-      double* array;
-    } result;
-
-    result res = {new double[V]};
-
+    res->array = new double[V];
     for (int i=0; i<V; i++) {
-      res.array[i] = phi[i];
+      res->array[i] = phi[i];
     }
-    cout << *(res.array) << endl;
-
+    cout << *(res->array) << endl;
   }
 
 }
