@@ -32,12 +32,16 @@ extern "C" {
     VectorXf VI(3*T);
     MatrixXf A = MatrixXf::Zero(V, V);
     MatrixXf Flag = MatrixXf::Zero(V, 3*T);
+    MatrixXf J_1 = MatrixXf::Zero(T, 3*T);
+    MatrixXf J_2 = MatrixXf::Zero(2*V, 3*T);
+
     for (SizeType i=0; i<V; i++) {
       Value &vertex = uniq[i]["vertex"];
       VI(i*3 + 0) = vertex["x"].GetDouble();
       VI(i*3 + 1) = vertex["y"].GetDouble();
       VI(i*3 + 2) = vertex["z"].GetDouble();
 
+      // Compute A
       Value &edges = uniq[i]["edges"];
       int n = edges.Size();
       for (SizeType j=0; j<n; j++) {
@@ -49,6 +53,30 @@ extern "C" {
           A(i, e) = -d;
         }
       }
+
+      // Compute initial J_2
+      Value &currentFaces = uniq[i]["faces"];
+      for (SizeType j=0; j<currentFaces.Size(); j++) {
+        int faceIndex = currentFaces[j].GetInt();
+        Value &face = faces[faceIndex];
+        int a = face["a"].GetInt();
+        int b = face["b"].GetInt();
+        int c = face["c"].GetInt();
+        int ua = map[a].GetInt();
+        int ub = map[b].GetInt();
+        int uc = map[c].GetInt();
+        if (uniq[i]["id"] == ua) {
+          J_2(i, 3*faceIndex + 0) = 1;
+        }
+        if (uniq[i]["id"] == ub) {
+          J_2(i, 3*faceIndex + 1) = 1;
+        }
+        if (uniq[i]["id"] == uc) {
+          J_2(i, 3*faceIndex + 2) = 1;
+        }
+      }
+
+      // Compute Flag
       Value &origin = uniq[i];
       vector<int> oFaces;
       for (SizeType j=0; j<origin["faces"].Size(); j++) {
@@ -123,9 +151,6 @@ extern "C" {
     VectorXf w(3*T);
 
     MatrixXf Lambda = MatrixXf::Zero(3*T, 3*T);
-    MatrixXf J_1 = MatrixXf::Zero(T, 3*T);
-    MatrixXf J_2 = MatrixXf::Zero(2*V, 3*T);
-
     for (SizeType i=0; i<T; i++) {
       int a = faces[i]["a"].GetInt();
       int b = faces[i]["b"].GetInt();
