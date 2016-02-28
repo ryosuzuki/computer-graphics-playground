@@ -27,6 +27,7 @@ function computeUniq (geometry) {
     if (bool) {
       uniq.push({ index: [i], vertex: vertex });
       map[i] = uniq.length-1;
+      uniq.id = uniq.length-1;
     }
   }
   var faces = geometry.faces;

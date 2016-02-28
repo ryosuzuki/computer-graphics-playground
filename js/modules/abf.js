@@ -56,8 +56,8 @@ for (var i=0; i<V; i++) {
     var t = Math.floor(j/3);
     var face = geometry.faces[t];
     if (v.index.includes(face.a)) a_tk=face.a;
-    if (v.index.includes(face.a)) a_tk=face.b;
-    if (v.index.includes(face.a)) a_tk=face.c;
+    if (v.index.includes(face.b)) a_tk=face.b;
+    if (v.index.includes(face.c)) a_tk=face.c;
     if (v.index.includes(a_tk)) {
       J_2[i][j] = 1
     }

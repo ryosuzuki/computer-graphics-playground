@@ -27,7 +27,8 @@ var positions = uniq.map( function (v) {
 
 var json = {
   uniq: uniq,
-  faces: faces
+  faces: faces,
+  map: map
 }
 var StructType = require('ref-struct');
 var DoubleArray = ArrayType(double);
@@ -42,16 +43,12 @@ var result = new Result({
 });
 var lib = ffi.Library('mylib', {
   'parseJSON': [int, ['string', 'pointer']],
-  // 'createMatrix': [IntArray, [IntArray, IntArray, ArrayArray] ]
 });
-// console.log(result.ref());
 var str = JSON.stringify(json);
-
 lib.parseJSON(str, result.ref());
 
-// console.log(uniq);
 // var faces = new IntArray(sample.cells);
 // var uniq = new IntArray(sample.positions);
 // var result = lib.createMatrix(vertices, faces, edges);
 
-repl.start('> ').context.r = result;
+// repl.start('> ').context.r = result;
