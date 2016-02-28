@@ -1,3 +1,4 @@
+
 var repl = require('repl');
 var ffi = require('ffi');
 var ref = require('ref');
@@ -21,9 +22,6 @@ var map = geometry.map;
 var edges = geometry.map;
 var uniq = geometry.uniq;
 
-var positions = uniq.map( function (v) {
-
-})
 
 var json = {
   uniq: uniq,

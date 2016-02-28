@@ -13,9 +13,7 @@ using namespace Eigen;
 using namespace rapidjson;
 
 extern "C" {
-
-typedef void(*NodeCallback)(int);
-
+  typedef void(*NodeCallback)(int);
 
   typedef struct {
     double *array;
@@ -57,22 +55,33 @@ typedef void(*NodeCallback)(int);
         oFaces.push_back(origin["faces"][j].GetInt());
       }
       sort(oFaces.begin(), oFaces.end());
-      int e = origin["edges"][0].GetInt();
-      Value& current = uniq[e];
+      int ei = origin["edges"][0].GetInt();
+      vector<int> checked;
       while (true) {
+        Value &current = uniq[ei];
         vector<int> cFaces;
         for (SizeType j=0; j<current["faces"].Size(); j++) {
           cFaces.push_back(current["faces"][j].GetInt());
         }
         sort(cFaces.begin(), cFaces.end());
-        vector<int> common(cFaces.size());
+        vector<int> common;
+        std::set_intersection(
+          oFaces.begin(), oFaces.end(),
+          cFaces.begin(), cFaces.end(),
+          std::back_inserter(common)
+        );
+        sort(common.begin(), common.end());
+        sort(checked.begin(), checked.end());
+        vector<int> difference;
+        std::set_difference(
+          common.begin(), common.end(),
+          checked.begin(), checked.end(),
+          std::back_inserter(difference)
+        );
+        if (difference.empty()) break;
+        int index = difference[0];
+        checked.push_back(index);
 
-        auto i_it = set_intersection(oFaces.begin(), oFaces.end(), cFaces.begin(), cFaces.end(), common.begin());
-        common.resize(i_it - common.begin());
-        int index = common[0];
-        cout << *common.end() << endl;
-
-        break;
         Value& face = faces[index];
         int a = face["a"].GetInt();
         int b = face["b"].GetInt();
@@ -80,30 +89,33 @@ typedef void(*NodeCallback)(int);
         int ua = map[a].GetInt();
         int ub = map[b].GetInt();
         int uc = map[c].GetInt();
-        int i0, i1, i2;
+        int i0, i1, i2, ni;
         int oId = origin["id"].GetInt();
         int cId = current["id"].GetInt();
-        if (oId == ua && cId == ub)
-          i0 = 0; i1 = 1; i2 = 2;
-        if (oId == ua && cId == ub)
-          i0 = 0; i1 = 2; i2 = 2;
-        if (oId == ua && cId == ub)
-          i0 = 1; i1 = 0; i2 = 2;
-        if (oId == ua && cId == ub)
-          i0 = 1; i1 = 2; i2 = 0;
-        if (oId == ua && cId == ub)
-          i0 = 2; i1 = 1; i2 = 0;
-        if (oId == ua && cId == ub)
-          i0 = 2; i1 = 0; i2 = 1;
+        if (oId == ua && cId == ub) {
+          i0 = 0; i1 = 1; i2 = 2; ni = uc;
+        }
+        if (oId == ua && cId == uc) {
+          i0 = 0; i1 = 2; i2 = 1; ni = ub;
+        }
+        if (oId == ub && cId == ua) {
+          i0 = 1; i1 = 0; i2 = 2; ni = uc;
+        }
+        if (oId == ub && cId == uc) {
+          i0 = 1; i1 = 2; i2 = 0; ni = ua;
+        }
+        if (oId == uc && cId == ua) {
+          i0 = 2; i1 = 0; i2 = 1; ni = ub;
+        }
+        if (oId == uc && cId == ub) {
+          i0 = 2; i1 = 1; i2 = 0; ni = ua;
+        }
         Flag(i, 3*index + i1) = 1;
         Flag(i, 3*index + i2) = -1;
-
-        int en = origin["edges"][i2].GetInt();
-        current = uniq[en];
+        ei = ni;
       }
     }
-
-    // cout << Flag << endl;
+    cout << Flag << endl;
 
     VectorXf FI(3*T);
     VectorXf FN(3*T);
@@ -175,7 +187,7 @@ typedef void(*NodeCallback)(int);
     for (int i=0; i<V; i++) {
       res->array[i] = phi[i];
     }
-    cout << *(res->array) << endl;
+    // cout << *(res->array) << endl;
   }
 
 }

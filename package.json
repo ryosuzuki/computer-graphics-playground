@@ -40,7 +40,7 @@
     "koa-route": "^2.4.2",
     "koa-static": "^1.4.9",
     "lapack": "^0.1.0",
-    "lodash": "^3.10.1",
+    "lodash": "^4.5.1",
     "math": "0.0.3",
     "mathjs": "^2.7.0",
     "ndarray": "^1.0.18",
