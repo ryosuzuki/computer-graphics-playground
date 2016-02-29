@@ -11,7 +11,7 @@ var ArrayArray = ArrayType(IntArray);
 var THREE = require('three');
 var ms = require('./mesh-segmentation');
 
-var geometry = new THREE.CylinderGeometry(1, 1, 2, 20);
+var geometry = new THREE.CylinderGeometry(1, 1, 1, 100);
 var faces = geometry.faces;
 
 geometry = ms.computeUniq(geometry);
@@ -34,7 +34,6 @@ var Result = StructType({
   'array': DoubleArray
 })
 
-
 var n = 10;
 var result = new Result({
   array: new DoubleArray(n)
@@ -49,4 +48,4 @@ lib.parseJSON(str, result.ref());
 // var uniq = new IntArray(sample.positions);
 // var result = lib.createMatrix(vertices, faces, edges);
 
-// repl.start('> ').context.r = result;
+// repl.start('> ').context.geo = geometry;

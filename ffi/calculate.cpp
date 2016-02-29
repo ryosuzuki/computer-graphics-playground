@@ -213,16 +213,12 @@ extern "C" {
       res->array[i] = phi[i];
     }
 
-
-
     VectorXf x = beta; // (2*V + T);
-    VectorXf b_1 = VectorXf::Zero(3*T);
-    VectorXf b_2 = VectorXf::Zero(T + 2*V);
-
+    x = VectorXf::Ones(3*T);
     double delta_F = 100;
     double epsilon = pow(10.0, -2.0);
 
-    SparseMatrix<double> J(V + 2*T, 3*T);
+    SparseMatrix<double> J(T + 2*V, 3*T);
     VectorXf lambda = VectorXf::Ones(T + 2*V);
 
     for (int k=0; k<J_1.outerSize(); ++k) {
@@ -242,7 +238,14 @@ extern "C" {
       }
     }
 
+
+    int hoge = 0;
     while (delta_F > epsilon) {
+      hoge += 1;
+      cout << hoge << endl;
+
+      VectorXf b_1 = VectorXf::Zero(3*T);
+      VectorXf b_2 = VectorXf::Zero(T + 2*V);
 
       VectorXf lambda_1 = lambda.segment(0, T);
       VectorXf lambda_2 = lambda.segment(T, V);
@@ -259,8 +262,8 @@ extern "C" {
         if (i % 3 == 0) vi = map[a].GetInt();
         if (i % 3 == 1) vi = map[b].GetInt();
         if (i % 3 == 2) vi = map[c].GetInt();
-        double C_1 =lambda_1(vi);
-        double C_2 =lambda_2(vi);
+        double C_1 = lambda_1(vi);
+        double C_2 = lambda_2(vi);
 
         double sum = 0;
         double C_3 = 0;
@@ -273,13 +276,16 @@ extern "C" {
           }
         }
         C_3 *= cos(x(i));
+        // C_3 = 0;
         b_1(i) = - (E + C_1 + C_2 + C_3);
+        // b_1(i) = 0.00001;
       }
 
       // Update b_2
       for (int i=0; i<T; i++) {
         b_2(i) = - (x(3*i) + x(3*i + 1) + x(3*i + 2) - M_PI);
       }
+
       for (int i=0; i<V; i++) {
         int id = uniq[i]["id"].GetInt();
         Value &currentFaces = uniq[i]["faces"];
@@ -296,7 +302,9 @@ extern "C" {
           b_2(T + i) -= x(3*faceIndex + k);
         }
         b_2(T + i) += (2 * M_PI);
+        // b_2(T + i) = 0.00001;//(2 * M_PI);
       }
+
       for (int k=0; k<Flag.outerSize(); ++k) {
         for (SparseMatrix<double>::InnerIterator it(Flag, k); it; ++it) {
           int flag = it.value();
@@ -305,41 +313,56 @@ extern "C" {
           b_2(T + V + row) -= flag * sin(x(col));
         }
       }
+      // cout << b_2 << endl;
+      // break;
 
       // Update J_2
       // Flag(V, 3*T)
+      // J_2(2*V, 3*T)
+      // J(T + 2*V, 3*T)
       for (int k=0; k<Flag.outerSize(); ++k) {
         for (SparseMatrix<double>::InnerIterator it(Flag, k); it; ++it) {
           int flag = it.value();
           int row = it.row();
           int col = it.col();
           double val = flag * cos(x(col));
-          J_2.insert(V + row, col) = val;
-          J.insert(T + V + row, col) = val;
+          J_2.coeffRef(V + row, col) = val;
+          J.coeffRef(T + V + row, col) = val;
         }
       }
 
-      cout << Lambda_inv.cols() << endl;
-      cout << b_1.size() << endl;
-      // cout << (Lambda_inv * b_1) << endl;
-      // VectorXf b_star = (J * Lambda_inv) * b_1;// - b_2;
-      cout << "ok" << endl;
-      // SparseMatrix A = J * Lambda_inv * J.transpose();
-      // SolverClassName<SparseMatrix<double> > solver;
+      MatrixXf Ld = Lambda_inv;
+      MatrixXf Jd = J;
+      MatrixXf Ad = Jd * Ld * Jd.transpose();
+      VectorXf b_star = (Jd * Ld) * b_1 - b_2;
+      VectorXf delta_lambda = Ad.inverse() * b_star;
+      // VectorXf delta_lambda = Ad.inverse() * b_star;
+      // cout << Ad.sparseView() << endl;
+      cout << "===" << endl;
+      cout << delta_lambda << endl;
+
+      // if (hoge >1) break;
+
+
+
+      VectorXf delta_x = Ld * ( b_1 - Jd.transpose() * delta_lambda );
+      // SparseVector<double> b_1s = b_1.sparseView();
+      // SparseVector<double> b_2s = b_2.sparseView();
+      // SparseVector<double> b_stars = (J * Lambda_inv) * b_1s - b_2s;
+      // SparseMatrix<double> A = J * Lambda_inv * J.transpose();
+      // SimplicialLLT<SparseMatrix<double> > solver;
       // solver.compute(A);
-      // VectorXf delta_lambda = solver.solve(b_star);
+      // cout << solver.solve(b_stars) << endl;
 
-      // VectorXf delta_x = Lambda_inv.dot(b_1 - J.transpose().dot(delta_lambda));
-      break;
+      // SparseVector<double> delta_lambda = solver.solve(b_star).sparseView();
+      // SparseVector<double> delta_x = Lambda_inv * b_1s; // - J.transpose() * delta_lambda );
 
-
-    //   lambda = lambda + delta_lambda;
-    //   x = x + delta_x;
-
-    //   delta_F = sqrt( b_1.dot(b_1) + b_2.dot(b_2) );
-    //   cout << "------" << endl;
-    //   cout << delta_F << endl;
-    //   cout << "------" << endl;
+      lambda += delta_lambda;
+      x += delta_x;
+      delta_F = sqrt( b_1.dot(b_1) + b_2.dot(b_2) );
+      cout << "------" << endl;
+      cout << delta_F << endl;
+      cout << "------" << endl;
     }
 
 
