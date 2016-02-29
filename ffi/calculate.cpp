@@ -1,6 +1,6 @@
 #include <iostream>
 #include <Eigen/Dense>
-#include <Eigen/SparseCore>
+#include <Eigen/Sparse>
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -31,9 +31,11 @@ extern "C" {
     int V = uniq.Size();
     VectorXf VI(3*T);
     MatrixXf A = MatrixXf::Zero(V, V);
-    MatrixXf Flag = MatrixXf::Zero(V, 3*T);
-    MatrixXf J_1 = MatrixXf::Zero(T, 3*T);
-    MatrixXf J_2 = MatrixXf::Zero(2*V, 3*T);
+    SparseMatrix<double> Flag(V, 3*T);
+    SparseMatrix<double> Lambda(3*T, 3*T);
+    SparseMatrix<double> Lambda_inv(3*T, 3*T);
+    SparseMatrix<double> J_1(T, 3*T);
+    SparseMatrix<double> J_2(2*V, 3*T);
 
     for (SizeType i=0; i<V; i++) {
       Value &vertex = uniq[i]["vertex"];
@@ -66,13 +68,13 @@ extern "C" {
         int ub = map[b].GetInt();
         int uc = map[c].GetInt();
         if (uniq[i]["id"] == ua) {
-          J_2(i, 3*faceIndex + 0) = 1;
+          J_2.insert(i, 3*faceIndex + 0) = 1;
         }
         if (uniq[i]["id"] == ub) {
-          J_2(i, 3*faceIndex + 1) = 1;
+          J_2.insert(i, 3*faceIndex + 1) = 1;
         }
         if (uniq[i]["id"] == uc) {
-          J_2(i, 3*faceIndex + 2) = 1;
+          J_2.insert(i, 3*faceIndex + 2) = 1;
         }
       }
 
@@ -138,19 +140,16 @@ extern "C" {
         if (oId == uc && cId == ub) {
           i0 = 2; i1 = 1; i2 = 0; ni = ua;
         }
-        Flag(i, 3*index + i1) = 1;
-        Flag(i, 3*index + i2) = -1;
+        Flag.insert(i, 3*index + i1) = 1;
+        Flag.insert(i, 3*index + i2) = -1;
         ei = ni;
       }
     }
-    cout << Flag << endl;
 
     VectorXf FI(3*T);
     VectorXf FN(3*T);
     VectorXf beta(3*T);
     VectorXf w(3*T);
-
-    MatrixXf Lambda = MatrixXf::Zero(3*T, 3*T);
     for (SizeType i=0; i<T; i++) {
       int a = faces[i]["a"].GetInt();
       int b = faces[i]["b"].GetInt();
@@ -177,8 +176,9 @@ extern "C" {
         double w_ij = (double) 1/(beta_ij*beta_ij);
         beta(3*i + j) = beta_ij;
         w(3*i + j) = w_ij;
-        Lambda(3*i + j) = (double) 2/w_ij;
-        J_1(i, 3*i + j) = 1;
+        Lambda.insert(3*i + j, 3*i + j) = (double) 2/w_ij;
+        Lambda_inv.insert(3*i + j, 3*i + j) = (double) w_ij / 2;
+        J_1.insert(i, 3*i + j) = 1;
       }
 
       Value &normal = faces[i]["normal"];
@@ -212,8 +212,141 @@ extern "C" {
     for (int i=0; i<V; i++) {
       res->array[i] = phi[i];
     }
+
+
+
+    VectorXf x = beta; // (2*V + T);
+    VectorXf b_1 = VectorXf::Zero(3*T);
+    VectorXf b_2 = VectorXf::Zero(T + 2*V);
+
+    double delta_F = 100;
+    double epsilon = pow(10.0, -2.0);
+
+    SparseMatrix<double> J(V + 2*T, 3*T);
+    VectorXf lambda = VectorXf::Ones(T + 2*V);
+
+    for (int k=0; k<J_1.outerSize(); ++k) {
+      for (SparseMatrix<double>::InnerIterator it(J_1, k); it; ++it) {
+        int val = it.value();
+        int row = it.row();
+        int col = it.col();
+        J.insert(row, col) = val;
+      }
+    }
+    for (int k=0; k<J_2.outerSize(); ++k) {
+      for (SparseMatrix<double>::InnerIterator it(J_2, k); it; ++it) {
+        int val = it.value();
+        int row = it.row();
+        int col = it.col();
+        J.insert(T + row, col) = val;
+      }
+    }
+
+    while (delta_F > epsilon) {
+
+      VectorXf lambda_1 = lambda.segment(0, T);
+      VectorXf lambda_2 = lambda.segment(T, V);
+      VectorXf lambda_3 = lambda.segment(T+V, V);
+
+      // Update b_1
+      for (int i=0; i<3*T; i++) {
+        double E = (double) 2 * x(i) / w(i);
+        Value &face = faces[i/3];
+        int a = face["a"].GetInt();
+        int b = face["b"].GetInt();
+        int c = face["c"].GetInt();
+        int vi;
+        if (i % 3 == 0) vi = map[a].GetInt();
+        if (i % 3 == 1) vi = map[b].GetInt();
+        if (i % 3 == 2) vi = map[c].GetInt();
+        double C_1 =lambda_1(vi);
+        double C_2 =lambda_2(vi);
+
+        double sum = 0;
+        double C_3 = 0;
+        for (int k=0; k<Flag.outerSize(); ++k) {
+          for (SparseMatrix<double>::InnerIterator it(Flag, k); it; ++it) {
+            int flag = it.value();
+            int row = it.row();
+            int col = it.col();
+            C_3 += (flag * lambda_3[row]);
+          }
+        }
+        C_3 *= cos(x(i));
+        b_1(i) = - (E + C_1 + C_2 + C_3);
+      }
+
+      // Update b_2
+      for (int i=0; i<T; i++) {
+        b_2(i) = - (x(3*i) + x(3*i + 1) + x(3*i + 2) - M_PI);
+      }
+      for (int i=0; i<V; i++) {
+        int id = uniq[i]["id"].GetInt();
+        Value &currentFaces = uniq[i]["faces"];
+        for (SizeType j=0; j<currentFaces.Size(); j++) {
+          int faceIndex = currentFaces[j].GetInt();
+          Value &face = faces[faceIndex];
+          int a = face["a"].GetInt();
+          int b = face["b"].GetInt();
+          int c = face["c"].GetInt();
+          int k;
+          if (id == map[a].GetInt()) k = 0;
+          if (id == map[b].GetInt()) k = 1;
+          if (id == map[c].GetInt()) k = 2;
+          b_2(T + i) -= x(3*faceIndex + k);
+        }
+        b_2(T + i) += (2 * M_PI);
+      }
+      for (int k=0; k<Flag.outerSize(); ++k) {
+        for (SparseMatrix<double>::InnerIterator it(Flag, k); it; ++it) {
+          int flag = it.value();
+          int row = it.row();
+          int col = it.col();
+          b_2(T + V + row) -= flag * sin(x(col));
+        }
+      }
+
+      // Update J_2
+      // Flag(V, 3*T)
+      for (int k=0; k<Flag.outerSize(); ++k) {
+        for (SparseMatrix<double>::InnerIterator it(Flag, k); it; ++it) {
+          int flag = it.value();
+          int row = it.row();
+          int col = it.col();
+          double val = flag * cos(x(col));
+          J_2.insert(V + row, col) = val;
+          J.insert(T + V + row, col) = val;
+        }
+      }
+
+      cout << Lambda_inv.cols() << endl;
+      cout << b_1.size() << endl;
+      // cout << (Lambda_inv * b_1) << endl;
+      // VectorXf b_star = (J * Lambda_inv) * b_1;// - b_2;
+      cout << "ok" << endl;
+      // SparseMatrix A = J * Lambda_inv * J.transpose();
+      // SolverClassName<SparseMatrix<double> > solver;
+      // solver.compute(A);
+      // VectorXf delta_lambda = solver.solve(b_star);
+
+      // VectorXf delta_x = Lambda_inv.dot(b_1 - J.transpose().dot(delta_lambda));
+      break;
+
+
+    //   lambda = lambda + delta_lambda;
+    //   x = x + delta_x;
+
+    //   delta_F = sqrt( b_1.dot(b_1) + b_2.dot(b_2) );
+    //   cout << "------" << endl;
+    //   cout << delta_F << endl;
+    //   cout << "------" << endl;
+    }
+
+
     // cout << *(res->array) << endl;
   }
+
+
 
 }
 

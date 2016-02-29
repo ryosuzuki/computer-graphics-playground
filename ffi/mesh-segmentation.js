@@ -8,6 +8,7 @@ var hash = {
 }
 
 function computeUniq (geometry) {
+  console.log('Start computeUniq')
   var vertices = geometry.vertices;
   var map = new Array(vertices.length);
   var uniq = [];
