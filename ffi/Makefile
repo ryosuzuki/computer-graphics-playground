@@ -1,12 +1,11 @@
 COMPILER = g++
-CFLAGS = -dynamiclib -std=c++11 -Wno-c++11-extensions
+CFLAGS = -dynamiclib -std=c++11 -Wno-c++11-extensions -w
 TARGET = mylib.dylib
 SOURCES = calculate.cpp
-INCLUDE = -I/usr/local/opt/eigen/include/eigen3/ -I/usr/local/opt/rapidjson/include/rapidjson/ -I/usr/local/opt/armadillo/include/armadillo
-LIBS = /usr/local/opt/armadillo/lib -larmadillo
+INCLUDE = -I./include/ -I/usr/local/opt/eigen/include/eigen3/ -I/usr/local/opt/rapidjson/include/
 
 compile:
-	$(COMPILER) $(CFLAGS) -o $(TARGET) $(SOURCES) $(INCLUDE) -L $(LIBS)
+	$(COMPILER) $(CFLAGS) -o $(TARGET) $(INCLUDE) $(SOURCES)
 
 all:
 	compile

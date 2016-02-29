@@ -7,6 +7,9 @@
 #include "rapidjson/stringbuffer.h"
 
 #include <math.h>
+#include <igl/boundary_loop.h>
+#include <igl/lscm.h>
+
 
 using namespace std;
 using namespace Eigen;
