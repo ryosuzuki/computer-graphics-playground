@@ -45,20 +45,20 @@ function computeUniq (geometry) {
     var b = map[face.b];
     var c = map[face.c];
 
-    // edges[a].push(a)
+    edges[a].push(a)
     edges[a].push(b)
     edges[a].push(c)
     edges[a] = _.uniq(edges[a])
     sides[a].push(i);
     uniq[a].edges = edges[a];
 
-    // edges[b].push(b)
+    edges[b].push(b)
     edges[b].push(a)
     edges[b].push(c)
     edges[b] = _.uniq(edges[b])
     uniq[b].edges = edges[b];
 
-    // edges[c].push(c)
+    edges[c].push(c)
     edges[c].push(a)
     edges[c].push(b)
     edges[c] = _.uniq(edges[c]);
@@ -81,6 +81,7 @@ function computeUniq (geometry) {
   window.uniq = uniq;
   window.map = map;
   window.edges = edges;
+  window.faces = geometry.faces;
 
   console.log('Finish computeUniq')
   return geometry;
@@ -125,9 +126,8 @@ function computeHarmonicField(geometry) {
   return geometry;
 }
 
-function computeLaplacian(geometry, callback) {
+function computeLaplacian(geometry) {
   console.log('Start Laplacian')
-  var geometry = window.geometry;
   var uniq = geometry.uniq;
   var n = uniq.length;
 
@@ -140,8 +140,9 @@ function computeLaplacian(geometry, callback) {
   for (var i=0; i< uniq.length; i++) {
     var e = uniq[i];
     var edges = e.edges;
+
     edges.forEach( function (j) {
-      if (i==j) {
+      if (i == j) {
         L[i][j] = 1;
       } else {
         L[i][j] = -1/edges.length;
@@ -158,7 +159,7 @@ function computeLaplacian(geometry, callback) {
   geometry.LU = LU;
 
   console.log('Finish computeLaplacian')
-  if (callback) callback(geometry);
+  return geometry;
 }
 
 

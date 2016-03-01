@@ -28,11 +28,14 @@ function mapping (json) {
     'parseJSON': ['int', ['string', 'pointer']],
   });
   lib.parseJSON(JSON.stringify(json), result.ref());
+  console.log('Get result from C++');
+  console.log('Start converting in Node');
   for (var i=0; i<uniq.length; i++) {
     var u = result.uv[2*i + 0];
     var v = result.uv[2*i + 1];
     uniq[i].uv = { u: u, v: v };
   }
+  console.log('Finish');
   return { uniq: uniq };
 }
 

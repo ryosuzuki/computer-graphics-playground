@@ -8,7 +8,6 @@ function computeSelect (undoMode) {
   for (var i=0; i<N; i++) {
     c[i] = Math.exp(- Math.pow(i-t, 2) / (2*Math.pow(t, 2)) )
   }
-
   var c = [];
   var phi = geometry.phi;
   var a = _.sortBy(phi);

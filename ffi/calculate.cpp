@@ -83,6 +83,10 @@ extern "C" {
     // bc<<0,0,1,0;
     // igl::lscm(V, F, b, bc, V_uv);
 
+    V_uv = initial_guess;
+    // V_uv *= 0.5;
+
+    cout << "Start ARAP calculation" << endl;
     igl::ARAPData arap_data;
     arap_data.with_dynamics = true;
     VectorXi b  = VectorXi::Zero(0);
@@ -96,15 +100,17 @@ extern "C" {
     V_uv = initial_guess;
     arap_solve(bc, arap_data, V_uv);
     // Scale UV to make the texture more clear
-    // V_uv *= 20;
-    cout << V_uv << endl;
+    V_uv *= 0.5;
 
+    cout << "Get V_uv with ARAP" << endl;
+    cout << V_uv << endl;
     int nRow = V_uv.rows();
     int nCol = V_uv.cols();
     res->uv = new double[nRow * nCol];
     for (int i=0; i<nRow; i++) {
       for (int j=0; j<nCol; j++) {
-        res->uv[nCol * i + j] = V_uv(i, j);
+        double val = V_uv(i, j) + 0.5;
+        res->uv[nCol * i + j] = val;
       }
     }
 

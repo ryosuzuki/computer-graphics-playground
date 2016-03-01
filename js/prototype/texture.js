@@ -9,6 +9,11 @@ function addTexture () {
   createTexture();
   // Q.fcall(createTexture)
   // .then(computeUniq(geometry))
+
+  // .then(computeLaplacian(geometry))
+  // .then(getBoundary(geometry))
+  // .then(getMapping(geometry))
+
 }
 
 function createTexture () {
@@ -30,41 +35,35 @@ function createTexture () {
     g.verticesNeedUpdate = true;
     var m = new THREE.Mesh(g)
     geometry.mergeMesh(m);
-    geometry.faceVertexUvs[0].push([
-      new THREE.Vector2(a.uv.u, a.uv.v),
-      new THREE.Vector2(b.uv.u, b.uv.v),
-      new THREE.Vector2(c.uv.u, c.uv.v)
-    ]);
-    geometry.uvsNeedUpdate = true;
+    // geometry.faceVertexUvs[0].push([
+    //   new THREE.Vector2(a.uv.u, a.uv.v),
+    //   new THREE.Vector2(b.uv.u, b.uv.v),
+    //   new THREE.Vector2(c.uv.u, c.uv.v)
+    // ]);
+    // geometry.uvsNeedUpdate = true;
   }
-  var rot = mesh.rotation;
-  var pos = mesh.position;
-  var axis = new THREE.Vector3(0, 1, 0);
-  var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
-  var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
-  var image = THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
-  var material = new THREE.MeshBasicMaterial({map: image});
-  texture = new THREE.Mesh(geometry, material);
-  texture.castShadow = true;
-  texture.receiveShadow = true;
-  texture.rotation.set(rot.x, rot.y, rot.z, rot.order)
-  texture.castShadow = true;
-  texture.receiveShadow = true;
-  texture.position.set(pos.x, pos.y, pos.z);
-  scene.add(texture);
-  window.texture = texture;
-  return texture.geometry;
+
+  // window.texture = texture;
+
+  Q.call(computeUniq(geometry))
+  // .then(computeLaplacian(geometry))
+  .then(getBoundary(geometry))
+  .then(getMapping(geometry))
+
+  return geometry;
 }
 
 function getBoundary (geometry) {
-  if (geometry.geometry) geometry = geometry.geometry;
   console.log('Start getBoundary');
   var uniq = geometry.uniq;
   var map = geometry.map;
   var edges = geometry.edges;
   var faces = geometry.faces;
 
-  var id = 0;
+  var id = _.random(0, uniq.length-1);
+  // sword: 1159;
+  // bottom: 1814;
+  // neck: 200;
   var checked = [];
   var current;
   while (true) {
@@ -81,7 +80,6 @@ function getBoundary (geometry) {
 }
 
 function getMapping (geometry) {
-  if (geometry.geometry) geometry = geometry.geometry;
   console.log('Start getMapping')
   var json = {
     uniq: geometry.uniq,
@@ -99,28 +97,46 @@ function getMapping (geometry) {
     success: function (data) {
       console.log('Get result');
       console.log(data);
-      geometry.uniq = data.uniq;
 
-      /*
-      var uniq = texture.geometry.uniq;
-      var map = texture.geometry.map;
-      var faces = texture.geometry.faces;
-      texture.geometry.faceVertexUvs[0] = [];
+      geometry.uniq = data.uniq;
+      // uniq = geometry.uniq;
+
+      var uniq = geometry.uniq;
+      var map = geometry.map;
+      var faces = geometry.faces;
+
+      geometry.faceVertexUvs[0] = [];
       for (var i=0; i<faces.length; i++) {
         var face = faces[i];
         var a = uniq[map[face.a]];
         var b = uniq[map[face.b]];
         var c = uniq[map[face.c]];
-        texture.geometry.faceVertexUvs[0].push([
+        geometry.faceVertexUvs[0].push([
           new THREE.Vector2(a.uv.u, a.uv.v),
           new THREE.Vector2(b.uv.u, b.uv.v),
           new THREE.Vector2(c.uv.u, c.uv.v)
         ]);
-        texture.geometry.uvsNeedUpdate = true;
+        geometry.uvsNeedUpdate = true;
       }
+
+
+      var rot = mesh.rotation;
+      var pos = mesh.position;
+      var axis = new THREE.Vector3(0, 1, 0);
+      var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
+      var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
       var image = THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
-      texture.material = new THREE.MeshBasicMaterial({map: image});
-      */
+      var material = new THREE.MeshBasicMaterial({map: image});
+      texture = new THREE.Mesh(geometry, material);
+      texture.castShadow = true;
+      texture.receiveShadow = true;
+      texture.rotation.set(rot.x, rot.y, rot.z, rot.order)
+      texture.castShadow = true;
+      texture.receiveShadow = true;
+      texture.position.set(pos.x, pos.y, pos.z);
+      scene.add(texture);
+      // var image = THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
+      // texture.material = new THREE.MeshBasicMaterial({map: image});
     }
   });
 }
