@@ -1,7 +1,7 @@
 var candidates = [];
 
 lim = 100
-count;
+count = 0;
 
 function computeExponentialMap (start, callback) {
   console.log('Start computeExponentialMap');

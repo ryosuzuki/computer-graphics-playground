@@ -17,12 +17,7 @@ function computeSelect (undoMode) {
     var k = d3.quantile(a, q);
     c[i] = Math.exp(- Math.pow(k-t, 2) / (2*Math.pow(k, 2)) )
   }
-
-  computeHarmonicField(geometry, function () {
-    colorChange(10, undoMode)
-    p = undefined;
-    q = undefined;
-  });
+  return undoMode;
 }
 
 function colorChange (val, undoMode) {
@@ -35,7 +30,7 @@ function colorChange (val, undoMode) {
   } else {
     val = 10;
     color = 'yellow';
-    console.log('Select')
+    console.log('Select: ' + currentIndex);
   }
   var faces = geometry.faces;
   geometry.phiFaces.forEach( function (p, index) {

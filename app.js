@@ -8,6 +8,7 @@ var favicon = require('koa-favicon');
 var serve = require('koa-static');
 var parser = require('koa-bodyparser');
 var koa = require('koa');
+var Q = require('q');
 
 var app = koa();
 var server = http.createServer(app.callback());
@@ -32,6 +33,7 @@ app.use( function *(next) {
 app.use(route.get('/', index));
 app.use(route.get('/favicon.ico', null));
 app.use(route.get('/:id', show));
+app.use(route.post('/init', init));
 app.use(route.post('/save', save));
 app.use(route.post('/stl', generateSTL));
 
@@ -41,6 +43,15 @@ function *index() {
 function *show(id) {
   this.body = yield this.render(id)
 }
+
+var mapping = require('./ffi/mapping');
+function *init() {
+  var json = this.request.body.json;
+  json = JSON.parse(json);
+  var result = mapping(json);
+  this.response.body = result;
+}
+
 function *save() {
   var json = this.request.body.json;
   // json = JSON.parse(json);

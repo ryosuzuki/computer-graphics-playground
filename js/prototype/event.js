@@ -105,8 +105,17 @@ function onDocumentMouseDown( event ) {
   if (!start) start = current.face.a;
   p = map[current.face.a];
   q = map[current.face.b];
-  computeSelect(undoMode);
-  current.object.geometry.colorsNeedUpdate = true;
+
+  Q.fcall(computeHarmonicField(geometry))
+  .then(computeSelect(undoMode))
+  .then(colorChange(10, undoMode))
+  .then(function () {
+    p = undefined;
+    q = undefined;
+    console.log(current);
+    current.object.geometry.colorsNeedUpdate = true;
+  });
+
 }
 
 function onDocumentMouseUp (event) {

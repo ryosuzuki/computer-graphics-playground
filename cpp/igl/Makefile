@@ -1,14 +1,14 @@
 COMPILER = g++
-CFLAGS = -std=c++11 -Wno-c++11-extensions
+CFLAGS = -std=c++11 -Wno-c++11-extensions -w
 TARGET = test
 SOURCES = lscm.cpp
-INCLUDE = -I/usr/local/opt/eigen/include/eigen3/ -I/Users/ryosuzuki/Dropbox/Piedmont/Code/libigl/include/
+INCLUDE = -I/usr/local/opt/eigen/include/eigen3/ -I../../../libigl/include/ -I../../../libigl/external/CoMISo/ext/gmm-4.2/include/ -I../../../libigl/external/
 
 compile:
-  $(COMPILER) $(CFLAGS) -o $(TARGET) $(SOURCES) $(INCLUDE)
+	$(COMPILER) $(CFLAGS) -o $(TARGET) $(INCLUDE) $(SOURCES)
 
 all:
-  compile
+	compile
 
 clean:
-  -rm -f $(TARGET)
+	-rm -f $(TARGET)
