@@ -7,6 +7,7 @@
 #include "rapidjson/stringbuffer.h"
 
 #include <math.h>
+#include <igl/cotmatrix.h>
 #include <igl/map_vertices_to_circle.h>
 #include <igl/harmonic.h>
 #include <igl/boundary_loop.h>
@@ -25,14 +26,90 @@ MatrixXd V_uv;
 VectorXi bnd;
 
 MatrixXd initial_guess;
+SparseMatrix<double> L;
 
 
 extern "C" {
   typedef struct {
-    double *uv;
-  } result;
+    int nRow;
+    int nCol;
+    int *row;
+    int *col;
+    double *val;
+  } laplacianResult;
 
-  void parseJSON(char *json, result *res) {
+  typedef struct {
+    double *uv;
+  } mappingResult;
+
+  void getLaplacian(char *json, laplacianResult *res) {
+    Document d;
+    d.Parse(json);
+
+    cout << "Hoge" << endl;
+
+    Value &uniq  = d["uniq"];
+    Value &faces = d["faces"];
+    Value &map   = d["map"];
+    V.resize(uniq.Size(), 3);
+    F.resize(faces.Size(), 3);;
+
+    for (SizeType i=0; i<uniq.Size(); i++) {
+      Value &vertex = uniq[i]["vertex"];
+      V(i, 0) = vertex["x"].GetDouble();
+      V(i, 1) = vertex["y"].GetDouble();
+      V(i, 2) = vertex["z"].GetDouble();
+    }
+    for (SizeType i=0; i<faces.Size(); i++) {
+      Value &face = faces[i];
+      int a = face["a"].GetInt();
+      int b = face["b"].GetInt();
+      int c = face["c"].GetInt();
+      F(i, 0) = map[a].GetInt();
+      F(i, 1) = map[b].GetInt();
+      F(i, 2) = map[c].GetInt();
+    }
+    cout << "Get Laplacian" << endl;
+    igl::cotmatrix(V, F, L);
+    cout << L.rows() << endl;
+    cout << L.cols() << endl;
+    // Performs a Cholesky factorization of A
+    // SimplicialCholesky<SparseMatrix<double>> chol(L);
+
+    cout << "Get Cholesky" << endl;
+
+    int nRow = L.rows();
+    int nCol = L.cols();
+    res->nRow = nRow;
+    res->nCol = nCol;
+    res->row = new int[L.nonZeros()];
+    res->col = new int[L.nonZeros()];
+    res->val = new double[L.nonZeros()];
+
+    cout << L.nonZeros() << endl;
+
+    vector<int> v;
+    cout << "Start exporting Laplacian" << endl;
+    for (int k=0; k<L.outerSize(); ++k) {
+      for (SparseMatrix<double>::InnerIterator it(L, k); it; ++it) {
+        int i = v.size();
+        int row = it.row();
+        int col = it.col();
+        double val = it.value();
+
+        // cout << it.value() << endl;
+        res->row[i] = row; //it.row();
+        // res->col[i] = it.col();
+        // res->val[i] = it.value();
+        v.push_back(it.value());
+      }
+    }
+
+    cout << &res->row << endl;
+    cout << "Finish" << endl;
+  }
+
+  void getMapping(char *json, mappingResult *res) {
     Document d;
     d.Parse(json);
 
@@ -113,9 +190,6 @@ extern "C" {
         res->uv[nCol * i + j] = val;
       }
     }
-
-
-
   }
 
 

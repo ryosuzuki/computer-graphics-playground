@@ -3,9 +3,37 @@ var numeric = require('numeric')
 
 var hash = {
   computeUniq: computeUniq,
+  getBoundary: getBoundary,
   computeLaplacian: computeLaplacian,
   computeHarmonicField: computeHarmonicField
 }
+
+function getBoundary (geometry) {
+  console.log('Start getBoundary');
+  var uniq = geometry.uniq;
+  var map = geometry.map;
+  var edges = geometry.edges;
+  var faces = geometry.faces;
+
+  var id = _.random(0, uniq.length-1);
+  // sword: 1159;
+  // bottom: 1814;
+  // neck: 200;
+  var checked = [];
+  var current;
+  while (true) {
+    current = uniq[id];
+    var remains = _.pullAll(current.edges, checked);
+    if (remains.length <= 0) break;
+    id = remains[0];
+    checked = _.union(checked, [id]);
+  }
+  boundary = checked;
+  geometry.boundary = boundary;
+  console.log('Finish getBoundary')
+  return geometry;
+}
+
 
 function computeUniq (geometry) {
   console.log('Start computeUniq')

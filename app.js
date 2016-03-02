@@ -13,6 +13,7 @@ var Q = require('q');
 var app = koa();
 var server = http.createServer(app.callback());
 var port = process.env.PORT || 3000;
+var compute = require('./ffi/compute');
 
 app.use(serve('.'));
 app.use(favicon('/assets/favicon.ico'));
@@ -33,7 +34,8 @@ app.use( function *(next) {
 app.use(route.get('/', index));
 app.use(route.get('/favicon.ico', null));
 app.use(route.get('/:id', show));
-app.use(route.post('/init', init));
+app.use(route.post('/get-laplacian', getLaplacian));
+app.use(route.post('/get-mapping', getMapping));
 app.use(route.post('/save', save));
 app.use(route.post('/stl', generateSTL));
 
@@ -44,11 +46,18 @@ function *show(id) {
   this.body = yield this.render(id)
 }
 
-var mapping = require('./ffi/mapping');
-function *init() {
+
+function *getLaplacian() {
   var json = this.request.body.json;
   json = JSON.parse(json);
-  var result = mapping(json);
+  var result = compute.getLaplacian(json);
+  this.response.body = result;
+}
+
+function *getMapping() {
+  var json = this.request.body.json;
+  json = JSON.parse(json);
+  var result = compute.getMapping(json);
   this.response.body = result;
 }
 

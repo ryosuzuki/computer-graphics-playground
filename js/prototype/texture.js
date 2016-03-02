@@ -88,7 +88,7 @@ function getMapping (geometry) {
     boundary: geometry.boundary
   };
   $.ajax({
-    url: '/init',
+    url: '/get-mapping',
     type: 'POST',
     datatype: 'JSON',
     data: {
