@@ -70,16 +70,127 @@ extern "C" {
     }
     cout << "Get Laplacian" << endl;
     igl::cotmatrix(V, F, L);
+    // L.makeCompressed();
+    // SimplicialLDLT< SparseMatrix<double> > ldl(L);
+    // SparseMatrix<double> LD = ldl.matrixL();
 
-    L.makeCompressed();
+    cout << "Get Cholesky" << endl;
+    // LDLT<MatrixXd> chol(Ld);
+    // MatrixXd LU = chol.matrixL();
 
     MatrixXd Ld = L;
-    cout << Ld << endl;
+
+    PartialPivLU<MatrixXd> lu(Ld);
+    int r;
+    MatrixXd P, Lp, Ltmp, U;
+    P = lu.permutationP();
+    lu.matrixLU();
+    r = std::max(Ld.rows(), Ld.cols());
+    U = lu.matrixLU().triangularView<Upper>();
+    Ltmp = MatrixXd::Identity(r, r);
+    Ltmp.block(0, 0 ,Ld.rows(), Ld.cols()).triangularView<StrictlyLower>() = lu.matrixLU();
+    Lp = Ltmp.block(0, 0, P.cols(), U.rows());
+    // cout << P.inverse() * Lp * U << endl;
+    cout << P.inverse() << endl;
+
+    /*
+    m=
+    5 2 1
+    2 8 1
+    1 1 5
+    ###using PartialPivLU:
+    P=lu.permutationP()=
+    1 0 0
+    0 1 0
+    0 0 1
+    lu.matrixLU()=
+            5         2         1
+          0.4       7.2       0.6
+          0.2 0.0833333      4.75
+    r=std::max(m.rows(),m.cols())=
+    3
+    U=lu.matrixLU().triangularView<Upper>()=
+       5    2    1
+       0  7.2  0.6
+       0    0 4.75
+    Ltmp= MatrixXd::Identity(r,r)
+    Ltmp.block(0,0,m.rows(),m.cols()).triangularView<StrictlyLower>()= lu.matrixLU()
+    Ltmp=
+            1         0         0
+          0.4         1         0
+          0.2 0.0833333         1
+    L=Ltmp.block(0,0,P.cols(),U.rows())=
+            1         0         0
+          0.4         1         0
+          0.2 0.0833333         1
+    P.inverse() * L * U=
+    5 2 1
+    2 8 1
+    1 1 5
+    */
+
+
+    // FullPivLU<MatrixXd> lu(Ld);
+    // int r;
+    // MatrixXd P, Lp , Ltmp, U, Q;
+    // P = lu.permutationP();
+    // Q = lu.permutationQ();
+    // lu.matrixLU();
+    // r = std::max(Ld.rows(), Ld.cols());
+    // U = lu.matrixLU().triangularView<Upper>();
+    // Ltmp = MatrixXd::Identity(r, r);
+    // Ltmp.block(0, 0, Ld.rows(), Ld.cols()).triangularView<StrictlyLower>() = lu.matrixLU();
+    // Lp = Ltmp.block(0, 0, P.cols(), U.rows());
+    // cout << P.inverse() * Lp * U * Q.inverse() << endl;
+
+    /*
+    m=
+    5 2 1
+    2 8 1
+    1 1 5
+    ###using FullPivLU:
+    P=lu.permutationP()=
+    0 1 0
+    0 0 1
+    1 0 0
+    Q=lu.permutationQ()=
+    0 0 1
+    1 0 0
+    0 1 0
+    lu.matrixLU()=
+           8        1        2
+       0.125    4.875     0.75
+        0.25 0.153846  4.38462
+    r=std::max(m.rows(),m.cols())=
+    3
+    U=lu.matrixLU().triangularView<Upper>()=
+          8       1       2
+          0   4.875    0.75
+          0       0 4.38462
+    Ltmp= MatrixXd::Identity(r,r)
+    Ltmp.block(0,0,m.rows(),m.cols()).triangularView<StrictlyLower>()= lu.matrixLU()
+    Ltmp=
+           1        0        0
+       0.125        1        0
+        0.25 0.153846        1
+    L=Ltmp.block(0,0,P.cols(),U.rows())=
+           1        0        0
+       0.125        1        0
+        0.25 0.153846        1
+    P.inverse() * L * U * Q.inverse()=
+    5 2 1
+    2 8 1
+    1 1 5
+    */
+
+
+    // MatrixXd LU = LD;
     cout << Ld.rows() << endl;
     cout << Ld.cols() << endl;
     // Performs a Cholesky factorization of A
     // SimplicialCholesky<SparseMatrix<double>> chol(L);
-    cout << "Get Cholesky" << endl;
+
+    // cout << LU * LU.transpose() << endl;
 
     int size = Ld.rows();
     res->size = size;
@@ -90,10 +201,9 @@ extern "C" {
     double epsilon = pow(10, -10);
     for (int col=0; col<Ld.cols(); col++) {
       for (int row=0; row<Ld.rows(); row++) {
-        // cout << index << endl;
         if (abs(Ld(row, col)) < epsilon) continue;
-        res->row[index] = row;
         res->col[index] = col;
+        res->row[index] = row;
         res->val[index] = Ld(row, col);
         index++;
       }
@@ -101,12 +211,9 @@ extern "C" {
     int count = index;
     res->count = count;
 
-
-
     // res->row = new int[L.nonZeros()];
     // res->col = new int[L.nonZeros()];
     // res->val = new double[L.nonZeros()];
-
     // vector<int> v;
     // cout << "Start exporting Laplacian" << endl;
     // for (int k=0; k<L.outerSize(); ++k) {

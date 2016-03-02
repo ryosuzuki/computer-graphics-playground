@@ -2,7 +2,6 @@ var p;//Math.round(Math.random()*n);
 var q;//n-1
 var Z;
 
-
 function computeUniq (geometry) {
   console.log('Start computeUniq')
   var vertices = geometry.vertices;
