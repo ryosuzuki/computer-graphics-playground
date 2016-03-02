@@ -30,6 +30,7 @@
     "browserify": "^11.1.0",
     "bunny": "^1.0.1",
     "co-views": "^2.1.0",
+    "csr-matrix": "^1.0.0",
     "ffi": "^2.0.0",
     "hanson": "^1.1.1",
     "json-native": "0.0.4",

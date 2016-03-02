@@ -28,11 +28,10 @@ VectorXi bnd;
 MatrixXd initial_guess;
 SparseMatrix<double> L;
 
-
 extern "C" {
   typedef struct {
-    int nRow;
-    int nCol;
+    int size;
+    int count;
     int *row;
     int *col;
     double *val;
@@ -71,42 +70,61 @@ extern "C" {
     }
     cout << "Get Laplacian" << endl;
     igl::cotmatrix(V, F, L);
-    cout << L.rows() << endl;
-    cout << L.cols() << endl;
+
+    L.makeCompressed();
+
+    MatrixXd Ld = L;
+    cout << Ld << endl;
+    cout << Ld.rows() << endl;
+    cout << Ld.cols() << endl;
     // Performs a Cholesky factorization of A
     // SimplicialCholesky<SparseMatrix<double>> chol(L);
-
     cout << "Get Cholesky" << endl;
 
-    int nRow = L.rows();
-    int nCol = L.cols();
-    res->nRow = nRow;
-    res->nCol = nCol;
+    int size = Ld.rows();
+    res->size = size;
     res->row = new int[L.nonZeros()];
     res->col = new int[L.nonZeros()];
     res->val = new double[L.nonZeros()];
-
-    cout << L.nonZeros() << endl;
-
-    vector<int> v;
-    cout << "Start exporting Laplacian" << endl;
-    for (int k=0; k<L.outerSize(); ++k) {
-      for (SparseMatrix<double>::InnerIterator it(L, k); it; ++it) {
-        int i = v.size();
-        int row = it.row();
-        int col = it.col();
-        double val = it.value();
-
-        // cout << it.value() << endl;
-        res->row[i] = row; //it.row();
-        // res->col[i] = it.col();
-        // res->val[i] = it.value();
-        v.push_back(it.value());
+    int index = 0;
+    double epsilon = pow(10, -10);
+    for (int col=0; col<Ld.cols(); col++) {
+      for (int row=0; row<Ld.rows(); row++) {
+        // cout << index << endl;
+        if (abs(Ld(row, col)) < epsilon) continue;
+        res->row[index] = row;
+        res->col[index] = col;
+        res->val[index] = Ld(row, col);
+        index++;
       }
     }
+    int count = index;
+    res->count = count;
 
-    cout << &res->row << endl;
-    cout << "Finish" << endl;
+
+
+    // res->row = new int[L.nonZeros()];
+    // res->col = new int[L.nonZeros()];
+    // res->val = new double[L.nonZeros()];
+
+    // vector<int> v;
+    // cout << "Start exporting Laplacian" << endl;
+    // for (int k=0; k<L.outerSize(); ++k) {
+    //   for (SparseMatrix<double>::InnerIterator it(L, k); it; ++it) {
+    //     int i = v.size();
+    //     int row = it.row();
+    //     int col = it.col();
+    //     double val = it.value();
+    //     // cout << it.value() << endl;
+    //     // res->row[i] = 10; //row; //it.row();
+    //     // res->col[i] = 11; //col;
+    //     res->val[i] = 0.12334; //val;
+    //     v.push_back(it.value());
+    //   }
+    // }
+
+    // // cout << res->row[110] << endl;
+    // cout << "Finish" << endl;
   }
 
   void getMapping(char *json, mappingResult *res) {

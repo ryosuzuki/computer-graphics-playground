@@ -3,7 +3,6 @@ var ms = require('./mesh-segmentation');
 var Q = require('q');
 var repl = require('repl');
 var THREE = require('three');
-
 var geometry = new THREE.CylinderGeometry(10, 10, 10, 30);
 
 function startRepl (geometry) {
@@ -15,7 +14,7 @@ function startRepl (geometry) {
   };
   var result = compute.getLaplacian(json);
   // var result = compute.getMapping(json);
-  console.log(result);
+  // console.log(result);
   // repl.start('> ').context.r = result;
 }
 
