@@ -50,7 +50,7 @@ function *show(id) {
 function *getLaplacian() {
   var json = this.request.body.json;
   json = JSON.parse(json);
-  var result = compute.getLaplacian(json);
+  var result = compute.getField(json);
   this.response.body = result;
 }
 

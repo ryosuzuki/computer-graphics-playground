@@ -5,12 +5,15 @@ var ArrayType = require('ref-array');
 var StructType = require('ref-struct');
 
 var compute = {
+  getField: getField,
+  getMapping: getMapping,
   getLaplacian: getLaplacian,
-  getMapping: getMapping
+
 }
 var lib = ffi.Library(__dirname + '/mylib', {
-  'getLaplacian': ['int', ['string', 'pointer', 'pointer', 'pointer', 'pointer']],
-  'getMapping':   ['int', ['string', 'pointer']],
+  'getField':   ['void', ['string', 'pointer']],
+  'getMapping':   ['void', ['string', 'pointer']],
+  // 'getLaplacian': ['void', ['string', 'pointer', 'pointer', 'pointer', 'pointer']],
 });
 
 var int = ref.types.int;
@@ -18,6 +21,12 @@ var double = ref.types.double;
 var IntArray = ArrayType(int);
 var DoubleArray = ArrayType(double);
 var Result = {};
+Result.field = StructType({
+  'phi': DoubleArray
+})
+Result.mapping = StructType({
+  'uv': DoubleArray
+})
 Result.matrix = StructType({
   'size': int,
   'count': int,
@@ -29,95 +38,35 @@ Result.index = StructType({
   'count': int,
   'index': IntArray,
 })
-Result.mapping = StructType({
-  'uv': DoubleArray
-})
 
 var repl = require('repl');
 
-function getLaplacian (json) {
+function getField (json) {
   /*
   var json = {
     uniq:     geometry.uniq,
     faces:    geometry.faces,
     map:      geometry.map,
+    p:        0,
+    p:        100,
   };
   */
   var uniq = json.uniq;
   console.log('Start getLaplacian');
   var n = uniq.length;
-  n = n;
-  var result_L = new Result.matrix({
-    size: 0,
-    count: 0,
-    row: new IntArray(n),
-    col: new IntArray(n),
-    val: new DoubleArray(n),
-  });
-  var result_U = new Result.matrix({
-    size: 0,
-    count: 0,
-    row: new IntArray(n),
-    col: new IntArray(n),
-    val: new DoubleArray(n),
-  });
-  var result_P = new Result.index({
-    count: 0,
-    index: new IntArray(n),
-  });
-  var result_Pinv = new Result.index({
-    count: 0,
-    index: new IntArray(n),
+  var result = new Result.field({
+    phi: new DoubleArray(n),
   });
   console.log('Get result from C++');
-  lib.getLaplacian(JSON.stringify(json), result_L.ref(), result_U.ref(), result_P.ref(), result_Pinv.ref());
+  lib.getField(JSON.stringify(json), result.ref());
   console.log('Start converting sparse Laplacian');
-
-  var result = {};
-  result.L = getSparse(result_L);
-  result.U = getSparse(result_U);
-  result.P = getIndex(result_P);
-  result.Pinv = getIndex(result_Pinv);
-  console.log('Finish');
-  // repl.start('> ').context.r = result;
-  return result;
+  var phi = new Array(n);
+  for (var i=0; i<n; i++) {
+    phi[i] = result.phi[i];
+  }
+  return { phi: phi }
 }
 
-function getIndex (result) {
-  var count = result.count;
-  var ccsIndex = new Array(count);
-  for (var i=0; i<count; i++) {
-    ccsIndex[i] = result.index[i];
-  }
-  return ccsIndex;
-}
-
-function getSparse (result) {
-  var count = result.count;
-  var size = result.size;
-  var ccsCol = [0];
-  var prev = 0;
-  for (var i=0; i<count; i++) {
-    var current = result.col[i];
-    var diff = current - prev;
-    for (var c=0; c<diff; c++) {
-      ccsCol.push(i);
-    }
-    prev = current;
-  }
-  ccsCol.push(count);
-  var ccsRow = new Array(count);
-  var ccsVal = new Array(count);
-  for (var i=0; i<count; i++) {
-    ccsRow[i] = result.row[i];
-    ccsVal[i] = result.val[i];
-  }
-  var ccsMatrix = new Array(3);
-  ccsMatrix[0] = ccsCol;
-  ccsMatrix[1] = ccsRow;
-  ccsMatrix[2] = ccsVal;
-  return ccsMatrix;
-}
 
 function getMapping (json) {
   /*
@@ -138,7 +87,6 @@ function getMapping (json) {
   lib.getMapping(JSON.stringify(json), result.ref());
 
   repl.start('> ').context.r = result;
-
 
   console.log('Get result from C++');
   console.log('Start converting in Node');
@@ -192,5 +140,96 @@ function test () {
   [0, 1, 0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 5, 4, 5]
   [2,-1,-1, 2,-1,-1, 2,-1,-1, 2,-1,-1, 2,-1,-1, 2]
   */
+}
+
+
+
+
+function getLaplacian (json) {
+  /*
+  var json = {
+    uniq:     geometry.uniq,
+    faces:    geometry.faces,
+    map:      geometry.map,
+  };
+  */
+  var uniq = json.uniq;
+  console.log('Start getLaplacian');
+  var n = uniq.length;
+  n = n;
+  var result_L = new Result.matrix({
+    size: 0,
+    count: 0,
+    row: new IntArray(n),
+    col: new IntArray(n),
+    val: new DoubleArray(n),
+  });
+  var result_U = new Result.matrix({
+    size: 0,
+    count: 0,
+    row: new IntArray(n),
+    col: new IntArray(n),
+    val: new DoubleArray(n),
+  });
+  var result_P = new Result.index({
+    count: 0,
+    index: new IntArray(n),
+  });
+  var result_Pinv = new Result.index({
+    count: 0,
+    index: new IntArray(n),
+  });
+  console.log('Get result from C++');
+  lib.getLaplacian(JSON.stringify(json), result_L.ref(), result_U.ref(), result_P.ref(), result_Pinv.ref());
+  console.log('Start converting sparse Laplacian');
+
+  console.log(result_L.count);
+  var result = {};
+  result.L = getSparse(result_L);
+  result.U = getSparse(result_U);
+  result.P = getIndex(result_P);
+  result.Pinv = getIndex(result_Pinv);
+  console.log('Finish');
+  // repl.start('> ').context.r = result;
+  return result;
+}
+
+
+
+function getSparse (result) {
+  var count = result.count;
+  var size = result.size;
+  var ccsCol = [0];
+  var prev = 0;
+  for (var i=0; i<count; i++) {
+    var current = result.col[i];
+    var diff = current - prev;
+    for (var c=0; c<diff; c++) {
+      ccsCol.push(i);
+    }
+    prev = current;
+  }
+  ccsCol.push(count);
+  var ccsRow = new Array(count);
+  var ccsVal = new Array(count);
+  for (var i=0; i<count; i++) {
+    ccsRow[i] = result.row[i];
+    ccsVal[i] = result.val[i];
+  }
+  var ccsMatrix = new Array(3);
+  ccsMatrix[0] = ccsCol;
+  ccsMatrix[1] = ccsRow;
+  ccsMatrix[2] = ccsVal;
+  return ccsMatrix;
+}
+
+
+function getIndex (result) {
+  var count = result.count;
+  var ccsIndex = new Array(count);
+  for (var i=0; i<count; i++) {
+    ccsIndex[i] = result.index[i];
+  }
+  return ccsIndex;
 }
 

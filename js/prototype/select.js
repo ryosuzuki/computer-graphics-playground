@@ -1,7 +1,6 @@
 var selectIndex = [];
 
-function computeSelect (undoMode) {
-  var undoMode = undoMode;
+function computeSelect () {
   var N = 15;
   var t = N/2;
   var c = [];
@@ -16,18 +15,15 @@ function computeSelect (undoMode) {
     var k = d3.quantile(a, q);
     c[i] = Math.exp(- Math.pow(k-t, 2) / (2*Math.pow(k, 2)) )
   }
-  return undoMode;
 }
 
-function colorChange (val, undoMode) {
+function colorChange (val) {
   var color;
-  var val;
   if (undoMode) {
-    val = 100;
+    val = val/10;
     color = 'blue';
     console.log('Undo')
   } else {
-    val = 10;
     color = 'yellow';
     console.log('Select: ' + currentIndex);
   }

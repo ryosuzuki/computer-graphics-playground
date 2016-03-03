@@ -10,9 +10,11 @@ function startRepl (geometry) {
     uniq: geometry.uniq,
     faces: geometry.faces,
     map: geometry.map,
-    boundary: geometry.boundary
+    boundary: geometry.boundary,
+    p: 0,
+    q: geometry.uniq.length -1
   };
-  var result = compute.getLaplacian(json);
+  var result = compute.getField(json);
   // var result = compute.getMapping(json);
   // console.log(result);
   // repl.start('> ').context.r = result;

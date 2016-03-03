@@ -19,7 +19,7 @@ function init() {
   camera.lookAt(new THREE.Vector3(0, 3, 0));
   scene.add( camera );
 
-  scene.add(new THREE.AmbientLight(0xf0f0f0));
+  scene.add(new THREE.AmbientLight(0xccc));
   var light = new THREE.SpotLight(0xffffff, 1.5);
   light.position.set(size*7, size*7, -size*7);
   light.castShadow = true;

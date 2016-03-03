@@ -1,7 +1,6 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-#include <Eigen/CholmodSupport>
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -14,8 +13,6 @@
 #include <igl/boundary_loop.h>
 #include <igl/lscm.h>
 #include <igl/arap.h>
-
-#include "cholmod.h"
 
 
 using namespace std;
@@ -49,11 +46,14 @@ extern "C" {
     double *uv;
   } Result_Mapping;
 
-  void getLaplacian(char *json, Result_Matrix *result_L, Result_Matrix *result_U, Result_Index *result_P, Result_Index *result_Pinv) {
+  typedef struct {
+    double *phi;
+  } Result_Field;
+
+
+  void getField(char *json, Result_Field *res) {
     Document d;
     d.Parse(json);
-
-    cout << "Hoge" << endl;
 
     Value &uniq  = d["uniq"];
     Value &faces = d["faces"];
@@ -78,215 +78,37 @@ extern "C" {
     }
     cout << "Get Laplacian" << endl;
     igl::cotmatrix(V, F, Lp);
-    // L.makeCompressed();
-    // SimplicialLDLT< SparseMatrix<double> > ldl(L);
-    // SparseMatrix<double> LD = ldl.matrixL();
 
     cout << "Compute Cholesky" << endl;
 
-    cholmod_sparse A = viewAsCholmod(Lp);
-    cholmod_common c;
-    cholmod_start (&c);
-    cholmod_factor *CF = cholmod_analyze(&A, &c);
-    cholmod_factorize(&A, CF, &c);
-    cholmod_sparse *CL = cholmod_factor_to_sparse(CF, &c);
-    cholmod_finish(&c);
+    double w = 1000;
+    int n = uniq.Size();
+    int p = d["p"].GetInt();
+    int q = d["q"].GetInt();
+    VectorXd b = VectorXd::Zero(n);
+    b(p) = w;
 
-    SparseMatrix<double> LL = viewAsEigen<double, 0, int>(*CL);
-    cout << LL << endl;
+    SparseMatrix<double> G(n, n);
+    G.insert(p, p) = w;
+    G.insert(q, q) = w;
 
+    Lp = Lp + G;
+    SparseLU< SparseMatrix<double> > slu(Lp);
+    slu.analyzePattern(Lp);
+    slu.factorize(Lp);
+    VectorXd phi = slu.solve(b);
 
-    cout << "Finish Sparse Cholesky" << endl;
+    // MatrixXd Ld = Lp;
+    // PartialPivLU<MatrixXd> lu(Ld);
+    // VectorXd phi = lu.solve(b);
 
-    cout << "Start Dense Cholesky" << endl;
-
-    MatrixXd Ld = Lp;
-    PartialPivLU<MatrixXd> lu(Ld);
-    int r;
-    MatrixXd P, Pinv, L, Ltmp, U;
-    P = lu.permutationP();
-    lu.matrixLU();
-    r = max(Ld.rows(), Ld.cols());
-    U = lu.matrixLU().triangularView<Upper>();
-    Ltmp = MatrixXd::Identity(r, r);
-    Ltmp.block(0, 0 , Ld.rows(), Ld.cols()).triangularView<StrictlyLower>() = lu.matrixLU();
-    L = Ltmp.block(0, 0, P.cols(), U.rows());
-    Pinv = P.inverse();
-
-    cout << "Finish Cholesky" << endl;
-
-    cout << "Convert LUP" << endl;
-
-    int index;
-    int n = uniq.Size() * uniq.Size();
-    double epsilon = pow(10, -10);
-
-    result_L->size = L.rows();
-    result_L->row = new int[n];
-    result_L->col = new int[n];
-    result_L->val = new double[n];
-    index = 0;
-    for (int col=0; col<L.cols(); col++) {
-      for (int row=0; row<L.rows(); row++) {
-        if (abs(L(row, col)) < epsilon) continue;
-        result_L->col[index] = col;
-        result_L->row[index] = row;
-        result_L->val[index] = L(row, col);
-        index++;
-      }
+    // cout << phi << endl;
+    for (int i=0; i<n; i++) {
+      cout << phi(i) << endl;
+      res->phi[i] = phi(i);
     }
-    result_L->count = index;
-
-    cout << "Finish L" << endl;
-
-    result_U->size = U.rows();
-    result_U->row = new int[n];
-    result_U->col = new int[n];
-    result_U->val = new double[n];
-    index = 0;
-    for (int col=0; col<U.cols(); col++) {
-      for (int row=0; row<U.rows(); row++) {
-        if (abs(U(row, col)) < epsilon) continue;
-        result_U->col[index] = col;
-        result_U->row[index] = row;
-        result_U->val[index] = U(row, col);
-        index++;
-      }
-    }
-    result_U->count = index;
-
-    cout << "Finish U" << endl;
-
-    result_P->count = P.rows();
-    result_Pinv->count = P.rows();
-    result_P->index = new int[P.rows()];
-    result_Pinv->index = new int[Pinv.rows()];
-    for (int row=0; row<P.rows(); row++) {
-      for (int col=0; col<P.cols(); col++) {
-        if (abs(P(row, col)) > epsilon) {
-          result_P->index[row] = col;
-        }
-        if (abs(P(row, col)) > epsilon) {
-          result_Pinv->index[row] = col;
-        }
-      }
-    }
-    cout << "Finish P and Pinv" << endl;
-
-    /*
-    m=
-    5 2 1
-    2 8 1
-    1 1 5
-    ###using PartialPivLU:
-    P=lu.permutationP()=
-    1 0 0
-    0 1 0
-    0 0 1
-    lu.matrixLU()=
-            5         2         1
-          0.4       7.2       0.6
-          0.2 0.0833333      4.75
-    r=std::max(m.rows(),m.cols())=
-    3
-    U=lu.matrixLU().triangularView<Upper>()=
-       5    2    1
-       0  7.2  0.6
-       0    0 4.75
-    Ltmp= MatrixXd::Identity(r,r)
-    Ltmp.block(0,0,m.rows(),m.cols()).triangularView<StrictlyLower>()= lu.matrixLU()
-    Ltmp=
-            1         0         0
-          0.4         1         0
-          0.2 0.0833333         1
-    L=Ltmp.block(0,0,P.cols(),U.rows())=
-            1         0         0
-          0.4         1         0
-          0.2 0.0833333         1
-    P.inverse() * L * U=
-    5 2 1
-    2 8 1
-    1 1 5
-    */
-
-
-    // FullPivLU<MatrixXd> lu(Ld);
-    // int r;
-    // MatrixXd P, Lp , Ltmp, U, Q;
-    // P = lu.permutationP();
-    // Q = lu.permutationQ();
-    // lu.matrixLU();
-    // r = std::max(Ld.rows(), Ld.cols());
-    // U = lu.matrixLU().triangularView<Upper>();
-    // Ltmp = MatrixXd::Identity(r, r);
-    // Ltmp.block(0, 0, Ld.rows(), Ld.cols()).triangularView<StrictlyLower>() = lu.matrixLU();
-    // Lp = Ltmp.block(0, 0, P.cols(), U.rows());
-    // cout << P.inverse() * Lp * U * Q.inverse() << endl;
-
-    /*
-    m=
-    5 2 1
-    2 8 1
-    1 1 5
-    ###using FullPivLU:
-    P=lu.permutationP()=
-    0 1 0
-    0 0 1
-    1 0 0
-    Q=lu.permutationQ()=
-    0 0 1
-    1 0 0
-    0 1 0
-    lu.matrixLU()=
-           8        1        2
-       0.125    4.875     0.75
-        0.25 0.153846  4.38462
-    r=std::max(m.rows(),m.cols())=
-    3
-    U=lu.matrixLU().triangularView<Upper>()=
-          8       1       2
-          0   4.875    0.75
-          0       0 4.38462
-    Ltmp= MatrixXd::Identity(r,r)
-    Ltmp.block(0,0,m.rows(),m.cols()).triangularView<StrictlyLower>()= lu.matrixLU()
-    Ltmp=
-           1        0        0
-       0.125        1        0
-        0.25 0.153846        1
-    L=Ltmp.block(0,0,P.cols(),U.rows())=
-           1        0        0
-       0.125        1        0
-        0.25 0.153846        1
-    P.inverse() * L * U * Q.inverse()=
-    5 2 1
-    2 8 1
-    1 1 5
-    */
-
-
-
-    // res->row = new int[L.nonZeros()];
-    // res->col = new int[L.nonZeros()];
-    // res->val = new double[L.nonZeros()];
-    // vector<int> v;
-    // cout << "Start exporting Laplacian" << endl;
-    // for (int k=0; k<L.outerSize(); ++k) {
-    //   for (SparseMatrix<double>::InnerIterator it(L, k); it; ++it) {
-    //     int i = v.size();
-    //     int row = it.row();
-    //     int col = it.col();
-    //     double val = it.value();
-    //     // cout << it.value() << endl;
-    //     // res->row[i] = 10; //row; //it.row();
-    //     // res->col[i] = 11; //col;
-    //     res->val[i] = 0.12334; //val;
-    //     v.push_back(it.value());
-    //   }
-    // }
-
-    // // cout << res->row[110] << endl;
-    // cout << "Finish" << endl;
   }
+
 
   void getMapping(char *json, Result_Mapping *res) {
     Document d;
@@ -370,7 +192,6 @@ extern "C" {
       }
     }
   }
-
 
 
 }

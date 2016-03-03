@@ -1,10 +1,14 @@
 
-function getLaplacian (geometry) {
-  console.log('Start getLaplacian')
+function getField (geometry, p, q) {
+  console.log('Start getField')
+  if (!p) p = 0;
+  if (!q) q = geometry.uniq.length-1;
   var json = {
     uniq: geometry.uniq,
     faces: geometry.faces,
-    map: geometry.map
+    map: geometry.map,
+    p: p,
+    q: q,
   };
   $.ajax({
     url: '/get-laplacian',
@@ -16,7 +20,21 @@ function getLaplacian (geometry) {
     success: function (data) {
       console.log('Get result');
       console.log(data);
-      window.r = data;
+      var phi = data.phi;
+      geometry.phi = phi;
+      geometry.phiFaces = geometry.faces.map( function (face) {
+        var a = phi[map[face.a]];
+        var b = phi[map[face.b]];
+        var c = phi[map[face.c]];
+        return (a+b+c)/3;
+      });
+      var val = 0.52;
+      computeSelect()
+      colorChange(val)
+      p = undefined;
+      q = undefined;
+      console.log(current);
+      current.object.geometry.colorsNeedUpdate = true;
     }
   });
 }
