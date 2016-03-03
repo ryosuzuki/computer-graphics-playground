@@ -9,7 +9,7 @@ var compute = {
   getMapping: getMapping
 }
 var lib = ffi.Library(__dirname + '/mylib', {
-  'getLaplacian': ['int', ['string', 'pointer']],
+  'getLaplacian': ['int', ['string', 'pointer', 'pointer', 'pointer', 'pointer']],
   'getMapping':   ['int', ['string', 'pointer']],
 });
 
@@ -18,12 +18,16 @@ var double = ref.types.double;
 var IntArray = ArrayType(int);
 var DoubleArray = ArrayType(double);
 var Result = {};
-Result.laplacian = StructType({
+Result.matrix = StructType({
   'size': int,
   'count': int,
   'row': IntArray,
   'col': IntArray,
-  'val': DoubleArray
+  'val': DoubleArray,
+});
+Result.index = StructType({
+  'count': int,
+  'index': IntArray,
 })
 Result.mapping = StructType({
   'uv': DoubleArray
@@ -32,25 +36,65 @@ Result.mapping = StructType({
 var repl = require('repl');
 
 function getLaplacian (json) {
+  /*
+  var json = {
+    uniq:     geometry.uniq,
+    faces:    geometry.faces,
+    map:      geometry.map,
+  };
+  */
   var uniq = json.uniq;
   console.log('Start getLaplacian');
   var n = uniq.length;
-  n = 500;
-  var result = new Result.laplacian({
+  n = n;
+  var result_L = new Result.matrix({
     size: 0,
     count: 0,
     row: new IntArray(n),
     col: new IntArray(n),
-    val: new DoubleArray(n)
+    val: new DoubleArray(n),
+  });
+  var result_U = new Result.matrix({
+    size: 0,
+    count: 0,
+    row: new IntArray(n),
+    col: new IntArray(n),
+    val: new DoubleArray(n),
+  });
+  var result_P = new Result.index({
+    count: 0,
+    index: new IntArray(n),
+  });
+  var result_Pinv = new Result.index({
+    count: 0,
+    index: new IntArray(n),
   });
   console.log('Get result from C++');
-  lib.getLaplacian(JSON.stringify(json), result.ref());
+  lib.getLaplacian(JSON.stringify(json), result_L.ref(), result_U.ref(), result_P.ref(), result_Pinv.ref());
   console.log('Start converting sparse Laplacian');
 
+  var result = {};
+  result.L = getSparse(result_L);
+  result.U = getSparse(result_U);
+  result.P = getIndex(result_P);
+  result.Pinv = getIndex(result_Pinv);
+  console.log('Finish');
+  // repl.start('> ').context.r = result;
+  return result;
+}
+
+function getIndex (result) {
+  var count = result.count;
+  var ccsIndex = new Array(count);
+  for (var i=0; i<count; i++) {
+    ccsIndex[i] = result.index[i];
+  }
+  return ccsIndex;
+}
+
+function getSparse (result) {
   var count = result.count;
   var size = result.size;
-  console.log('count: ' + count);
-  console.log('size: ' + size);
   var ccsCol = [0];
   var prev = 0;
   for (var i=0; i<count; i++) {
@@ -68,15 +112,11 @@ function getLaplacian (json) {
     ccsRow[i] = result.row[i];
     ccsVal[i] = result.val[i];
   }
-  var ccsL = new Array(3);
-  ccsL[0] = ccsCol;
-  ccsL[1] = ccsRow;
-  ccsL[2] = ccsVal;
-  result.ccsL = ccsL;
-  console.log('Finish');
-  // return { ccsL: ccsL }
-  repl.start('> ').context.r = result;
-  return result;
+  var ccsMatrix = new Array(3);
+  ccsMatrix[0] = ccsCol;
+  ccsMatrix[1] = ccsRow;
+  ccsMatrix[2] = ccsVal;
+  return ccsMatrix;
 }
 
 function getMapping (json) {

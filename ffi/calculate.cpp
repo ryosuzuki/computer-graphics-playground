@@ -1,6 +1,7 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#include <Eigen/CholmodSupport>
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -14,6 +15,8 @@
 #include <igl/lscm.h>
 #include <igl/arap.h>
 
+#include "cholmod.h"
+
 
 using namespace std;
 using namespace Eigen;
@@ -26,7 +29,7 @@ MatrixXd V_uv;
 VectorXi bnd;
 
 MatrixXd initial_guess;
-SparseMatrix<double> L;
+SparseMatrix<double> Lp;
 
 extern "C" {
   typedef struct {
@@ -35,13 +38,18 @@ extern "C" {
     int *row;
     int *col;
     double *val;
-  } laplacianResult;
+  } Result_Matrix;
+
+  typedef struct {
+    int count;
+    int *index;
+  } Result_Index;
 
   typedef struct {
     double *uv;
-  } mappingResult;
+  } Result_Mapping;
 
-  void getLaplacian(char *json, laplacianResult *res) {
+  void getLaplacian(char *json, Result_Matrix *result_L, Result_Matrix *result_U, Result_Index *result_P, Result_Index *result_Pinv) {
     Document d;
     d.Parse(json);
 
@@ -69,29 +77,101 @@ extern "C" {
       F(i, 2) = map[c].GetInt();
     }
     cout << "Get Laplacian" << endl;
-    igl::cotmatrix(V, F, L);
+    igl::cotmatrix(V, F, Lp);
     // L.makeCompressed();
     // SimplicialLDLT< SparseMatrix<double> > ldl(L);
     // SparseMatrix<double> LD = ldl.matrixL();
 
-    cout << "Get Cholesky" << endl;
-    // LDLT<MatrixXd> chol(Ld);
-    // MatrixXd LU = chol.matrixL();
+    cout << "Compute Cholesky" << endl;
 
-    MatrixXd Ld = L;
+    cholmod_sparse A = viewAsCholmod(Lp);
+    cholmod_common c;
+    cholmod_start (&c);
+    cholmod_factor *CF = cholmod_analyze(&A, &c);
+    cholmod_factorize(&A, CF, &c);
+    cholmod_sparse *CL = cholmod_factor_to_sparse(CF, &c);
+    cholmod_finish(&c);
 
+    SparseMatrix<double> LL = viewAsEigen<double, 0, int>(*CL);
+    cout << LL << endl;
+
+
+    cout << "Finish Sparse Cholesky" << endl;
+
+    cout << "Start Dense Cholesky" << endl;
+
+    MatrixXd Ld = Lp;
     PartialPivLU<MatrixXd> lu(Ld);
     int r;
-    MatrixXd P, Lp, Ltmp, U;
+    MatrixXd P, Pinv, L, Ltmp, U;
     P = lu.permutationP();
     lu.matrixLU();
-    r = std::max(Ld.rows(), Ld.cols());
+    r = max(Ld.rows(), Ld.cols());
     U = lu.matrixLU().triangularView<Upper>();
     Ltmp = MatrixXd::Identity(r, r);
-    Ltmp.block(0, 0 ,Ld.rows(), Ld.cols()).triangularView<StrictlyLower>() = lu.matrixLU();
-    Lp = Ltmp.block(0, 0, P.cols(), U.rows());
-    // cout << P.inverse() * Lp * U << endl;
-    cout << P.inverse() << endl;
+    Ltmp.block(0, 0 , Ld.rows(), Ld.cols()).triangularView<StrictlyLower>() = lu.matrixLU();
+    L = Ltmp.block(0, 0, P.cols(), U.rows());
+    Pinv = P.inverse();
+
+    cout << "Finish Cholesky" << endl;
+
+    cout << "Convert LUP" << endl;
+
+    int index;
+    int n = uniq.Size() * uniq.Size();
+    double epsilon = pow(10, -10);
+
+    result_L->size = L.rows();
+    result_L->row = new int[n];
+    result_L->col = new int[n];
+    result_L->val = new double[n];
+    index = 0;
+    for (int col=0; col<L.cols(); col++) {
+      for (int row=0; row<L.rows(); row++) {
+        if (abs(L(row, col)) < epsilon) continue;
+        result_L->col[index] = col;
+        result_L->row[index] = row;
+        result_L->val[index] = L(row, col);
+        index++;
+      }
+    }
+    result_L->count = index;
+
+    cout << "Finish L" << endl;
+
+    result_U->size = U.rows();
+    result_U->row = new int[n];
+    result_U->col = new int[n];
+    result_U->val = new double[n];
+    index = 0;
+    for (int col=0; col<U.cols(); col++) {
+      for (int row=0; row<U.rows(); row++) {
+        if (abs(U(row, col)) < epsilon) continue;
+        result_U->col[index] = col;
+        result_U->row[index] = row;
+        result_U->val[index] = U(row, col);
+        index++;
+      }
+    }
+    result_U->count = index;
+
+    cout << "Finish U" << endl;
+
+    result_P->count = P.rows();
+    result_Pinv->count = P.rows();
+    result_P->index = new int[P.rows()];
+    result_Pinv->index = new int[Pinv.rows()];
+    for (int row=0; row<P.rows(); row++) {
+      for (int col=0; col<P.cols(); col++) {
+        if (abs(P(row, col)) > epsilon) {
+          result_P->index[row] = col;
+        }
+        if (abs(P(row, col)) > epsilon) {
+          result_Pinv->index[row] = col;
+        }
+      }
+    }
+    cout << "Finish P and Pinv" << endl;
 
     /*
     m=
@@ -184,32 +264,6 @@ extern "C" {
     */
 
 
-    // MatrixXd LU = LD;
-    cout << Ld.rows() << endl;
-    cout << Ld.cols() << endl;
-    // Performs a Cholesky factorization of A
-    // SimplicialCholesky<SparseMatrix<double>> chol(L);
-
-    // cout << LU * LU.transpose() << endl;
-
-    int size = Ld.rows();
-    res->size = size;
-    res->row = new int[L.nonZeros()];
-    res->col = new int[L.nonZeros()];
-    res->val = new double[L.nonZeros()];
-    int index = 0;
-    double epsilon = pow(10, -10);
-    for (int col=0; col<Ld.cols(); col++) {
-      for (int row=0; row<Ld.rows(); row++) {
-        if (abs(Ld(row, col)) < epsilon) continue;
-        res->col[index] = col;
-        res->row[index] = row;
-        res->val[index] = Ld(row, col);
-        index++;
-      }
-    }
-    int count = index;
-    res->count = count;
 
     // res->row = new int[L.nonZeros()];
     // res->col = new int[L.nonZeros()];
@@ -234,7 +288,7 @@ extern "C" {
     // cout << "Finish" << endl;
   }
 
-  void getMapping(char *json, mappingResult *res) {
+  void getMapping(char *json, Result_Mapping *res) {
     Document d;
     d.Parse(json);
 

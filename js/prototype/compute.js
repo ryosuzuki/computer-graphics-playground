@@ -1,6 +1,6 @@
 
 function getLaplacian (geometry) {
-  console.log('Start getMapping')
+  console.log('Start getLaplacian')
   var json = {
     uniq: geometry.uniq,
     faces: geometry.faces,
@@ -16,14 +16,7 @@ function getLaplacian (geometry) {
     success: function (data) {
       console.log('Get result');
       console.log(data);
-
-      geometry.uniq = data.uniq;
-      // uniq = geometry.uniq;
-
-      var uniq = geometry.uniq;
-      var map = geometry.map;
-      var faces = geometry.faces;
-
+      window.r = data;
     }
   });
 }
