@@ -108,8 +108,28 @@ function onDocumentMouseDown( event ) {
   window.currentIndex = current.faceIndex;
 
   if (!start) start = current.face.a;
-  if (!p) p = map[current.face.a];
-  console.log('p: ' + map[current.face.a]);
+  p = map[current.face.a];
+  console.log('p: ' + p);
+  q = map[current.face.b];
+  console.log('q: ' + q);
+  Q.fcall(computeHarmonicField(geometry))
+  .then(computeSelect())
+  .then(colorChange())
+  .then(function () {
+    p = undefined;
+    q = undefined;
+    console.log(current);
+    current.object.geometry.colorsNeedUpdate = true;
+  });
+
+  // Q.fcall(computeHarmonicField(geometry))
+  // p = 917
+  // 498
+  // 780
+  // q = 257
+  // 153
+  // 1298
+  // Q.fcall(getField(geometry, p, q))
 
   // .then(computeSelect())
   // .then(colorChange())
@@ -127,16 +147,6 @@ function onDocumentMouseUp (event) {
   if (intersects.length <= 0) return false;
   console.log(current.face)
 
-  q = map[current.face.b];
-  console.log('q: ' + q);
-  // Q.fcall(computeHarmonicField(geometry))
-  p = 163
-  // 498
-  // 780
-  q = 1280
-  // 153
-  // 1298
-  Q.fcall(getField(geometry, p, q))
 
 
   if (selectIndex.length > 0) {

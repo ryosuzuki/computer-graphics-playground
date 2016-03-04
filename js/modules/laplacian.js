@@ -162,8 +162,6 @@ function computeLaplacian(geometry) {
 }
 
 
-
-/*
 function computeHamonicField (geometry) {
   var zeros = Array.apply(null, Array(n)).map(Number.prototype.valueOf, 0);
   var G = [];
@@ -225,4 +223,4 @@ function computeHamonicField (geometry) {
   console.log('Finish clculation')
   return callback(geometry);
 }
-*/
+

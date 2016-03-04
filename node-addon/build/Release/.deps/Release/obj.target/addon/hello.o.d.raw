@@ -1,0 +1,6 @@
+Release/obj.target/addon/hello.o: ../hello.cc \
+  /Users/ryosuzuki/.node-gyp/0.12.2/src/node.h \
+  /Users/ryosuzuki/.node-gyp/0.12.2/deps/v8/include/v8.h \
+  /Users/ryosuzuki/.node-gyp/0.12.2/deps/v8/include/v8stdint.h \
+  /Users/ryosuzuki/.node-gyp/0.12.2/deps/v8/include/v8config.h \
+  /Users/ryosuzuki/.node-gyp/0.12.2/src/node_version.h

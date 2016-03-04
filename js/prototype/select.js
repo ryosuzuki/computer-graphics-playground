@@ -27,9 +27,18 @@ function colorChange (val) {
     color = 'yellow';
     console.log('Select: ' + currentIndex);
   }
+  var median = d3.median(geometry.phiFaces);
+  var getBool = function (p) {
+    if (median > 0.5) {
+      return p < 50;
+    } else {
+      return p > 50;
+    }
+  }
   var faces = geometry.faces;
+
   geometry.phiFaces.forEach( function (p, index) {
-    if (p > val) {
+    if (getBool(p)) {
       var face = faces[index];
       face.color.set(new THREE.Color(color));
       geometry.colorsNeedUpdate = true;

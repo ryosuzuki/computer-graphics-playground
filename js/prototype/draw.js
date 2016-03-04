@@ -19,14 +19,33 @@ var cylinder;
 
 function loadObjects () {
   Q.call(computeUniq(geometry))
-  // .then(getField(geometry))
+  .then(computeLaplacian(geometry))
   // .then(getBoundary(geometry))
   // .then(getMapping(geometry))
 }
 
 function drawObjects () {
   // drawCylinder();
-  drawSTL();
+  drawRing();
+  // drawSTL();
+}
+
+
+function drawRing () {
+  ring = new THREE.Mesh(
+    new THREE.RingGeometry(size, size*2, 32),
+    new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors })
+  );
+  ring.geometry.verticesNeedUpdate = true;
+  ring.dynamic = true;
+  ring.castShadow = true;
+  ring.receiveShadow = true;
+  scene.add(ring);
+  objects.push(ring);
+  window.geometry = ring.geometry
+  mesh = ring;
+  mesh.material.color.set(new THREE.Color('blue'))
+  loadObjects();
 }
 
 function drawSTL () {
@@ -54,7 +73,7 @@ function drawSTL () {
     console.log(e);
   }
   xhr.open( "GET", 'assets/mini_knight.stl', true );
-  // xhr.open( "GET", 'assets/face.stl', true );
+  // xhr.open( "GET", 'assets/marvin.stl', true );
   xhr.responseType = "arraybuffer";
   xhr.send( null );
 }
