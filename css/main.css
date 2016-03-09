@@ -2,6 +2,15 @@ html, body {
   height: 100%;
 }
 
+#canvas {
+  position: absolute;
+  top: 100px;
+  left: 20px;
+  width: 300px;
+  height: 300px;
+  background: #fff;
+}
+
 .top-buttons {
   position:absolute;
   top:10px;
