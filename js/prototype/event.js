@@ -35,6 +35,7 @@ function saveGeometry () {
 }
 
 function generateVoxel (callback, client) {
+  var geometry = texture.geometry;
   console.log('Start voxelization...')
   var cells = geometry.faces.map( function (face) {
     var map = geometry.map;
@@ -47,7 +48,7 @@ function generateVoxel (callback, client) {
     var object = uniq[i];
     var vertex = object.vertex;
     positions.push([vertex.x, vertex.y, vertex.z]);
-    mappings.push([object.u, object.v]);
+    mappings.push([object.uv.u, object.uv.v]);
   }
   var json = {
     cells: cells,

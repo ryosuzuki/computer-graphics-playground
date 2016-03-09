@@ -9,12 +9,14 @@ function rle2array(volume, bounds) {
   if(!bounds) {
     bounds = extents(volume)
   }
+  console.log(bounds)
   var dims = [0,0,0], i, j, k, n = volume.length(), size = 1, stride = [0,0,0]
   for(i=0; i<3; ++i) {
     dims[i] = (bounds[1][i] - bounds[0][i])|0
     stride[i] = size
     size *= dims[i]
   }
+  console.log('size: ' + size)
   var phase = ndarray(new Int32Array(size), dims, stride, 0)
   var distance = ndarray(new Float32Array(size), dims, stride, 0)
   var ptr = size

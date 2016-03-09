@@ -31,13 +31,13 @@ function rasterize(geometry) {
     var d = signedDistance(grid, faceNormals, coord);
     var m = geometry.mapping(grid, coord);
     if(isNaN(d) || Math.abs(d) > 1.0) {
-      if (d >= 0 && m) {
-        result.push([coord[0], coord[1], coord[2], 1, d, [], faceNormals]);
-      } else {
+      // if (d >= 0 && m) {
+      //   result.push([coord[0], coord[1], coord[2], 1, d, [], faceNormals]);
+      // } else {
         continue;
-      }
+      // }
     } else {
-      if(d < 0) {
+      if(d < 0 && m) {
         // hallow
         // result.push([coord[0], coord[1], coord[2], 1, -d, [], faceNormals]);
         result.push([coord[0], coord[1], coord[2], 1, -d]);

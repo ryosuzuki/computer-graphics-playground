@@ -26,8 +26,8 @@ function loadObjects () {
 
 function drawObjects () {
   // drawCylinder();
-  drawRing();
-  // drawSTL();
+  // drawRing();
+  drawSTL();
 }
 
 
@@ -53,10 +53,11 @@ function drawSTL () {
   xhr.onreadystatechange = function () {
     if ( xhr.readyState == 4 ) {
       if ( xhr.status == 200 || xhr.status == 0 ) {
+        console.log(xhr)
         var rep = xhr.response; // || xhr.mozResponseArrayBuffer;
         console.log(rep);
         parseStlBinary(rep);
-        //parseStl(xhr.responseText);
+        // parseStl(rep);
         window.geometry = mesh.geometry;
         mesh.material.color.set(new THREE.Color('blue'))
         mesh.position.y = 1;
@@ -73,7 +74,7 @@ function drawSTL () {
     console.log(e);
   }
   xhr.open( "GET", 'assets/mini_knight.stl', true );
-  // xhr.open( "GET", 'assets/marvin.stl', true );
+  // xhr.open( "GET", 'assets/R2-D2.stl', true );
   xhr.responseType = "arraybuffer";
   xhr.send( null );
 }

@@ -123,13 +123,18 @@ Geometry.prototype.mapping = function (grid, coord) {
       var mapping = [u, v];
       var remove = false;
       var stripe = 0.02;
-      if (!isNaN(v)) {
-        for (var i=-150; i<150; i++) {
-          if (i%2 == 0) continue;
-          var l = stripe*i;
-          var h = stripe*(i+1);
-          if (l < u && u < h) return true;
-        }
+      if ( Math.sqrt((u-0.5)^2 + (v-0.5)^2) < 0.3 ) {
+        console.log({u: u, v: v})
+        return true;
+        // for (var i=-200; i<200; i++) {
+        //   if (i%2 == 0) continue;
+        //   var l = stripe*i;
+        //   var h = stripe*(i+1);
+        //   if (l < u && u < h && l < v && v < h) {
+        //     console.log('hit')
+        //     return true;
+        //   }
+        // }
       }
     }
   }

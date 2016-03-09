@@ -74,7 +74,7 @@ var stl = require('ndarray-stl');
 function *generateSTL () {
   var body = this.request.body;
   var json = this.request.body.json;
-  fs.writeFileSync('sample.json', json, 'utf8');
+  // fs.writeFileSync('sample.json', json, 'utf8');
   json = JSON.parse(json);
   console.log('Start voxelization...')
   /*
