@@ -37,7 +37,7 @@ function rasterize(geometry) {
         continue;
       // }
     } else {
-      if(d < 0 && m) {
+      if(d < 0 && !m) {
         // hallow
         // result.push([coord[0], coord[1], coord[2], 1, -d, [], faceNormals]);
         result.push([coord[0], coord[1], coord[2], 1, -d]);
