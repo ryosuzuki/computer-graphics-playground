@@ -126,7 +126,7 @@ function getMapping (geometry) {
       var quaternion = new THREE.Quaternion().setFromUnitVectors(axis, normal)
       var matrix = new THREE.Matrix4().makeRotationFromQuaternion(quaternion);
       // var image = THREE.ImageUtils.loadTexture('/assets/checkerboard.jpg');
-      var image = THREE.ImageUtils.loadTexture('/assets/circle.png');
+      var image = THREE.ImageUtils.loadTexture('/assets/apple-logo.png');
       var material = new THREE.MeshBasicMaterial({map: image});
       texture = new THREE.Mesh(geometry, material);
       texture.castShadow = true;
