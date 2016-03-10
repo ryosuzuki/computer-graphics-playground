@@ -1,5 +1,5 @@
 /*!
- * # Semantic UI 2.1.4 - Segment
+ * # Semantic UI 2.1.7 - Segment
  * http://github.com/semantic-org/semantic-ui/
  *
  *
@@ -377,6 +377,11 @@
   border: none;
   box-shadow: none;
   border-left: 1px solid rgba(34, 36, 38, 0.15);
+}
+
+/* Border Fixes */
+.ui.segments > .horizontal.segments:first-child {
+  border-top: none;
 }
 .ui.horizontal.segments > .segment:first-child {
   border-left: none;

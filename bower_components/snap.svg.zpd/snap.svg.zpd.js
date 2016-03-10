@@ -79,6 +79,12 @@
  * authors and should not be interpreted as representing official policies, either expressed
  * or implied, of Andrea Leofreddi.
  */
+
+SVGElement.prototype.getTransformToElement = SVGElement.prototype.getTransformToElement || function(elem) {
+	return elem.getScreenCTM().inverse().multiply(this.getScreenCTM());
+};
+
+
 (function (Snap) {
     Snap.plugin(function (Snap, Element, Paper, glob, Fragment) {
 
@@ -87,7 +93,8 @@
          */
         var snapsvgzpd = {
             uniqueIdPrefix: 'snapsvg-zpd-',     // prefix for the unique ids created for zpd
-            dataStore: {}                       // "global" storage for all our zpd elements
+            dataStore: {},                      // "global" storage for all our zpd elements
+            enable: true                        // By default, snapsvgzpd should enable, zpd('toggle') to toggle enable or disable
         };
 
         /**
@@ -129,10 +136,17 @@
          */
         var _setCTM = function setCTM(element, matrix, threshold) {
             if (threshold && typeof threshold === 'object') { // array [0.5,2]
-                if (matrix.a <= threshold[0]) {
+                var oldMatrix = Snap(element).transform().globalMatrix;
+
+                if (matrix.a < oldMatrix.a && matrix.a < threshold[0]) {
+                    return;
+                } else if (matrix.a > oldMatrix.a && matrix.a > threshold[1]) {
                     return;
                 }
-                if (matrix.d >= threshold[1]) {
+
+                if (matrix.d < oldMatrix.d && matrix.d < threshold[0]) {
+                    return;
+                } else if (matrix.d > oldMatrix.d && matrix.d > threshold[1]) {
                     return;
                 }
             }
@@ -151,12 +165,23 @@
         /**
          * Instance an SVGPoint object with given event coordinates.
          */
+         var _findPos = function findPos(obj) {
+           var curleft = curtop = 0;
+           if (obj.offsetParent) {
+               do {
+                   curleft += obj.offsetLeft;
+                   curtop += obj.offsetTop;
+               } while(obj = obj.offsetParent);
+           }
+           return [curleft,curtop];
+        };
         var _getEventPoint = function getEventPoint(event, svgNode) {
 
-            var p = svgNode.node.createSVGPoint();
+            var p = svgNode.node.createSVGPoint(),
+            svgPos = _findPos(svgNode.node);
 
-            p.x = event.clientX;
-            p.y = event.clientY;
+            p.x = event.clientX - svgPos[0];
+            p.y = event.clientY - svgPos[1];
 
             return p;
         };
@@ -271,6 +296,8 @@
                     event.preventDefault();
                 }
 
+                if (!snapsvgzpd.enable) return;
+
                 event.returnValue = false;
 
                 if (zpdElement.data.state == 'pan' || zpdElement.data.state == 'drag') {
@@ -287,6 +314,8 @@
                 if (event.preventDefault) {
                     event.preventDefault();
                 }
+
+                if (!snapsvgzpd.enable) return;
 
                 event.returnValue = false;
 
@@ -322,6 +351,8 @@
                     event.preventDefault();
                 }
 
+                if (!snapsvgzpd.enable) return;
+
                 event.returnValue = false;
 
                 var g = zpdElement.element.node;
@@ -331,7 +362,7 @@
                     // Pan mode
                     var p = _getEventPoint(event, zpdElement.data.svg).matrixTransform(zpdElement.data.stateTf);
 
-                    _setCTM(g, zpdElement.data.stateTf.inverse().translate(p.x - zpdElement.data.stateOrigin.x, p.y - zpdElement.data.stateOrigin.y));
+                    _setCTM(g, zpdElement.data.stateTf.inverse().translate(p.x - zpdElement.data.stateOrigin.x, p.y - zpdElement.data.stateOrigin.y), zpdElement.options.zoomThreshold);
 
                 } else if (zpdElement.data.state == 'drag' && zpdElement.options.drag) {
 
@@ -342,7 +373,8 @@
                             zpdElement.data.root.createSVGMatrix()
                             .translate(dragPoint.x - zpdElement.data.stateOrigin.x, dragPoint.y - zpdElement.data.stateOrigin.y)
                             .multiply(g.getCTM().inverse())
-                            .multiply(zpdElement.data.stateTarget.getCTM()));
+                            .multiply(zpdElement.data.stateTarget.getCTM()),
+                            zpdElement.options.zoomThreshold);
 
                     zpdElement.data.stateOrigin = dragPoint;
                 }
@@ -357,6 +389,8 @@
                 if (event.preventDefault) {
                     event.preventDefault();
                 }
+
+                if (!snapsvgzpd.enable) return;
 
                 event.returnValue = false;
 
@@ -459,7 +493,7 @@
                 zoomThreshold: null // define zoom threshold
             };
 
-            // the situation event of zpd, may be init, reinit, destroy, save, origin
+            // the situation event of zpd, may be init, reinit, destroy, save, origin, toggle
             var situation,
                 situationState = {
                     init: 'init',
@@ -467,7 +501,8 @@
                     destroy: 'destroy',
                     save: 'save',
                     origin: 'origin',
-                    callback: 'callback'
+                    callback: 'callback',
+                    toggle: 'toggle'
                 };
 
             var zpdElement = null;
@@ -567,6 +602,18 @@
                     // callback
                     if (callbackFunc) {
                         callbackFunc(null, zpdElement);
+                    }
+
+                    return;
+
+                case situationState.toggle:
+
+                    // toggle enabled
+                    snapsvgzpd.enable = !snapsvgzpd.enable;
+
+                    // callback
+                    if (callbackFunc) {
+                        callbackFunc(null, snapsvgzpd.enable);
                     }
 
                     return;
@@ -704,4 +751,3 @@
     });
 
 })(Snap);
-

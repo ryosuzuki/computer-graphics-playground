@@ -14,20 +14,20 @@
   "ignore": [
     "**/.*",
     "*.md",
-    "docs",
-    "editor",
-    "examples/*",
-    "!examples/js",
-    "src",
-    "test",
-    "utils",
-    "LICENSE"
+    "/docs",
+    "/editor",
+    "/examples/*",
+    "!/examples/js",
+    "/src",
+    "/test",
+    "/utils",
+    "/LICENSE"
   ],
-  "_release": "a93be86575",
+  "_release": "994321583b",
   "_resolution": {
     "type": "branch",
     "branch": "master",
-    "commit": "a93be86575a9e6ab0a67a0e167af2ea9496d4e49"
+    "commit": "994321583b99a5eb225d773c02ebec7fa34338bb"
   },
   "_source": "git://github.com/mrdoob/three.js.git",
   "_target": "*",

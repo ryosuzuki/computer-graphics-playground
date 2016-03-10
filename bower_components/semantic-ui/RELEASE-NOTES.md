@@ -1,5 +1,86 @@
 ## RELEASE NOTES
 
+### Version 2.1.8 - Jan 7, 2016
+
+**Critical Fix**
+- **Install** - This fixes a regression causing users with NPM `2` from using Semantic UI, caused by removing the deprecated `peerDependencies` which are necessary for NPM2 install to function correctly. [#3511](https://github.com/Semantic-Org/Semantic-UI/issues/3511)
+
+**Minor Fix**
+- **Flag** - Adds Scotland and Wales flag [#3494](https://github.com/Semantic-Org/Semantic-UI/issues/3494) **Thanks @edumucelli**
+- **Install** - Fixes post-install scripts not exiting with correct return values [#3515](https://github.com/Semantic-Org/Semantic-UI/issues/3515) **Thanks @Jeff-Tian**
+
+### Version 2.1.7 - Dec 19, 2015
+[Closed Issues List](https://github.com/Semantic-Org/Semantic-UI/issues?q=is%3Aissue+milestone%3A2.1.7+is%3Aclosed)
+
+**Enhancements**
+- **API** - All responses fulfilled with settings (like `mockResponse`) will now receive a settings object with all values resolved. For example `url` will be `/user/2/` and not `user/{id}` in the callback. - [#3466](https://github.com/Semantic-Org/Semantic-UI/issues/3466)
+- **API** - API now allows the use of settings `response` and `responseAsync` to replace `mockResponse` and `mockResponseAsync`. The use of "mock" may not represent the most common use case which is providing a response from a third party source. (These changes are purely cosmetic and no underlying behavior has changed) - [#3491](https://github.com/Semantic-Org/Semantic-UI/issues/3491)
+- **Popup** - Adds `onUnplaceable` callback when element cannot be placed in visible screen [#3388](https://github.com/Semantic-Org/Semantic-UI/issues/3388)
+
+**Bug Fixes**
+- **Build Tools** - CSS build will now correctly call callback after both packaged files are created (compressed and uncompressed) Thanks @youngjay [#3405](https://github.com/Semantic-Org/Semantic-UI/issues/3405)
+- **Flag** - A flag with no country set will no longer display an incorrect country flag. Thanks @space-alien [#3333](https://github.com/Semantic-Org/Semantic-UI/issues/3333)
+- **Form** - Fixed issue where text would turn transparent inside a `loading form` [#3122](https://github.com/Semantic-Org/Semantic-UI/issues/3122)
+- **Menu** - Fixed `1px` offset when `attached segment` follows `tabular menu` (max of 2 consecutive segments) [#3479](https://github.com/Semantic-Org/Semantic-UI/issues/3479)
+- **Header** - `sub header` used inside a header now correctly forces `block` styling [#3020](https://github.com/Semantic-Org/Semantic-UI/issues/3020)
+- **Popup** - Fixed `is visible`, `is animating`, and `is fluid` to always return `true/false` and not the DOM element. [#2781](https://github.com/Semantic-Org/Semantic-UI/issues/2781)
+- **Popup** - Fixed issue with `onEnable` callback being defined with name `onEnabled` and `onDisable` with `onDisabled` in default settings, causing an error. To preserve backwards compatibility, the mispelled callback name has been left, but the bug has been fixed. [#3148](https://github.com/Semantic-Org/Semantic-UI/issues/3148)
+- **Search** - Search now correctly hides menu when an error message inside results is clicked. [#3039](https://github.com/Semantic-Org/Semantic-UI/issues/3039)
+- **Sidebar** - Fixed css rule issue causing `very thin` sidebar to not work [#3300](https://github.com/Semantic-Org/Semantic-UI/issues/3300)
+- **Sidebar** - Sidebar no longer includes `transform` rules on child elements, this was causing layout issues in some cases (for example dropdowns in sidebars) [#3306](https://github.com/Semantic-Org/Semantic-UI/issues/3306)
+- **Sticky** - Renames variables used to account for scroll offset internally for greater code clarity
+- **Transition** - Fixes `noAnimation` error to more reasonably announce that the element is "not in the DOM" [#3040](https://github.com/Semantic-Org/Semantic-UI/issues/3040)
+
+### Version 2.1.6 - Nov 6, 2015
+
+**Bug Fixes**
+- **Checkbox/Dropdown/Search** - Fixed issue where dropdown/checkbox `change` events were not bubbling. (Dispatched events were swapped to use native `document.creatEvent` in `2.1.5` unfortunately the flag to bubble events was mistakenly off.)
+
+### Version 2.1.5 - Nov 1, 2015
+
+**Docs Enhancements**
+- **Examples** - All code examples now have a "copy to clipboard" button **Thanks @xiwc and @zenorocha for clipboard.js**
+
+**Minor Enhancements**
+- **Form** - Adds `equal width form` and `equal width fields` for simpler grouped fields
+- **Modal** - `onHide` callback can now cancel event by returning false [#3168](https://github.com/Semantic-Org/Semantic-UI/issues/3168) **Thanks @mdehoog**
+- **Dropdown** - Added `onLabelRemove` callback that allows value removal to be cancelled by callback **Thanks @goloveychuk**
+- **Table** - Added `selectable` on table cell, allowing for full table-cell links
+- **Popup** Added three new variables for `arrow` background color based on position, top, center or bottom. This makes it easier to use gradient backgrounds with popups and still match arrow colors.
+- **Popup** - Added behaviors `get popup` and `change content` to more easily determine popup from activating element and change text
+
+**Major Bug Fixes**
+- **Checkbox/Dropdown/Search** - Fixed issue where using `.trigger('change')` would not fire native `change` event. Only triggering event handlers attached with jQuery [#3108](https://github.com/Semantic-Org/Semantic-UI/issues/3108)
+- **Transition** - Fixed bug where static transitions (those that dont animate in/out of view) would not fire `onComplete` event
+- **Sticky** - Fixes bug where sticky would stick at incorrect times when using a different scroll container than `body` and scrollTop is not 0 on page load.
+
+**Bugs**
+- **Divider/Step/Modal/AD** - Fixes 1px jump at `@mobileBreakpoint` caused by incorrect edge conditions in media query [#3180](https://github.com/Semantic-Org/Semantic-UI/issues/3180) **THanks @mdehoog**
+- **Dimmer** - Dimmer can now works correctly with `opacity: 0` [#3167](https://github.com/Semantic-Org/Semantic-UI/issues/3167) **Thanks @mdehoog**
+- **Dropdown** - Fixed condition where focusing on dropdown would show a blank menu when "no results" was reached and the dropdown was refocused
+- **Dropdown** - Search dropdowns will now correctly filter by current search term on re-focus
+- **Dropdown** - Fixed issue where tabindex was being removed incorrectly with `selection dropdown` in some cases. [#3002](https://github.com/Semantic-Org/Semantic-UI/issues/3002)
+- **Dropdown** - Added `remoteValues` as a possible `field` setting. Allowing users to return API results using arbitrary JSON object groupings. [#3080](https://github.com/Semantic-Org/Semantic-UI/issues/3080)
+- **Dropdown** - Added ability to pass in `keys` as a setting, to avoid issues with languages where comma delimiter may be a different keycode [#3016](https://github.com/Semantic-Org/Semantic-UI/issues/3016)
+- **Dropdown** - `search dropdown` will now initialize with `autocomplete="off"` to avoid triggering native autocomplete menu
+- **Form Validation** - Fixes error on `blur` or `change` when using a blank validation object [#3131](https://github.com/Semantic-Org/Semantic-UI/issues/3131) **Thanks @listepo**
+- **Form Validation** - Fixes some issues with form integer validation [#3053](https://github.com/Semantic-Org/Semantic-UI/issues/3053) **Thanks @maturano**
+- **Form Validation** - `decimal` rule now **only matches decimals**, to match any number use `number` rule. [#3060](https://github.com/Semantic-Org/Semantic-UI/issues/3060)
+- **Form** - Removed `divider` spacing as part of `ui form`, this caused inheritance issues when using special divider types [#3092](https://github.com/Semantic-Org/Semantic-UI/issues/3092)
+- **Grid** - Fixes attached segment 1px offset inside grid column [#3226](https://github.com/Semantic-Org/Semantic-UI/issues/3226)
+- **Grid** - Fixes some inconsistencies with `widescreen only` class [#3161](https://github.com/Semantic-Org/Semantic-UI/issues/3161) **Thanks @mdehoog**
+- **Header** - Sub headers now force `display: block` [#3020](https://github.com/Semantic-Org/Semantic-UI/issues/3020)
+- **Popup** - Fixes positioning issue when `movePopup: false` [#3213](https://github.com/Semantic-Org/Semantic-UI/issues/3213) **Thanks @parisholley**
+- **Popup** - Popup now works with `svg` elements [#3043](https://github.com/Semantic-Org/Semantic-UI/issues/3043)
+- **Progress* - Calling `reset` will now reset `value` to 0, so increment starts again at 0
+- **Search** - Fixes `onSearchQuery` not firing when results are cached **Thanks @mnquintana**
+- **Search** - Fixes `url` parameter not working correctly due to typo in source **Thanks @fabienb4**
+- **Segment** - Fixes border on `horizontal segment` when they are `:first-child` inside `segments` group
+**Docs Bugs**
+- Thanks to everyone who has submitted PRs for typos, grammatical changes. These are too numerous to count, but really help improve the quality of our docs.
+- **Progress** - Progress example code no longer shows accidental inline css
+- **Sticky** - Fixed issue where pressing home/end button would cause sticky to break due to internal logic not allowing immediate jump from bottom attached to top attached, experienced most likely when pressing "home" or "end" key [#3011](https://github.com/Semantic-Org/Semantic-UI/issues/3011)
+
 ### Version 2.1.4 - Sep 13, 2015
 
 **Critical Bugfixes**

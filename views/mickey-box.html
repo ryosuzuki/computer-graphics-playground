@@ -1,0 +1,17 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+
+<script src="/js/mickey/build.js"></script>
+<script src="/js/mickey/setup.js"></script>
+<script src="/js/mickey/draw.js"></script>
+
+<canvas id="canvas"></canvas>
+
+<div id="viewport"></div>
+
+<div class="bottom-buttons">
+  <button class="ui green button" onclick="exportSTL()">STL Export</button>
+</div>
+
+{% endblock %}

@@ -1,14 +1,13 @@
 {
   "name": "csg-wrapper",
   "homepage": "https://github.com/kraag22/csg-wrapper",
-  "_release": "6b8f47c92c",
+  "_release": "1d2182b626",
   "_resolution": {
     "type": "branch",
     "branch": "master",
-    "commit": "6b8f47c92c8a752fc58942a7104f571733ef8dee"
+    "commit": "1d2182b6265282ea9f1f3d66bd4c0bb2b87a232b"
   },
   "_source": "git://github.com/kraag22/csg-wrapper.git",
   "_target": "*",
-  "_originalSource": "kraag22/csg-wrapper",
-  "_direct": true
+  "_originalSource": "kraag22/csg-wrapper"
 }

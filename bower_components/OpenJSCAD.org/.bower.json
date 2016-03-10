@@ -1,14 +1,13 @@
 {
   "name": "OpenJSCAD.org",
   "homepage": "https://github.com/Spiritdude/OpenJSCAD.org",
-  "_release": "8456fac47d",
+  "_release": "1e24d638ea",
   "_resolution": {
     "type": "branch",
     "branch": "master",
-    "commit": "8456fac47d899271accaa87750d20a56b4622bb6"
+    "commit": "1e24d638ea097c887a58adcb11c2d60acf8d3529"
   },
   "_source": "git://github.com/Spiritdude/OpenJSCAD.org.git",
   "_target": "*",
-  "_originalSource": "Spiritdude/OpenJSCAD.org",
-  "_direct": true
+  "_originalSource": "Spiritdude/OpenJSCAD.org"
 }

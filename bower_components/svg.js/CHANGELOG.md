@@ -8,7 +8,23 @@
 - added `precision()` method to round numeric element attributes -> __TODO!__
 - added specs for `SVG.FX` -> __TODO!__
 
-# 2.2.2 (28/11.2015)
+# 2.2.5 (29/12/2015)
+- added check for existence of node (#431)
+- `group.move()` now allows string numbers as input (#433)
+- `matrixify()` will not apply the calculated matrix to the node anymore
+
+# 2.2.4 (12/12/2015)
+- fixed `transform()` which returns the matrix values (a-f) now, too (#423)
+- double newlines (\n\n) are correctly handled as blank line from `text()`
+- fixed use of scrollX vs pageXOffset in `rbox()` (#425)
+- fixed target array in mask and clip which was removed instead of reinitialized (#429)
+ 
+# 2.2.3 (30/11/2015)
+- fixed null check in image (see 2.2.2)
+- fixed bug related to the new path parser (see 2.2.2)
+- fixed amd loader (#412)
+
+# 2.2.2 (28/11/2015)
 - fixed leading point bug in path parsing (#416)
 - added null check in image onload callback (#415)
 - documentation rework (#407) [thanks @snowyplover]

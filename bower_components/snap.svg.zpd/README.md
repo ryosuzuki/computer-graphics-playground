@@ -1,4 +1,9 @@
-# snap.svg.zpd
+<h1 align="center">
+	<img width="360" src="https://cloud.githubusercontent.com/assets/2560096/8153356/5ddf66ee-135f-11e5-88b6-403e5bf18730.png" alt="snap.svg.zpd">
+	<br>
+</h1>
+
+> snap.svg.zpd  
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/huei90/snap.svg.zpd?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 A zoom/pan/drag plugin for Snap.svg
@@ -120,6 +125,14 @@ paper.zpd('origin');
 ```
     back to the origin location
 
+#### paper.zpd('toggle')
+
+```js
+paper.zpd('toggle');
+paper.zpd('toggle', function (err, state) { console.log(state); }); // return current enable state
+```
+    By default, zpd is enabled, but you can toggle or set its activation using this function. (Useful to toggle mouse event (zpd))
+
 #### zoomTo
 
 ```js
@@ -189,7 +202,8 @@ matrix Y = (original Y + offsetY) / zoom
 ### Contributor List
 
 [Huei Tan](https://github.com/huei90) <br/>
-[Ramon Saccilotto](https://github.com/tikiatua)
+[Ramon Saccilotto](https://github.com/tikiatua) <br/>
+and [you](https://github.com/huei90/snap.svg.zpd/graphs/contributors)!
 
 ### Reference
 

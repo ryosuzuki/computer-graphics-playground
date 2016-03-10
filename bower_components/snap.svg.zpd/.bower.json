@@ -1,7 +1,7 @@
 {
   "name": "snap.svg.zpd",
   "main": "snap.svg.zpd.js",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "homepage": "https://github.com/huei90/snap.svg.zpd",
   "authors": [
     "Huei <huei90@gmail.com>"
@@ -25,14 +25,13 @@
     "test",
     "tests"
   ],
-  "_release": "0.0.10",
+  "_release": "0.0.11",
   "_resolution": {
     "type": "version",
-    "tag": "v0.0.10",
-    "commit": "b2b0f208c454f31172c6aa85bb67603eee549b3a"
+    "tag": "v0.0.11",
+    "commit": "98b35022182e2af9dc3b69bf1c5e28588a2a12f5"
   },
   "_source": "git://github.com/huei90/snap.svg.zpd.git",
   "_target": "~0.0.10",
-  "_originalSource": "snap.svg.zpd",
-  "_direct": true
+  "_originalSource": "snap.svg.zpd"
 }

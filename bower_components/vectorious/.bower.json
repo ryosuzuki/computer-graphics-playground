@@ -1,15 +1,14 @@
 {
   "name": "vectorious",
   "homepage": "https://github.com/mateogianolio/vectorious",
-  "version": "4.1.4",
-  "_release": "4.1.4",
+  "version": "4.1.5",
+  "_release": "4.1.5",
   "_resolution": {
     "type": "version",
-    "tag": "4.1.4",
-    "commit": "b8e5492f72d271825c5d61432cf5724f7b86137d"
+    "tag": "4.1.5",
+    "commit": "bddedb502a8364e9d6f4f9079b4bf28efd6e8946"
   },
   "_source": "git://github.com/mateogianolio/vectorious.git",
   "_target": "~4.1.4",
-  "_originalSource": "vectorious",
-  "_direct": true
+  "_originalSource": "vectorious"
 }

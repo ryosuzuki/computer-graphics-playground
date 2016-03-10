@@ -2,7 +2,7 @@
  * @author Michael Guerrero / http://realitymeltdown.com
  */
 
-function BlendCharacterGui( animations ) {
+function BlendCharacterGui( blendMesh ) {
 
 	var controls = {
 
@@ -18,7 +18,7 @@ function BlendCharacterGui( animations ) {
 
 	};
 
-	var animations = animations;
+	var blendMesh = blendMesh;
 
 	this.showModel = function() {
 
@@ -38,11 +38,11 @@ function BlendCharacterGui( animations ) {
 
 	};
 
-	this.update = function() {
+	this.update = function( time ) {
 
-		controls[ 'idle' ] = animations[ 'idle' ].weight;
-		controls[ 'walk' ] = animations[ 'walk' ].weight;
-		controls[ 'run' ] = animations[ 'run' ].weight;
+		controls[ 'idle' ] = blendMesh.getWeight( 'idle' );
+		controls[ 'walk' ] = blendMesh.getWeight( 'walk' );
+		controls[ 'run' ] = blendMesh.getWeight( 'run' );
 
 	};
 
