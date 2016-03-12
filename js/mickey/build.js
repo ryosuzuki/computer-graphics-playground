@@ -4218,1386 +4218,58 @@ module.exports = function signum(x) {
   return 0.0
 }
 },{}],20:[function(require,module,exports){
-"use strict"
+module.exports = function (points,signed) {
+  var l = points.length
+  var det = 0
+  var isSigned = signed || false
 
-var almostEqual = require('almost-equal')
-var dup         = require('dup')
+  points = points.map(normalize)
+  if (points[0] != points[points.length -1])
+    points = points.concat(points[0])
 
-module.exports = {
-  fromList:       fromList,
-  fromDictionary: fromDictionary,
-  fromDense:      fromDense,
-  fromNDArray:    fromNDArray
+  for (var i = 0; i < l; i++)
+    det += points[i].x * points[i + 1].y
+      - points[i].y * points[i + 1].x
+  if (isSigned)
+    return det / 2
+  else
+    return Math.abs(det) / 2
 }
 
-var EPSILON = almostEqual.DBL_EPSILON
-
-function CSRMatrix(rows, row_ptrs, columns, column_ptrs, data) {
-  this.rows = rows
-  this.row_ptrs = row_ptrs
-  this.columns = columns
-  this.column_ptrs = column_ptrs
-  this.data = data
-}
-
-var proto = CSRMatrix.prototype
-
-Object.defineProperty(proto, "rowCount", {
-  get: function() {
-    return this.rows[this.rows.length-1]
-  }
-})
-
-Object.defineProperty(proto, "columnCount", {
-  get: function() {
-    return this.columns[this.columns.length-1]
-  }
-})
-
-function applyImpl(rows, row_ptrs, columns, column_ptrs, data, vector, result) {
-  var cptr = 0, dptr = 0, last_r = 0
-  for(var i=0, rlen=rows.length-1; i<rlen; ++i) {
-    var r = rows[i]
-    var next_c = row_ptrs[i+1]
-    var s = 0.0
-    while(++last_r < r) {
-      result[last_r] = 0.0
+function normalize(point) {
+  if (Array.isArray(point))
+    return {
+      x: point[0],
+      y: point[1]
     }
-    while(cptr < next_c) {
-      var c = columns[cptr]
-      var next_d = column_ptrs[++cptr]
-      while(dptr < next_d) {
-        s += data[dptr++] * vector[c++]
-      }
-    }
-    result[r] = s
-  }
-  var len = result.length
-  while(++last_r < len) {
-    result[last_r] = 0.0
-  }
+  else
+    return point
 }
 
-proto.apply = function(vector, result) {
-  applyImpl(
-    this.rows,
-    this.row_ptrs,
-    this.columns,
-    this.column_ptrs,
-    this.data,
-    vector,
-    result)
-  return result
-}
+},{}],21:[function(require,module,exports){
+'use strict'
 
-proto.transpose = function() {
-  var items = this.toList()
-  for(var i=0; i<items.length; ++i) {
-    var it = items[i]
-    var tmp = it[0]
-    it[0] = it[1]
-    it[1] = tmp
+module.exports = findBounds
+
+function findBounds(points) {
+  var n = points.length
+  if(n === 0) {
+    return [[], []]
   }
-  return fromList(items, this.columnCount, this.rowCount)
-}
-
-proto.toList = function() {
-  var result = []
-  for(var i=0, ilen=this.rows.length-1; i<ilen; ++i) {
-    var r = this.rows[i];
-    for(var j=this.row_ptrs[i], jlen=this.row_ptrs[i+1]; j<jlen; ++j) {
-      var c = this.columns[j]
-      for(var k=this.column_ptrs[j], klen=this.column_ptrs[j+1]; k<klen; ++k) {
-        var d = this.data[k]
-        result.push([r, c++, d])
-      }
+  var d = points[0].length
+  var lo = points[0].slice()
+  var hi = points[0].slice()
+  for(var i=1; i<n; ++i) {
+    var p = points[i]
+    for(var j=0; j<d; ++j) {
+      var x = p[j]
+      lo[j] = Math.min(lo[j], x)
+      hi[j] = Math.max(hi[j], x)
     }
   }
-  return result
+  return [lo, hi]
 }
-
-proto.toDictionary = function() {
-  var result = {}
-  for(var i=0, ilen=this.rows.length-1; i<ilen; ++i) {
-    var r = this.rows[i];
-    for(var j=this.row_ptrs[i], jlen=this.row_ptrs[i+1]; j<jlen; ++j) {
-      var c = this.columns[j]
-      for(var k=this.column_ptrs[j], klen=this.column_ptrs[j+1]; k<klen; ++k) {
-        var d = this.data[k]
-        result[[r, c++]] = d
-      }
-    }
-  }
-  return result
-}
-
-proto.toDense = function() {
-  var result = dup([this.rowCount, this.columnCount], 0.0)
-  for(var i=0, ilen=this.rows.length-1; i<ilen; ++i) {
-    var r = this.rows[i];
-    for(var j=this.row_ptrs[i], jlen=this.row_ptrs[i+1]; j<jlen; ++j) {
-      var c = this.columns[j]
-      for(var k=this.column_ptrs[j], klen=this.column_ptrs[j+1]; k<klen; ++k) {
-        var d = this.data[k]
-        result[r][c++] = d
-      }
-    }
-  }
-  return result
-}
-
-CSRMatrix.prototype.toNDArray = function(result) {
-  for(var i=0, ilen=this.rows.length-1; i<ilen; ++i) {
-    var r = this.rows[i];
-    for(var j=this.row_ptrs[i], jlen=this.row_ptrs[i+1]; j<jlen; ++j) {
-      var c = this.columns[j]
-      for(var k=this.column_ptrs[j], klen=this.column_ptrs[j+1]; k<klen; ++k) {
-        var d = this.data[k]
-        result.set(r, c++, d)
-      }
-    }
-  }
-  return result
-}
-
-function compareKey(a, b) {
-  return (a[0]-b[0]) || (a[1]-b[1])
-}
-
-function removeDuplicates(items, nrows, ncols) {
-  var i=0, ptr=0
-  items.sort(compareKey)
-  while(i < items.length) {
-    var it = items[i++]
-    if(it[0] >= nrows || it[1] >= ncols) {
-      continue
-    }
-    while(i < items.length && compareKey(items[i], it) === 0) {
-      it[2] += items[i++][2]
-    }
-    if(Math.abs(it[2]) > EPSILON) {
-      items[ptr++] = it
-    }
-  }
-  items.length = ptr
-  return items
-}
-
-function fromList(items, nrows, ncols) {
-  items = removeDuplicates(items, nrows || Infinity, ncols || Infinity)
-  var rows = []
-    , row_ptrs = []
-    , cols = []
-    , col_ptrs = []
-    , data = new Float64Array(items.length)
-  nrows = nrows || 0
-  ncols = ncols || 0
-  for(var i=0; i<items.length; ++i) {
-    var item = items[i]
-    if(i === 0 || item[0] !== items[i-1][0]) {
-      rows.push(item[0])
-      row_ptrs.push(cols.length)
-      cols.push(item[1])
-      col_ptrs.push(i)
-    } else if(item[1] !== items[i-1][1]+1) {
-      cols.push(item[1])
-      col_ptrs.push(i)
-    }
-    nrows = Math.max(nrows, item[0]+1)
-    ncols = Math.max(ncols, item[1]+1)
-    data[i] = item[2]
-  }
-  rows.push(nrows)
-  row_ptrs.push(cols.length)
-  cols.push(ncols)
-  col_ptrs.push(data.length)
-  return new CSRMatrix(
-    new Uint32Array(rows),
-    new Uint32Array(row_ptrs),
-    new Uint32Array(cols),
-    new Uint32Array(col_ptrs),
-    data)
-}
-
-function fromDictionary(dict, rows, cols) {
-  return fromList(Object.keys(dict).map(function(item) {
-    var parts = item.split(',')
-    return [parts[0]|0, parts[1]|0, dict[item]]
-  }), rows, cols)
-}
-
-function fromDense(matrix) {
-  var list = []
-  var rows = matrix.length
-  if(rows === 0) {
-    return fromList([], 0, 0)
-  }
-  var cols = matrix[0].length
-  for(var i=0; i<rows; ++i) {
-    var row = matrix[i]
-    for(var j=0; j<cols; ++j) {
-      var v = row[j]
-      if(Math.abs(v) > EPSILON) {
-        list.push([i,j,v])
-      }
-    }
-  }
-  return fromList(list, rows, cols)
-}
-
-function fromNDArray(array) {
-  var list = []
-  var rows = array.shape[0]
-  var cols = array.shape[1]
-  if(array.stride[1] > array.stride[0]) {
-    for(var j=0; j<cols; ++j) {
-      for(var i=0; i<rows; ++i) {
-        list.push([i, j, array.get(i,j)])
-      }
-    }
-  } else {
-    for(var i=0; i<rows; ++i) {
-      for(var j=0; j<cols; ++j) {
-        list.push([i, j, array.get(i,j)])
-      }
-    }
-  }
-  return fromList(list, rows, cols)
-}
-
-},{"almost-equal":21,"dup":22}],21:[function(require,module,exports){
-"use strict"
-
-var abs = Math.abs
-  , min = Math.min
-
-function almostEqual(a, b, absoluteError, relativeError) {
-  var d = abs(a - b)
-  if(d <= absoluteError) {
-    return true
-  }
-  if(d <= relativeError * min(abs(a), abs(b))) {
-    return true
-  }
-  return a === b
-}
-
-almostEqual.FLT_EPSILON = 1.19209290e-7
-almostEqual.DBL_EPSILON = 2.2204460492503131e-16
-
-module.exports = almostEqual
-
 },{}],22:[function(require,module,exports){
-"use strict"
-
-function dupe_array(count, value, i) {
-  var c = count[i]|0
-  if(c <= 0) {
-    return []
-  }
-  var result = new Array(c), j
-  if(i === count.length-1) {
-    for(j=0; j<c; ++j) {
-      result[j] = value
-    }
-  } else {
-    for(j=0; j<c; ++j) {
-      result[j] = dupe_array(count, value, i+1)
-    }
-  }
-  return result
-}
-
-function dupe_number(count, value) {
-  var result, i
-  result = new Array(count)
-  for(i=0; i<count; ++i) {
-    result[i] = value
-  }
-  return result
-}
-
-function dupe(count, value) {
-  if(typeof value === "undefined") {
-    value = 0
-  }
-  switch(typeof count) {
-    case "number":
-      if(count > 0) {
-        return dupe_number(count|0, value)
-      }
-    break
-    case "object":
-      if(typeof (count.length) === "number") {
-        return dupe_array(count, value, 0)
-      }
-    break
-  }
-  return []
-}
-
-module.exports = dupe
-},{}],23:[function(require,module,exports){
-module.exports = function drawTriangles(ctx, positions, cells, start, end) {
-    var v = positions
-    start = (start|0)
-    end = typeof end === 'number' ? (end|0) : cells.length
-
-    for (; start < end && start < cells.length; start++) {
-        var f = cells[start]
-        var v0 = v[f[0]],
-            v1 = v[f[1]],
-            v2 = v[f[2]]
-        ctx.moveTo(v0[0], v0[1])
-        ctx.lineTo(v1[0], v1[1])
-        ctx.lineTo(v2[0], v2[1])
-        ctx.lineTo(v0[0], v0[1])
-    }
-}
-},{}],24:[function(require,module,exports){
-var parseXml = require('xml-parse-from-string')
-
-function extractSvgPath (svgDoc) {
-  // concat all the <path> elements to form an SVG path string
-  if (typeof svgDoc === 'string') {
-    svgDoc = parseXml(svgDoc)
-  }
-  if (!svgDoc || typeof svgDoc.getElementsByTagName !== 'function') {
-    throw new Error('could not get an XML document from the specified SVG contents')
-  }
-
-  var paths = Array.prototype.slice.call(svgDoc.getElementsByTagName('path'))
-  return paths.reduce(function (prev, path) {
-    var d = path.getAttribute('d') || ''
-    return prev + ' ' + d.replace(/\s+/g, ' ').trim()
-  }, '').trim()
-}
-
-module.exports = function () {
-  throw new Error('use extract-svg-path/transform to inline SVG contents into your bundle')
-}
-
-module.exports.parse = extractSvgPath
-
-//deprecated
-module.exports.fromString = extractSvgPath
-
-},{"xml-parse-from-string":25}],25:[function(require,module,exports){
-module.exports = (function xmlparser() {
-  //common browsers
-  if (typeof window.DOMParser !== 'undefined') {
-    return function(str) {
-      var parser = new window.DOMParser()
-      return parser.parseFromString(str, 'application/xml')
-    }
-  }
-
-  //IE8 fallback
-  if (typeof window.ActiveXObject !== 'undefined'
-      && new window.ActiveXObject('Microsoft.XMLDOM')) {
-    return function(str) {
-      var xmlDoc = new window.ActiveXObject("Microsoft.XMLDOM")
-      xmlDoc.async = "false"
-      xmlDoc.loadXML(str)
-      return xmlDoc
-    }
-  }
-
-  //last resort fallback
-  return function(str) {
-    var div = document.createElement('div')
-    div.innerHTML = str
-    return div
-  }
-})()
-},{}],26:[function(require,module,exports){
-var xhr = require('xhr');
-
-module.exports = function (opts, cb) {
-    if (typeof opts === 'string') opts = { uri: opts };
-
-    xhr(opts, function (err, res, body) {
-        if (err) return cb(err);
-        if (!/^2/.test(res.statusCode)) {
-            return cb(new Error('http status code: ' + res.statusCode));
-        }
-        var div = document.createElement('div');
-        div.innerHTML = body;
-        var svg = div.querySelector('svg');
-        if (!svg) return cb(new Error('svg not present in resource'));
-        cb(null, svg);
-    });
-};
-
-},{"xhr":27}],27:[function(require,module,exports){
-var window = require("global/window")
-var once = require("once")
-var parseHeaders = require('parse-headers')
-
-var messages = {
-    "0": "Internal XMLHttpRequest Error",
-    "4": "4xx Client Error",
-    "5": "5xx Server Error"
-}
-
-var XHR = window.XMLHttpRequest || noop
-var XDR = "withCredentials" in (new XHR()) ? XHR : window.XDomainRequest
-
-module.exports = createXHR
-
-function createXHR(options, callback) {
-    if (typeof options === "string") {
-        options = { uri: options }
-    }
-
-    options = options || {}
-    callback = once(callback)
-
-    var xhr = options.xhr || null
-
-    if (!xhr) {
-        if (options.cors || options.useXDR) {
-            xhr = new XDR()
-        }else{
-            xhr = new XHR()
-        }
-    }
-
-    var uri = xhr.url = options.uri || options.url
-    var method = xhr.method = options.method || "GET"
-    var body = options.body || options.data
-    var headers = xhr.headers = options.headers || {}
-    var sync = !!options.sync
-    var isJson = false
-    var key
-    var load = options.response ? loadResponse : loadXhr
-
-    if ("json" in options) {
-        isJson = true
-        headers["Accept"] = "application/json"
-        if (method !== "GET" && method !== "HEAD") {
-            headers["Content-Type"] = "application/json"
-            body = JSON.stringify(options.json)
-        }
-    }
-
-    xhr.onreadystatechange = readystatechange
-    xhr.onload = load
-    xhr.onerror = error
-    // IE9 must have onprogress be set to a unique function.
-    xhr.onprogress = function () {
-        // IE must die
-    }
-    // hate IE
-    xhr.ontimeout = noop
-    xhr.open(method, uri, !sync)
-                                    //backward compatibility
-    if (options.withCredentials || (options.cors && options.withCredentials !== false)) {
-        xhr.withCredentials = true
-    }
-
-    // Cannot set timeout with sync request
-    if (!sync) {
-        xhr.timeout = "timeout" in options ? options.timeout : 5000
-    }
-
-    if (xhr.setRequestHeader) {
-        for(key in headers){
-            if(headers.hasOwnProperty(key)){
-                xhr.setRequestHeader(key, headers[key])
-            }
-        }
-    } else if (options.headers) {
-        throw new Error("Headers cannot be set on an XDomainRequest object")
-    }
-
-    if ("responseType" in options) {
-        xhr.responseType = options.responseType
-    }
-
-    if ("beforeSend" in options &&
-        typeof options.beforeSend === "function"
-    ) {
-        options.beforeSend(xhr)
-    }
-
-    xhr.send(body)
-
-    return xhr
-
-    function readystatechange() {
-        if (xhr.readyState === 4) {
-            load()
-        }
-    }
-
-    function getBody() {
-        // Chrome with requestType=blob throws errors arround when even testing access to responseText
-        var body = null
-
-        if (xhr.response) {
-            body = xhr.response
-        } else if (xhr.responseType === 'text' || !xhr.responseType) {
-            body = xhr.responseText || xhr.responseXML
-        }
-
-        if (isJson) {
-            try {
-                body = JSON.parse(body)
-            } catch (e) {}
-        }
-
-        return body
-    }
-
-    function getStatusCode() {
-        return xhr.status === 1223 ? 204 : xhr.status
-    }
-
-    // if we're getting a none-ok statusCode, build & return an error
-    function errorFromStatusCode(status, body) {
-        var error = null
-        if (status === 0 || (status >= 400 && status < 600)) {
-            var message = (typeof body === "string" ? body : false) ||
-                messages[String(status).charAt(0)]
-            error = new Error(message)
-            error.statusCode = status
-        }
-
-        return error
-    }
-
-    // will load the data & process the response in a special response object
-    function loadResponse() {
-        var status = getStatusCode()
-        var body = getBody()
-        var error = errorFromStatusCode(status, body)
-        var response = {
-            body: body,
-            statusCode: status,
-            statusText: xhr.statusText,
-            raw: xhr
-        }
-        if(xhr.getAllResponseHeaders){ //remember xhr can in fact be XDR for CORS in IE
-            response.headers = parseHeaders(xhr.getAllResponseHeaders())
-        } else {
-            response.headers = {}
-        }
-
-        callback(error, response, response.body)
-    }
-
-    // will load the data and add some response properties to the source xhr
-    // and then respond with that
-    function loadXhr() {
-        var status = getStatusCode()
-        var error = errorFromStatusCode(status)
-
-        xhr.status = xhr.statusCode = status
-        xhr.body = getBody()
-        xhr.headers = parseHeaders(xhr.getAllResponseHeaders())
-
-        callback(error, xhr, xhr.body)
-    }
-
-    function error(evt) {
-        callback(evt, xhr)
-    }
-}
-
-
-function noop() {}
-
-},{"global/window":28,"once":29,"parse-headers":33}],28:[function(require,module,exports){
-(function (global){
-if (typeof window !== "undefined") {
-    module.exports = window;
-} else if (typeof global !== "undefined") {
-    module.exports = global;
-} else if (typeof self !== "undefined"){
-    module.exports = self;
-} else {
-    module.exports = {};
-}
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],29:[function(require,module,exports){
-module.exports = once
-
-once.proto = once(function () {
-  Object.defineProperty(Function.prototype, 'once', {
-    value: function () {
-      return once(this)
-    },
-    configurable: true
-  })
-})
-
-function once (fn) {
-  var called = false
-  return function () {
-    if (called) return
-    called = true
-    return fn.apply(this, arguments)
-  }
-}
-
-},{}],30:[function(require,module,exports){
-var isFunction = require('is-function')
-
-module.exports = forEach
-
-var toString = Object.prototype.toString
-var hasOwnProperty = Object.prototype.hasOwnProperty
-
-function forEach(list, iterator, context) {
-    if (!isFunction(iterator)) {
-        throw new TypeError('iterator must be a function')
-    }
-
-    if (arguments.length < 3) {
-        context = this
-    }
-
-    if (toString.call(list) === '[object Array]')
-        forEachArray(list, iterator, context)
-    else if (typeof list === 'string')
-        forEachString(list, iterator, context)
-    else
-        forEachObject(list, iterator, context)
-}
-
-function forEachArray(array, iterator, context) {
-    for (var i = 0, len = array.length; i < len; i++) {
-        if (hasOwnProperty.call(array, i)) {
-            iterator.call(context, array[i], i, array)
-        }
-    }
-}
-
-function forEachString(string, iterator, context) {
-    for (var i = 0, len = string.length; i < len; i++) {
-        // no such thing as a sparse string.
-        iterator.call(context, string.charAt(i), i, string)
-    }
-}
-
-function forEachObject(object, iterator, context) {
-    for (var k in object) {
-        if (hasOwnProperty.call(object, k)) {
-            iterator.call(context, object[k], k, object)
-        }
-    }
-}
-
-},{"is-function":31}],31:[function(require,module,exports){
-module.exports = isFunction
-
-var toString = Object.prototype.toString
-
-function isFunction (fn) {
-  var string = toString.call(fn)
-  return string === '[object Function]' ||
-    (typeof fn === 'function' && string !== '[object RegExp]') ||
-    (typeof window !== 'undefined' &&
-     // IE8 and below
-     (fn === window.setTimeout ||
-      fn === window.alert ||
-      fn === window.confirm ||
-      fn === window.prompt))
-};
-
-},{}],32:[function(require,module,exports){
-
-exports = module.exports = trim;
-
-function trim(str){
-  return str.replace(/^\s*|\s*$/g, '');
-}
-
-exports.left = function(str){
-  return str.replace(/^\s*/, '');
-};
-
-exports.right = function(str){
-  return str.replace(/\s*$/, '');
-};
-
-},{}],33:[function(require,module,exports){
-var trim = require('trim')
-  , forEach = require('for-each')
-  , isArray = function(arg) {
-      return Object.prototype.toString.call(arg) === '[object Array]';
-    }
-
-module.exports = function (headers) {
-  if (!headers)
-    return {}
-
-  var result = {}
-
-  forEach(
-      trim(headers).split('\n')
-    , function (row) {
-        var index = row.indexOf(':')
-          , key = trim(row.slice(0, index)).toLowerCase()
-          , value = trim(row.slice(index + 1))
-
-        if (typeof(result[key]) === 'undefined') {
-          result[key] = value
-        } else if (isArray(result[key])) {
-          result[key].push(value)
-        } else {
-          result[key] = [ result[key], value ]
-        }
-      }
-  )
-
-  return result
-}
-},{"for-each":30,"trim":32}],34:[function(require,module,exports){
-'use strict'
-
-var pool = require('typedarray-pool')
-
-module.exports = meshLaplacian
-
-function hypot(x, y, z) {
-  return Math.sqrt(
-    Math.pow(x, 2) +
-    Math.pow(y, 2) +
-    Math.pow(z, 2))
-}
-
-function compareEntry(a, b) {
-  return (a[0]-b[0]) || (a[1]-b[1])
-}
-
-function meshLaplacian(cells, positions) {
-  var numVerts = positions.length
-  var numCells = cells.length
-
-  var areas = pool.mallocDouble(numVerts)
-  for(var i=0; i<numVerts; ++i) {
-    areas[i] = 0
-  }
-
-  var entries = []
-  for(var i=0; i<numCells; ++i) {
-    var cell = cells[i]
-    var ia = cell[0]
-    var ib = cell[1]
-    var ic = cell[2]
-
-    var a  = positions[ia]
-    var b  = positions[ib]
-    var c  = positions[ic]
-
-    var abx = a[0] - b[0]
-    var aby = a[1] - b[1]
-    var abz = a[2] - b[2]
-
-    var bcx = b[0] - c[0]
-    var bcy = b[1] - c[1]
-    var bcz = b[2] - c[2]
-
-    var cax = c[0] - a[0]
-    var cay = c[1] - a[1]
-    var caz = c[2] - a[2]
-
-    var area = 0.5 * hypot(
-      aby * caz - abz * cay,
-      abz * cax - abx * caz,
-      abx * cay - aby * cax)
-
-    //Skip thin triangles
-    if(area < 1e-8) {
-      continue
-    }
-
-    var w = -0.5 / area
-    var wa = w * (abx * cax + aby * cay + abz * caz)
-    var wb = w * (bcx * abx + bcy * aby + bcz * abz)
-    var wc = w * (cax * bcx + cay * bcy + caz * bcz)
-
-    var varea = area / 3
-    areas[ia] += varea
-    areas[ib] += varea
-    areas[ic] += varea
-
-    entries.push(
-      [ib,ic,wa],
-      [ic,ib,wa],
-      [ic,ia,wb],
-      [ia,ic,wb],
-      [ia,ib,wc],
-      [ib,ia,wc]
-    )
-  }
-
-  var weights = pool.mallocDouble(numVerts)
-  for(var i=0; i<numVerts; ++i) {
-    weights[i] = 0
-  }
-
-  entries.sort(compareEntry)
-
-  var ptr = 0
-  for(var i=0; i<entries.length; ) {
-    var entry = entries[i++]
-    while(
-      i < entries.length &&
-      entries[i][0] === entry[0] &&
-      entries[i][1] === entry[1] ) {
-        entry[2] += entries[i++][2]
-    }
-    entry[2] /= areas[entry[0]]
-    weights[entry[0]] += entry[2]
-    entries[ptr++] = entry
-  }
-  entries.length = ptr
-
-  for(var i=0; i<numVerts; ++i) {
-    entries.push([i, i, -weights[i]])
-  }
-
-  pool.free(areas)
-  pool.free(weights)
-
-  return entries
-}
-
-},{"typedarray-pool":37}],35:[function(require,module,exports){
-/**
- * Bit twiddling hacks for JavaScript.
- *
- * Author: Mikola Lysenko
- *
- * Ported from Stanford bit twiddling hack library:
- *    http://graphics.stanford.edu/~seander/bithacks.html
- */
-
-"use strict"; "use restrict";
-
-//Number of bits in an integer
-var INT_BITS = 32;
-
-//Constants
-exports.INT_BITS  = INT_BITS;
-exports.INT_MAX   =  0x7fffffff;
-exports.INT_MIN   = -1<<(INT_BITS-1);
-
-//Returns -1, 0, +1 depending on sign of x
-exports.sign = function(v) {
-  return (v > 0) - (v < 0);
-}
-
-//Computes absolute value of integer
-exports.abs = function(v) {
-  var mask = v >> (INT_BITS-1);
-  return (v ^ mask) - mask;
-}
-
-//Computes minimum of integers x and y
-exports.min = function(x, y) {
-  return y ^ ((x ^ y) & -(x < y));
-}
-
-//Computes maximum of integers x and y
-exports.max = function(x, y) {
-  return x ^ ((x ^ y) & -(x < y));
-}
-
-//Checks if a number is a power of two
-exports.isPow2 = function(v) {
-  return !(v & (v-1)) && (!!v);
-}
-
-//Computes log base 2 of v
-exports.log2 = function(v) {
-  var r, shift;
-  r =     (v > 0xFFFF) << 4; v >>>= r;
-  shift = (v > 0xFF  ) << 3; v >>>= shift; r |= shift;
-  shift = (v > 0xF   ) << 2; v >>>= shift; r |= shift;
-  shift = (v > 0x3   ) << 1; v >>>= shift; r |= shift;
-  return r | (v >> 1);
-}
-
-//Computes log base 10 of v
-exports.log10 = function(v) {
-  return  (v >= 1000000000) ? 9 : (v >= 100000000) ? 8 : (v >= 10000000) ? 7 :
-          (v >= 1000000) ? 6 : (v >= 100000) ? 5 : (v >= 10000) ? 4 :
-          (v >= 1000) ? 3 : (v >= 100) ? 2 : (v >= 10) ? 1 : 0;
-}
-
-//Counts number of bits
-exports.popCount = function(v) {
-  v = v - ((v >>> 1) & 0x55555555);
-  v = (v & 0x33333333) + ((v >>> 2) & 0x33333333);
-  return ((v + (v >>> 4) & 0xF0F0F0F) * 0x1010101) >>> 24;
-}
-
-//Counts number of trailing zeros
-function countTrailingZeros(v) {
-  var c = 32;
-  v &= -v;
-  if (v) c--;
-  if (v & 0x0000FFFF) c -= 16;
-  if (v & 0x00FF00FF) c -= 8;
-  if (v & 0x0F0F0F0F) c -= 4;
-  if (v & 0x33333333) c -= 2;
-  if (v & 0x55555555) c -= 1;
-  return c;
-}
-exports.countTrailingZeros = countTrailingZeros;
-
-//Rounds to next power of 2
-exports.nextPow2 = function(v) {
-  v += v === 0;
-  --v;
-  v |= v >>> 1;
-  v |= v >>> 2;
-  v |= v >>> 4;
-  v |= v >>> 8;
-  v |= v >>> 16;
-  return v + 1;
-}
-
-//Rounds down to previous power of 2
-exports.prevPow2 = function(v) {
-  v |= v >>> 1;
-  v |= v >>> 2;
-  v |= v >>> 4;
-  v |= v >>> 8;
-  v |= v >>> 16;
-  return v - (v>>>1);
-}
-
-//Computes parity of word
-exports.parity = function(v) {
-  v ^= v >>> 16;
-  v ^= v >>> 8;
-  v ^= v >>> 4;
-  v &= 0xf;
-  return (0x6996 >>> v) & 1;
-}
-
-var REVERSE_TABLE = new Array(256);
-
-(function(tab) {
-  for(var i=0; i<256; ++i) {
-    var v = i, r = i, s = 7;
-    for (v >>>= 1; v; v >>>= 1) {
-      r <<= 1;
-      r |= v & 1;
-      --s;
-    }
-    tab[i] = (r << s) & 0xff;
-  }
-})(REVERSE_TABLE);
-
-//Reverse bits in a 32 bit word
-exports.reverse = function(v) {
-  return  (REVERSE_TABLE[ v         & 0xff] << 24) |
-          (REVERSE_TABLE[(v >>> 8)  & 0xff] << 16) |
-          (REVERSE_TABLE[(v >>> 16) & 0xff] << 8)  |
-           REVERSE_TABLE[(v >>> 24) & 0xff];
-}
-
-//Interleave bits of 2 coordinates with 16 bits.  Useful for fast quadtree codes
-exports.interleave2 = function(x, y) {
-  x &= 0xFFFF;
-  x = (x | (x << 8)) & 0x00FF00FF;
-  x = (x | (x << 4)) & 0x0F0F0F0F;
-  x = (x | (x << 2)) & 0x33333333;
-  x = (x | (x << 1)) & 0x55555555;
-
-  y &= 0xFFFF;
-  y = (y | (y << 8)) & 0x00FF00FF;
-  y = (y | (y << 4)) & 0x0F0F0F0F;
-  y = (y | (y << 2)) & 0x33333333;
-  y = (y | (y << 1)) & 0x55555555;
-
-  return x | (y << 1);
-}
-
-//Extracts the nth interleaved component
-exports.deinterleave2 = function(v, n) {
-  v = (v >>> n) & 0x55555555;
-  v = (v | (v >>> 1))  & 0x33333333;
-  v = (v | (v >>> 2))  & 0x0F0F0F0F;
-  v = (v | (v >>> 4))  & 0x00FF00FF;
-  v = (v | (v >>> 16)) & 0x000FFFF;
-  return (v << 16) >> 16;
-}
-
-
-//Interleave bits of 3 coordinates, each with 10 bits.  Useful for fast octree codes
-exports.interleave3 = function(x, y, z) {
-  x &= 0x3FF;
-  x  = (x | (x<<16)) & 4278190335;
-  x  = (x | (x<<8))  & 251719695;
-  x  = (x | (x<<4))  & 3272356035;
-  x  = (x | (x<<2))  & 1227133513;
-
-  y &= 0x3FF;
-  y  = (y | (y<<16)) & 4278190335;
-  y  = (y | (y<<8))  & 251719695;
-  y  = (y | (y<<4))  & 3272356035;
-  y  = (y | (y<<2))  & 1227133513;
-  x |= (y << 1);
-
-  z &= 0x3FF;
-  z  = (z | (z<<16)) & 4278190335;
-  z  = (z | (z<<8))  & 251719695;
-  z  = (z | (z<<4))  & 3272356035;
-  z  = (z | (z<<2))  & 1227133513;
-
-  return x | (z << 2);
-}
-
-//Extracts nth interleaved component of a 3-tuple
-exports.deinterleave3 = function(v, n) {
-  v = (v >>> n)       & 1227133513;
-  v = (v | (v>>>2))   & 3272356035;
-  v = (v | (v>>>4))   & 251719695;
-  v = (v | (v>>>8))   & 4278190335;
-  v = (v | (v>>>16))  & 0x3FF;
-  return (v<<22)>>22;
-}
-
-//Computes next combination in colexicographic order (this is mistakenly called nextPermutation on the bit twiddling hacks page)
-exports.nextCombination = function(v) {
-  var t = v | (v - 1);
-  return (t + 1) | (((~t & -~t) - 1) >>> (countTrailingZeros(v) + 1));
-}
-
-
-},{}],36:[function(require,module,exports){
-arguments[4][22][0].apply(exports,arguments)
-},{"dup":22}],37:[function(require,module,exports){
-(function (global,Buffer){
-'use strict'
-
-var bits = require('bit-twiddle')
-var dup = require('dup')
-
-//Legacy pool support
-if(!global.__TYPEDARRAY_POOL) {
-  global.__TYPEDARRAY_POOL = {
-      UINT8   : dup([32, 0])
-    , UINT16  : dup([32, 0])
-    , UINT32  : dup([32, 0])
-    , INT8    : dup([32, 0])
-    , INT16   : dup([32, 0])
-    , INT32   : dup([32, 0])
-    , FLOAT   : dup([32, 0])
-    , DOUBLE  : dup([32, 0])
-    , DATA    : dup([32, 0])
-    , UINT8C  : dup([32, 0])
-    , BUFFER  : dup([32, 0])
-  }
-}
-
-var hasUint8C = (typeof Uint8ClampedArray) !== 'undefined'
-var POOL = global.__TYPEDARRAY_POOL
-
-//Upgrade pool
-if(!POOL.UINT8C) {
-  POOL.UINT8C = dup([32, 0])
-}
-if(!POOL.BUFFER) {
-  POOL.BUFFER = dup([32, 0])
-}
-
-//New technique: Only allocate from ArrayBufferView and Buffer
-var DATA    = POOL.DATA
-  , BUFFER  = POOL.BUFFER
-
-exports.free = function free(array) {
-  if(Buffer.isBuffer(array)) {
-    BUFFER[bits.log2(array.length)].push(array)
-  } else {
-    if(Object.prototype.toString.call(array) !== '[object ArrayBuffer]') {
-      array = array.buffer
-    }
-    if(!array) {
-      return
-    }
-    var n = array.length || array.byteLength
-    var log_n = bits.log2(n)|0
-    DATA[log_n].push(array)
-  }
-}
-
-function freeArrayBuffer(buffer) {
-  if(!buffer) {
-    return
-  }
-  var n = buffer.length || buffer.byteLength
-  var log_n = bits.log2(n)
-  DATA[log_n].push(buffer)
-}
-
-function freeTypedArray(array) {
-  freeArrayBuffer(array.buffer)
-}
-
-exports.freeUint8 =
-exports.freeUint16 =
-exports.freeUint32 =
-exports.freeInt8 =
-exports.freeInt16 =
-exports.freeInt32 =
-exports.freeFloat32 =
-exports.freeFloat =
-exports.freeFloat64 =
-exports.freeDouble =
-exports.freeUint8Clamped =
-exports.freeDataView = freeTypedArray
-
-exports.freeArrayBuffer = freeArrayBuffer
-
-exports.freeBuffer = function freeBuffer(array) {
-  BUFFER[bits.log2(array.length)].push(array)
-}
-
-exports.malloc = function malloc(n, dtype) {
-  if(dtype === undefined || dtype === 'arraybuffer') {
-    return mallocArrayBuffer(n)
-  } else {
-    switch(dtype) {
-      case 'uint8':
-        return mallocUint8(n)
-      case 'uint16':
-        return mallocUint16(n)
-      case 'uint32':
-        return mallocUint32(n)
-      case 'int8':
-        return mallocInt8(n)
-      case 'int16':
-        return mallocInt16(n)
-      case 'int32':
-        return mallocInt32(n)
-      case 'float':
-      case 'float32':
-        return mallocFloat(n)
-      case 'double':
-      case 'float64':
-        return mallocDouble(n)
-      case 'uint8_clamped':
-        return mallocUint8Clamped(n)
-      case 'buffer':
-        return mallocBuffer(n)
-      case 'data':
-      case 'dataview':
-        return mallocDataView(n)
-
-      default:
-        return null
-    }
-  }
-  return null
-}
-
-function mallocArrayBuffer(n) {
-  var n = bits.nextPow2(n)
-  var log_n = bits.log2(n)
-  var d = DATA[log_n]
-  if(d.length > 0) {
-    return d.pop()
-  }
-  return new ArrayBuffer(n)
-}
-exports.mallocArrayBuffer = mallocArrayBuffer
-
-function mallocUint8(n) {
-  return new Uint8Array(mallocArrayBuffer(n), 0, n)
-}
-exports.mallocUint8 = mallocUint8
-
-function mallocUint16(n) {
-  return new Uint16Array(mallocArrayBuffer(2*n), 0, n)
-}
-exports.mallocUint16 = mallocUint16
-
-function mallocUint32(n) {
-  return new Uint32Array(mallocArrayBuffer(4*n), 0, n)
-}
-exports.mallocUint32 = mallocUint32
-
-function mallocInt8(n) {
-  return new Int8Array(mallocArrayBuffer(n), 0, n)
-}
-exports.mallocInt8 = mallocInt8
-
-function mallocInt16(n) {
-  return new Int16Array(mallocArrayBuffer(2*n), 0, n)
-}
-exports.mallocInt16 = mallocInt16
-
-function mallocInt32(n) {
-  return new Int32Array(mallocArrayBuffer(4*n), 0, n)
-}
-exports.mallocInt32 = mallocInt32
-
-function mallocFloat(n) {
-  return new Float32Array(mallocArrayBuffer(4*n), 0, n)
-}
-exports.mallocFloat32 = exports.mallocFloat = mallocFloat
-
-function mallocDouble(n) {
-  return new Float64Array(mallocArrayBuffer(8*n), 0, n)
-}
-exports.mallocFloat64 = exports.mallocDouble = mallocDouble
-
-function mallocUint8Clamped(n) {
-  if(hasUint8C) {
-    return new Uint8ClampedArray(mallocArrayBuffer(n), 0, n)
-  } else {
-    return mallocUint8(n)
-  }
-}
-exports.mallocUint8Clamped = mallocUint8Clamped
-
-function mallocDataView(n) {
-  return new DataView(mallocArrayBuffer(n), 0, n)
-}
-exports.mallocDataView = mallocDataView
-
-function mallocBuffer(n) {
-  n = bits.nextPow2(n)
-  var log_n = bits.log2(n)
-  var cache = BUFFER[log_n]
-  if(cache.length > 0) {
-    return cache.pop()
-  }
-  return new Buffer(n)
-}
-exports.mallocBuffer = mallocBuffer
-
-exports.clearCache = function clearCache() {
-  for(var i=0; i<32; ++i) {
-    POOL.UINT8[i].length = 0
-    POOL.UINT16[i].length = 0
-    POOL.UINT32[i].length = 0
-    POOL.INT8[i].length = 0
-    POOL.INT16[i].length = 0
-    POOL.INT32[i].length = 0
-    POOL.FLOAT[i].length = 0
-    POOL.DOUBLE[i].length = 0
-    POOL.UINT8C[i].length = 0
-    DATA[i].length = 0
-    BUFFER[i].length = 0
-  }
-}
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"bit-twiddle":35,"buffer":1,"dup":36}],38:[function(require,module,exports){
-module.exports = reindex
-
-function reindex(array) {
-  var pos = []
-  var cel = []
-
-  var i = 0
-  var c = 0
-  while (i < array.length) {
-    cel.push([c++, c++, c++])
-    pos.push([
-        array[i++]
-      , array[i++]
-      , array[i++]
-    ], [
-        array[i++]
-      , array[i++]
-      , array[i++]
-    ], [
-        array[i++]
-      , array[i++]
-      , array[i++]
-    ])
-  }
-
-  return {
-      positions: pos
-    , cells: cel
-  }
-}
-
-},{}],39:[function(require,module,exports){
-'use strict'
-
-module.exports = polyBool
-
-var pslg2poly = require('pslg-to-poly')
-var poly2pslg = require('poly-to-pslg')
-var overlay   = require('overlay-pslg')
-
-function polyBool(a, b, op) {
-  var apsl = poly2pslg(a)
-  var bpsl = poly2pslg(b)
-  var result = overlay(
-    apsl.points, apsl.edges,
-    bpsl.points, bpsl.edges,
-    op)
-  return pslg2poly(result.points, result.red.concat(result.blue))
-}
-
-},{"overlay-pslg":110,"poly-to-pslg":157,"pslg-to-poly":182}],40:[function(require,module,exports){
-"use strict"
-
-function compileSearch(funcName, predicate, reversed, extraArgs, earlyOut) {
-  var code = [
-    "function ", funcName, "(a,l,h,", extraArgs.join(","),  "){",
-earlyOut ? "" : "var i=", (reversed ? "l-1" : "h+1"),
-";while(l<=h){\
-var m=(l+h)>>>1,x=a[m]"]
-  if(earlyOut) {
-    if(predicate.indexOf("c") < 0) {
-      code.push(";if(x===y){return m}else if(x<=y){")
-    } else {
-      code.push(";var p=c(x,y);if(p===0){return m}else if(p<=0){")
-    }
-  } else {
-    code.push(";if(", predicate, "){i=m;")
-  }
-  if(reversed) {
-    code.push("l=m+1}else{h=m-1}")
-  } else {
-    code.push("h=m-1}else{l=m+1}")
-  }
-  code.push("}")
-  if(earlyOut) {
-    code.push("return -1};")
-  } else {
-    code.push("return i};")
-  }
-  return code.join("")
-}
-
-function compileBoundsSearch(predicate, reversed, suffix, earlyOut) {
-  var result = new Function([
-  compileSearch("A", "x" + predicate + "y", reversed, ["y"], earlyOut),
-  compileSearch("P", "c(x,y)" + predicate + "0", reversed, ["y", "c"], earlyOut),
-"function dispatchBsearch", suffix, "(a,y,c,l,h){\
-if(typeof(c)==='function'){\
-return P(a,(l===void 0)?0:l|0,(h===void 0)?a.length-1:h|0,y,c)\
-}else{\
-return A(a,(c===void 0)?0:c|0,(l===void 0)?a.length-1:l|0,y)\
-}}\
-return dispatchBsearch", suffix].join(""))
-  return result()
-}
-
-module.exports = {
-  ge: compileBoundsSearch(">=", false, "GE"),
-  gt: compileBoundsSearch(">", false, "GT"),
-  lt: compileBoundsSearch("<", true, "LT"),
-  le: compileBoundsSearch("<=", true, "LE"),
-  eq: compileBoundsSearch("-", true, "EQ", true)
-}
-
-},{}],41:[function(require,module,exports){
 'use strict'
 
 var monotoneTriangulate = require('./lib/monotone')
@@ -5681,7 +4353,7 @@ function cdt2d(points, edges, options) {
   }
 }
 
-},{"./lib/delaunay":42,"./lib/filter":43,"./lib/monotone":44,"./lib/triangulation":45}],42:[function(require,module,exports){
+},{"./lib/delaunay":23,"./lib/filter":24,"./lib/monotone":25,"./lib/triangulation":26}],23:[function(require,module,exports){
 'use strict'
 
 var inCircle = require('robust-in-sphere')[4]
@@ -5798,7 +4470,7 @@ function delaunayRefine(points, triangulation) {
   }
 }
 
-},{"binary-search-bounds":40,"robust-in-sphere":46}],43:[function(require,module,exports){
+},{"binary-search-bounds":27,"robust-in-sphere":28}],24:[function(require,module,exports){
 'use strict'
 
 var bsearch = require('binary-search-bounds')
@@ -5980,7 +4652,7 @@ function classifyFaces(triangulation, target, infinity) {
   return result
 }
 
-},{"binary-search-bounds":40}],44:[function(require,module,exports){
+},{"binary-search-bounds":27}],25:[function(require,module,exports){
 'use strict'
 
 var bsearch = require('binary-search-bounds')
@@ -6169,7 +4841,7 @@ function monotoneTriangulate(points, edges) {
   return cells
 }
 
-},{"binary-search-bounds":40,"robust-orientation":57}],45:[function(require,module,exports){
+},{"binary-search-bounds":27,"robust-orientation":39}],26:[function(require,module,exports){
 'use strict'
 
 var bsearch = require('binary-search-bounds')
@@ -6275,7 +4947,61 @@ function createTriangulation(numVerts, edges) {
   return new Triangulation(stars, edges)
 }
 
-},{"binary-search-bounds":40}],46:[function(require,module,exports){
+},{"binary-search-bounds":27}],27:[function(require,module,exports){
+"use strict"
+
+function compileSearch(funcName, predicate, reversed, extraArgs, earlyOut) {
+  var code = [
+    "function ", funcName, "(a,l,h,", extraArgs.join(","),  "){",
+earlyOut ? "" : "var i=", (reversed ? "l-1" : "h+1"),
+";while(l<=h){\
+var m=(l+h)>>>1,x=a[m]"]
+  if(earlyOut) {
+    if(predicate.indexOf("c") < 0) {
+      code.push(";if(x===y){return m}else if(x<=y){")
+    } else {
+      code.push(";var p=c(x,y);if(p===0){return m}else if(p<=0){")
+    }
+  } else {
+    code.push(";if(", predicate, "){i=m;")
+  }
+  if(reversed) {
+    code.push("l=m+1}else{h=m-1}")
+  } else {
+    code.push("h=m-1}else{l=m+1}")
+  }
+  code.push("}")
+  if(earlyOut) {
+    code.push("return -1};")
+  } else {
+    code.push("return i};")
+  }
+  return code.join("")
+}
+
+function compileBoundsSearch(predicate, reversed, suffix, earlyOut) {
+  var result = new Function([
+  compileSearch("A", "x" + predicate + "y", reversed, ["y"], earlyOut),
+  compileSearch("P", "c(x,y)" + predicate + "0", reversed, ["y", "c"], earlyOut),
+"function dispatchBsearch", suffix, "(a,y,c,l,h){\
+if(typeof(c)==='function'){\
+return P(a,(l===void 0)?0:l|0,(h===void 0)?a.length-1:h|0,y,c)\
+}else{\
+return A(a,(c===void 0)?0:c|0,(l===void 0)?a.length-1:l|0,y)\
+}}\
+return dispatchBsearch", suffix].join(""))
+  return result()
+}
+
+module.exports = {
+  ge: compileBoundsSearch(">=", false, "GE"),
+  gt: compileBoundsSearch(">", false, "GT"),
+  lt: compileBoundsSearch("<", true, "LT"),
+  le: compileBoundsSearch("<=", true, "LE"),
+  eq: compileBoundsSearch("-", true, "EQ", true)
+}
+
+},{}],28:[function(require,module,exports){
 "use strict"
 
 var twoProduct = require("two-product")
@@ -6443,29 +5169,29 @@ function generateInSphereTest() {
 }
 
 generateInSphereTest()
-},{"robust-scale":48,"robust-subtract":49,"robust-sum":50,"two-product":51}],47:[function(require,module,exports){
+},{"robust-scale":30,"robust-subtract":31,"robust-sum":32,"two-product":33}],29:[function(require,module,exports){
 arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],48:[function(require,module,exports){
+},{"dup":7}],30:[function(require,module,exports){
 arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":51,"two-sum":47}],49:[function(require,module,exports){
+},{"dup":8,"two-product":33,"two-sum":29}],31:[function(require,module,exports){
 arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],50:[function(require,module,exports){
+},{"dup":9}],32:[function(require,module,exports){
 arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],51:[function(require,module,exports){
+},{"dup":10}],33:[function(require,module,exports){
 arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],52:[function(require,module,exports){
+},{"dup":11}],34:[function(require,module,exports){
 arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],53:[function(require,module,exports){
+},{"dup":7}],35:[function(require,module,exports){
 arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":56,"two-sum":52}],54:[function(require,module,exports){
+},{"dup":8,"two-product":38,"two-sum":34}],36:[function(require,module,exports){
 arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],55:[function(require,module,exports){
+},{"dup":9}],37:[function(require,module,exports){
 arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],56:[function(require,module,exports){
+},{"dup":10}],38:[function(require,module,exports){
 arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],57:[function(require,module,exports){
+},{"dup":11}],39:[function(require,module,exports){
 arguments[4][12][0].apply(exports,arguments)
-},{"dup":12,"robust-scale":53,"robust-subtract":54,"robust-sum":55,"two-product":56}],58:[function(require,module,exports){
+},{"dup":12,"robust-scale":35,"robust-subtract":36,"robust-sum":37,"two-product":38}],40:[function(require,module,exports){
 'use strict'
 
 module.exports = cleanPSLG
@@ -6827,7 +5553,7 @@ function cleanPSLG(points, edges, colors) {
   return modified
 }
 
-},{"./lib/rat-seg-intersect":59,"big-rat":63,"big-rat/cmp":61,"big-rat/to-float":78,"box-intersect":79,"compare-cell":89,"nextafter":90,"rat-vec":93,"robust-segment-intersect":102,"union-find":103}],59:[function(require,module,exports){
+},{"./lib/rat-seg-intersect":41,"big-rat":45,"big-rat/cmp":43,"big-rat/to-float":60,"box-intersect":61,"compare-cell":71,"nextafter":72,"rat-vec":75,"robust-segment-intersect":84,"union-find":85}],41:[function(require,module,exports){
 'use strict'
 
 //TODO: Move this to a separate module
@@ -6873,7 +5599,7 @@ function solveIntersection(a, b, c, d) {
   return rvAdd(a, rvMuls(ba, t))
 }
 
-},{"big-rat/div":62,"big-rat/mul":72,"big-rat/sign":76,"big-rat/sub":77,"big-rat/to-float":78,"rat-vec/add":92,"rat-vec/muls":94,"rat-vec/sub":95}],60:[function(require,module,exports){
+},{"big-rat/div":44,"big-rat/mul":54,"big-rat/sign":58,"big-rat/sub":59,"big-rat/to-float":60,"rat-vec/add":74,"rat-vec/muls":76,"rat-vec/sub":77}],42:[function(require,module,exports){
 'use strict'
 
 var rationalize = require('./lib/rationalize')
@@ -6886,7 +5612,7 @@ function add(a, b) {
     a[1].mul(b[1]))
 }
 
-},{"./lib/rationalize":70}],61:[function(require,module,exports){
+},{"./lib/rationalize":52}],43:[function(require,module,exports){
 'use strict'
 
 module.exports = cmp
@@ -6895,7 +5621,7 @@ function cmp(a, b) {
     return a[0].mul(b[1]).cmp(b[0].mul(a[1]))
 }
 
-},{}],62:[function(require,module,exports){
+},{}],44:[function(require,module,exports){
 'use strict'
 
 var rationalize = require('./lib/rationalize')
@@ -6906,7 +5632,7 @@ function div(a, b) {
   return rationalize(a[0].mul(b[1]), a[1].mul(b[0]))
 }
 
-},{"./lib/rationalize":70}],63:[function(require,module,exports){
+},{"./lib/rationalize":52}],45:[function(require,module,exports){
 'use strict'
 
 var isRat = require('./is-rat')
@@ -6968,7 +5694,7 @@ function makeRational(numer, denom) {
   return rationalize(a, b)
 }
 
-},{"./div":62,"./is-rat":64,"./lib/is-bn":68,"./lib/num-to-bn":69,"./lib/rationalize":70,"./lib/str-to-bn":71}],64:[function(require,module,exports){
+},{"./div":44,"./is-rat":46,"./lib/is-bn":50,"./lib/num-to-bn":51,"./lib/rationalize":52,"./lib/str-to-bn":53}],46:[function(require,module,exports){
 'use strict'
 
 var isBN = require('./lib/is-bn')
@@ -6979,7 +5705,7 @@ function isRat(x) {
   return Array.isArray(x) && x.length === 2 && isBN(x[0]) && isBN(x[1])
 }
 
-},{"./lib/is-bn":68}],65:[function(require,module,exports){
+},{"./lib/is-bn":50}],47:[function(require,module,exports){
 'use strict'
 
 var bn = require('bn.js')
@@ -6990,7 +5716,7 @@ function sign(x) {
   return x.cmp(new bn(0))
 }
 
-},{"bn.js":74}],66:[function(require,module,exports){
+},{"bn.js":56}],48:[function(require,module,exports){
 'use strict'
 
 module.exports = bn2num
@@ -7014,7 +5740,7 @@ function bn2num(b) {
   return b.sign ? -out : out
 }
 
-},{}],67:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 'use strict'
 
 var db = require('double-bits')
@@ -7035,7 +5761,7 @@ function ctzNumber(x) {
   return h + 32
 }
 
-},{"bit-twiddle":73,"double-bits":75}],68:[function(require,module,exports){
+},{"bit-twiddle":55,"double-bits":57}],50:[function(require,module,exports){
 'use strict'
 
 var BN = require('bn.js')
@@ -7048,7 +5774,7 @@ function isBN(x) {
   return x && typeof x === 'object' && Boolean(x.words)
 }
 
-},{"bn.js":74}],69:[function(require,module,exports){
+},{"bn.js":56}],51:[function(require,module,exports){
 'use strict'
 
 var BN = require('bn.js')
@@ -7065,7 +5791,7 @@ function num2bn(x) {
   }
 }
 
-},{"bn.js":74,"double-bits":75}],70:[function(require,module,exports){
+},{"bn.js":56,"double-bits":57}],52:[function(require,module,exports){
 'use strict'
 
 var num2bn = require('./num-to-bn')
@@ -7093,7 +5819,7 @@ function rationalize(numer, denom) {
   return [ numer, denom ]
 }
 
-},{"./bn-sign":65,"./num-to-bn":69}],71:[function(require,module,exports){
+},{"./bn-sign":47,"./num-to-bn":51}],53:[function(require,module,exports){
 'use strict'
 
 var BN = require('bn.js')
@@ -7104,7 +5830,7 @@ function str2BN(x) {
   return new BN(x)
 }
 
-},{"bn.js":74}],72:[function(require,module,exports){
+},{"bn.js":56}],54:[function(require,module,exports){
 'use strict'
 
 var rationalize = require('./lib/rationalize')
@@ -7115,9 +5841,213 @@ function mul(a, b) {
   return rationalize(a[0].mul(b[0]), a[1].mul(b[1]))
 }
 
-},{"./lib/rationalize":70}],73:[function(require,module,exports){
-arguments[4][35][0].apply(exports,arguments)
-},{"dup":35}],74:[function(require,module,exports){
+},{"./lib/rationalize":52}],55:[function(require,module,exports){
+/**
+ * Bit twiddling hacks for JavaScript.
+ *
+ * Author: Mikola Lysenko
+ *
+ * Ported from Stanford bit twiddling hack library:
+ *    http://graphics.stanford.edu/~seander/bithacks.html
+ */
+
+"use strict"; "use restrict";
+
+//Number of bits in an integer
+var INT_BITS = 32;
+
+//Constants
+exports.INT_BITS  = INT_BITS;
+exports.INT_MAX   =  0x7fffffff;
+exports.INT_MIN   = -1<<(INT_BITS-1);
+
+//Returns -1, 0, +1 depending on sign of x
+exports.sign = function(v) {
+  return (v > 0) - (v < 0);
+}
+
+//Computes absolute value of integer
+exports.abs = function(v) {
+  var mask = v >> (INT_BITS-1);
+  return (v ^ mask) - mask;
+}
+
+//Computes minimum of integers x and y
+exports.min = function(x, y) {
+  return y ^ ((x ^ y) & -(x < y));
+}
+
+//Computes maximum of integers x and y
+exports.max = function(x, y) {
+  return x ^ ((x ^ y) & -(x < y));
+}
+
+//Checks if a number is a power of two
+exports.isPow2 = function(v) {
+  return !(v & (v-1)) && (!!v);
+}
+
+//Computes log base 2 of v
+exports.log2 = function(v) {
+  var r, shift;
+  r =     (v > 0xFFFF) << 4; v >>>= r;
+  shift = (v > 0xFF  ) << 3; v >>>= shift; r |= shift;
+  shift = (v > 0xF   ) << 2; v >>>= shift; r |= shift;
+  shift = (v > 0x3   ) << 1; v >>>= shift; r |= shift;
+  return r | (v >> 1);
+}
+
+//Computes log base 10 of v
+exports.log10 = function(v) {
+  return  (v >= 1000000000) ? 9 : (v >= 100000000) ? 8 : (v >= 10000000) ? 7 :
+          (v >= 1000000) ? 6 : (v >= 100000) ? 5 : (v >= 10000) ? 4 :
+          (v >= 1000) ? 3 : (v >= 100) ? 2 : (v >= 10) ? 1 : 0;
+}
+
+//Counts number of bits
+exports.popCount = function(v) {
+  v = v - ((v >>> 1) & 0x55555555);
+  v = (v & 0x33333333) + ((v >>> 2) & 0x33333333);
+  return ((v + (v >>> 4) & 0xF0F0F0F) * 0x1010101) >>> 24;
+}
+
+//Counts number of trailing zeros
+function countTrailingZeros(v) {
+  var c = 32;
+  v &= -v;
+  if (v) c--;
+  if (v & 0x0000FFFF) c -= 16;
+  if (v & 0x00FF00FF) c -= 8;
+  if (v & 0x0F0F0F0F) c -= 4;
+  if (v & 0x33333333) c -= 2;
+  if (v & 0x55555555) c -= 1;
+  return c;
+}
+exports.countTrailingZeros = countTrailingZeros;
+
+//Rounds to next power of 2
+exports.nextPow2 = function(v) {
+  v += v === 0;
+  --v;
+  v |= v >>> 1;
+  v |= v >>> 2;
+  v |= v >>> 4;
+  v |= v >>> 8;
+  v |= v >>> 16;
+  return v + 1;
+}
+
+//Rounds down to previous power of 2
+exports.prevPow2 = function(v) {
+  v |= v >>> 1;
+  v |= v >>> 2;
+  v |= v >>> 4;
+  v |= v >>> 8;
+  v |= v >>> 16;
+  return v - (v>>>1);
+}
+
+//Computes parity of word
+exports.parity = function(v) {
+  v ^= v >>> 16;
+  v ^= v >>> 8;
+  v ^= v >>> 4;
+  v &= 0xf;
+  return (0x6996 >>> v) & 1;
+}
+
+var REVERSE_TABLE = new Array(256);
+
+(function(tab) {
+  for(var i=0; i<256; ++i) {
+    var v = i, r = i, s = 7;
+    for (v >>>= 1; v; v >>>= 1) {
+      r <<= 1;
+      r |= v & 1;
+      --s;
+    }
+    tab[i] = (r << s) & 0xff;
+  }
+})(REVERSE_TABLE);
+
+//Reverse bits in a 32 bit word
+exports.reverse = function(v) {
+  return  (REVERSE_TABLE[ v         & 0xff] << 24) |
+          (REVERSE_TABLE[(v >>> 8)  & 0xff] << 16) |
+          (REVERSE_TABLE[(v >>> 16) & 0xff] << 8)  |
+           REVERSE_TABLE[(v >>> 24) & 0xff];
+}
+
+//Interleave bits of 2 coordinates with 16 bits.  Useful for fast quadtree codes
+exports.interleave2 = function(x, y) {
+  x &= 0xFFFF;
+  x = (x | (x << 8)) & 0x00FF00FF;
+  x = (x | (x << 4)) & 0x0F0F0F0F;
+  x = (x | (x << 2)) & 0x33333333;
+  x = (x | (x << 1)) & 0x55555555;
+
+  y &= 0xFFFF;
+  y = (y | (y << 8)) & 0x00FF00FF;
+  y = (y | (y << 4)) & 0x0F0F0F0F;
+  y = (y | (y << 2)) & 0x33333333;
+  y = (y | (y << 1)) & 0x55555555;
+
+  return x | (y << 1);
+}
+
+//Extracts the nth interleaved component
+exports.deinterleave2 = function(v, n) {
+  v = (v >>> n) & 0x55555555;
+  v = (v | (v >>> 1))  & 0x33333333;
+  v = (v | (v >>> 2))  & 0x0F0F0F0F;
+  v = (v | (v >>> 4))  & 0x00FF00FF;
+  v = (v | (v >>> 16)) & 0x000FFFF;
+  return (v << 16) >> 16;
+}
+
+
+//Interleave bits of 3 coordinates, each with 10 bits.  Useful for fast octree codes
+exports.interleave3 = function(x, y, z) {
+  x &= 0x3FF;
+  x  = (x | (x<<16)) & 4278190335;
+  x  = (x | (x<<8))  & 251719695;
+  x  = (x | (x<<4))  & 3272356035;
+  x  = (x | (x<<2))  & 1227133513;
+
+  y &= 0x3FF;
+  y  = (y | (y<<16)) & 4278190335;
+  y  = (y | (y<<8))  & 251719695;
+  y  = (y | (y<<4))  & 3272356035;
+  y  = (y | (y<<2))  & 1227133513;
+  x |= (y << 1);
+
+  z &= 0x3FF;
+  z  = (z | (z<<16)) & 4278190335;
+  z  = (z | (z<<8))  & 251719695;
+  z  = (z | (z<<4))  & 3272356035;
+  z  = (z | (z<<2))  & 1227133513;
+
+  return x | (z << 2);
+}
+
+//Extracts nth interleaved component of a 3-tuple
+exports.deinterleave3 = function(v, n) {
+  v = (v >>> n)       & 1227133513;
+  v = (v | (v>>>2))   & 3272356035;
+  v = (v | (v>>>4))   & 251719695;
+  v = (v | (v>>>8))   & 4278190335;
+  v = (v | (v>>>16))  & 0x3FF;
+  return (v<<22)>>22;
+}
+
+//Computes next combination in colexicographic order (this is mistakenly called nextPermutation on the bit twiddling hacks page)
+exports.nextCombination = function(v) {
+  var t = v | (v - 1);
+  return (t + 1) | (((~t & -~t) - 1) >>> (countTrailingZeros(v) + 1));
+}
+
+
+},{}],56:[function(require,module,exports){
 (function (module, exports) {
 
 'use strict';
@@ -9437,7 +8367,7 @@ Mont.prototype.invm = function invm(a) {
 
 })(typeof module === 'undefined' || module, this);
 
-},{}],75:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 (function (Buffer){
 var hasTypedArrays = false
 if(typeof Float64Array !== "undefined") {
@@ -9541,7 +8471,7 @@ module.exports.denormalized = function(n) {
   return !(hi & 0x7ff00000)
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":1}],76:[function(require,module,exports){
+},{"buffer":1}],58:[function(require,module,exports){
 'use strict'
 
 var bnsign = require('./lib/bn-sign')
@@ -9552,7 +8482,7 @@ function sign(x) {
   return bnsign(x[0]) * bnsign(x[1])
 }
 
-},{"./lib/bn-sign":65}],77:[function(require,module,exports){
+},{"./lib/bn-sign":47}],59:[function(require,module,exports){
 'use strict'
 
 var rationalize = require('./lib/rationalize')
@@ -9563,7 +8493,7 @@ function sub(a, b) {
   return rationalize(a[0].mul(b[1]).sub(a[1].mul(b[0])), a[1].mul(b[1]))
 }
 
-},{"./lib/rationalize":70}],78:[function(require,module,exports){
+},{"./lib/rationalize":52}],60:[function(require,module,exports){
 'use strict'
 
 var bn2num = require('./lib/bn-to-num')
@@ -9606,7 +8536,7 @@ function roundRat(f) {
   }
 }
 
-},{"./lib/bn-to-num":66,"./lib/ctz":67}],79:[function(require,module,exports){
+},{"./lib/bn-to-num":48,"./lib/ctz":49}],61:[function(require,module,exports){
 'use strict'
 
 module.exports = boxIntersectWrapper
@@ -9745,7 +8675,7 @@ function boxIntersectWrapper(arg0, arg1, arg2) {
       throw new Error('box-intersect: Invalid arguments')
   }
 }
-},{"./lib/intersect":81,"./lib/sweep":85,"typedarray-pool":88}],80:[function(require,module,exports){
+},{"./lib/intersect":63,"./lib/sweep":67,"typedarray-pool":70}],62:[function(require,module,exports){
 'use strict'
 
 var DIMENSION   = 'd'
@@ -9890,7 +8820,7 @@ function bruteForcePlanner(full) {
 
 exports.partial = bruteForcePlanner(false)
 exports.full    = bruteForcePlanner(true)
-},{}],81:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 'use strict'
 
 module.exports = boxIntersectIter
@@ -10385,7 +9315,7 @@ function boxIntersectIter(
     }
   }
 }
-},{"./brute":80,"./median":82,"./partition":83,"./sweep":85,"bit-twiddle":86,"typedarray-pool":88}],82:[function(require,module,exports){
+},{"./brute":62,"./median":64,"./partition":65,"./sweep":67,"bit-twiddle":68,"typedarray-pool":70}],64:[function(require,module,exports){
 'use strict'
 
 module.exports = findMedian
@@ -10528,7 +9458,7 @@ function findMedian(d, axis, start, end, boxes, ids) {
     start, mid, boxes, ids,
     boxes[elemSize*mid+axis])
 }
-},{"./partition":83}],83:[function(require,module,exports){
+},{"./partition":65}],65:[function(require,module,exports){
 'use strict'
 
 module.exports = genPartition
@@ -10549,7 +9479,7 @@ function genPartition(predicate, args) {
         .replace('$', predicate))
   return Function.apply(void 0, fargs)
 }
-},{}],84:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 'use strict';
 
 //This code is extracted from ndarray-sort
@@ -10786,7 +9716,7 @@ function quickSort(left, right, data) {
     quickSort(less, great, data);
   }
 }
-},{}],85:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 'use strict'
 
 module.exports = {
@@ -11221,13 +10151,276 @@ red_loop:
     }
   }
 }
-},{"./sort":84,"bit-twiddle":86,"typedarray-pool":88}],86:[function(require,module,exports){
-arguments[4][35][0].apply(exports,arguments)
-},{"dup":35}],87:[function(require,module,exports){
-arguments[4][22][0].apply(exports,arguments)
-},{"dup":22}],88:[function(require,module,exports){
-arguments[4][37][0].apply(exports,arguments)
-},{"bit-twiddle":86,"buffer":1,"dup":37}],89:[function(require,module,exports){
+},{"./sort":66,"bit-twiddle":68,"typedarray-pool":70}],68:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55}],69:[function(require,module,exports){
+"use strict"
+
+function dupe_array(count, value, i) {
+  var c = count[i]|0
+  if(c <= 0) {
+    return []
+  }
+  var result = new Array(c), j
+  if(i === count.length-1) {
+    for(j=0; j<c; ++j) {
+      result[j] = value
+    }
+  } else {
+    for(j=0; j<c; ++j) {
+      result[j] = dupe_array(count, value, i+1)
+    }
+  }
+  return result
+}
+
+function dupe_number(count, value) {
+  var result, i
+  result = new Array(count)
+  for(i=0; i<count; ++i) {
+    result[i] = value
+  }
+  return result
+}
+
+function dupe(count, value) {
+  if(typeof value === "undefined") {
+    value = 0
+  }
+  switch(typeof count) {
+    case "number":
+      if(count > 0) {
+        return dupe_number(count|0, value)
+      }
+    break
+    case "object":
+      if(typeof (count.length) === "number") {
+        return dupe_array(count, value, 0)
+      }
+    break
+  }
+  return []
+}
+
+module.exports = dupe
+},{}],70:[function(require,module,exports){
+(function (global,Buffer){
+'use strict'
+
+var bits = require('bit-twiddle')
+var dup = require('dup')
+
+//Legacy pool support
+if(!global.__TYPEDARRAY_POOL) {
+  global.__TYPEDARRAY_POOL = {
+      UINT8   : dup([32, 0])
+    , UINT16  : dup([32, 0])
+    , UINT32  : dup([32, 0])
+    , INT8    : dup([32, 0])
+    , INT16   : dup([32, 0])
+    , INT32   : dup([32, 0])
+    , FLOAT   : dup([32, 0])
+    , DOUBLE  : dup([32, 0])
+    , DATA    : dup([32, 0])
+    , UINT8C  : dup([32, 0])
+    , BUFFER  : dup([32, 0])
+  }
+}
+
+var hasUint8C = (typeof Uint8ClampedArray) !== 'undefined'
+var POOL = global.__TYPEDARRAY_POOL
+
+//Upgrade pool
+if(!POOL.UINT8C) {
+  POOL.UINT8C = dup([32, 0])
+}
+if(!POOL.BUFFER) {
+  POOL.BUFFER = dup([32, 0])
+}
+
+//New technique: Only allocate from ArrayBufferView and Buffer
+var DATA    = POOL.DATA
+  , BUFFER  = POOL.BUFFER
+
+exports.free = function free(array) {
+  if(Buffer.isBuffer(array)) {
+    BUFFER[bits.log2(array.length)].push(array)
+  } else {
+    if(Object.prototype.toString.call(array) !== '[object ArrayBuffer]') {
+      array = array.buffer
+    }
+    if(!array) {
+      return
+    }
+    var n = array.length || array.byteLength
+    var log_n = bits.log2(n)|0
+    DATA[log_n].push(array)
+  }
+}
+
+function freeArrayBuffer(buffer) {
+  if(!buffer) {
+    return
+  }
+  var n = buffer.length || buffer.byteLength
+  var log_n = bits.log2(n)
+  DATA[log_n].push(buffer)
+}
+
+function freeTypedArray(array) {
+  freeArrayBuffer(array.buffer)
+}
+
+exports.freeUint8 =
+exports.freeUint16 =
+exports.freeUint32 =
+exports.freeInt8 =
+exports.freeInt16 =
+exports.freeInt32 =
+exports.freeFloat32 =
+exports.freeFloat =
+exports.freeFloat64 =
+exports.freeDouble =
+exports.freeUint8Clamped =
+exports.freeDataView = freeTypedArray
+
+exports.freeArrayBuffer = freeArrayBuffer
+
+exports.freeBuffer = function freeBuffer(array) {
+  BUFFER[bits.log2(array.length)].push(array)
+}
+
+exports.malloc = function malloc(n, dtype) {
+  if(dtype === undefined || dtype === 'arraybuffer') {
+    return mallocArrayBuffer(n)
+  } else {
+    switch(dtype) {
+      case 'uint8':
+        return mallocUint8(n)
+      case 'uint16':
+        return mallocUint16(n)
+      case 'uint32':
+        return mallocUint32(n)
+      case 'int8':
+        return mallocInt8(n)
+      case 'int16':
+        return mallocInt16(n)
+      case 'int32':
+        return mallocInt32(n)
+      case 'float':
+      case 'float32':
+        return mallocFloat(n)
+      case 'double':
+      case 'float64':
+        return mallocDouble(n)
+      case 'uint8_clamped':
+        return mallocUint8Clamped(n)
+      case 'buffer':
+        return mallocBuffer(n)
+      case 'data':
+      case 'dataview':
+        return mallocDataView(n)
+
+      default:
+        return null
+    }
+  }
+  return null
+}
+
+function mallocArrayBuffer(n) {
+  var n = bits.nextPow2(n)
+  var log_n = bits.log2(n)
+  var d = DATA[log_n]
+  if(d.length > 0) {
+    return d.pop()
+  }
+  return new ArrayBuffer(n)
+}
+exports.mallocArrayBuffer = mallocArrayBuffer
+
+function mallocUint8(n) {
+  return new Uint8Array(mallocArrayBuffer(n), 0, n)
+}
+exports.mallocUint8 = mallocUint8
+
+function mallocUint16(n) {
+  return new Uint16Array(mallocArrayBuffer(2*n), 0, n)
+}
+exports.mallocUint16 = mallocUint16
+
+function mallocUint32(n) {
+  return new Uint32Array(mallocArrayBuffer(4*n), 0, n)
+}
+exports.mallocUint32 = mallocUint32
+
+function mallocInt8(n) {
+  return new Int8Array(mallocArrayBuffer(n), 0, n)
+}
+exports.mallocInt8 = mallocInt8
+
+function mallocInt16(n) {
+  return new Int16Array(mallocArrayBuffer(2*n), 0, n)
+}
+exports.mallocInt16 = mallocInt16
+
+function mallocInt32(n) {
+  return new Int32Array(mallocArrayBuffer(4*n), 0, n)
+}
+exports.mallocInt32 = mallocInt32
+
+function mallocFloat(n) {
+  return new Float32Array(mallocArrayBuffer(4*n), 0, n)
+}
+exports.mallocFloat32 = exports.mallocFloat = mallocFloat
+
+function mallocDouble(n) {
+  return new Float64Array(mallocArrayBuffer(8*n), 0, n)
+}
+exports.mallocFloat64 = exports.mallocDouble = mallocDouble
+
+function mallocUint8Clamped(n) {
+  if(hasUint8C) {
+    return new Uint8ClampedArray(mallocArrayBuffer(n), 0, n)
+  } else {
+    return mallocUint8(n)
+  }
+}
+exports.mallocUint8Clamped = mallocUint8Clamped
+
+function mallocDataView(n) {
+  return new DataView(mallocArrayBuffer(n), 0, n)
+}
+exports.mallocDataView = mallocDataView
+
+function mallocBuffer(n) {
+  n = bits.nextPow2(n)
+  var log_n = bits.log2(n)
+  var cache = BUFFER[log_n]
+  if(cache.length > 0) {
+    return cache.pop()
+  }
+  return new Buffer(n)
+}
+exports.mallocBuffer = mallocBuffer
+
+exports.clearCache = function clearCache() {
+  for(var i=0; i<32; ++i) {
+    POOL.UINT8[i].length = 0
+    POOL.UINT16[i].length = 0
+    POOL.UINT32[i].length = 0
+    POOL.INT8[i].length = 0
+    POOL.INT16[i].length = 0
+    POOL.INT32[i].length = 0
+    POOL.FLOAT[i].length = 0
+    POOL.DOUBLE[i].length = 0
+    POOL.UINT8C[i].length = 0
+    DATA[i].length = 0
+    BUFFER[i].length = 0
+  }
+}
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
+},{"bit-twiddle":68,"buffer":1,"dup":69}],71:[function(require,module,exports){
 module.exports = compareCells
 
 var min = Math.min
@@ -11283,7 +10476,7 @@ function compareCells(a, b) {
   }
 }
 
-},{}],90:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 "use strict"
 
 var doubleBits = require("double-bits")
@@ -11326,9 +10519,9 @@ function nextafter(x, y) {
   }
   return doubleBits.pack(lo, hi)
 }
-},{"double-bits":91}],91:[function(require,module,exports){
-arguments[4][75][0].apply(exports,arguments)
-},{"buffer":1,"dup":75}],92:[function(require,module,exports){
+},{"double-bits":73}],73:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"buffer":1,"dup":57}],74:[function(require,module,exports){
 'use strict'
 
 var bnadd = require('big-rat/add')
@@ -11344,7 +10537,7 @@ function add(a, b) {
   return r
 }
 
-},{"big-rat/add":60}],93:[function(require,module,exports){
+},{"big-rat/add":42}],75:[function(require,module,exports){
 'use strict'
 
 module.exports = float2rat
@@ -11359,7 +10552,7 @@ function float2rat(v) {
   return result
 }
 
-},{"big-rat":63}],94:[function(require,module,exports){
+},{"big-rat":45}],76:[function(require,module,exports){
 'use strict'
 
 var rat = require('big-rat')
@@ -11377,7 +10570,7 @@ function muls(a, x) {
   return r
 }
 
-},{"big-rat":63,"big-rat/mul":72}],95:[function(require,module,exports){
+},{"big-rat":45,"big-rat/mul":54}],77:[function(require,module,exports){
 'use strict'
 
 var bnsub = require('big-rat/sub')
@@ -11393,19 +10586,19 @@ function sub(a, b) {
   return r
 }
 
-},{"big-rat/sub":77}],96:[function(require,module,exports){
+},{"big-rat/sub":59}],78:[function(require,module,exports){
 arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],97:[function(require,module,exports){
+},{"dup":7}],79:[function(require,module,exports){
 arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":100,"two-sum":96}],98:[function(require,module,exports){
+},{"dup":8,"two-product":82,"two-sum":78}],80:[function(require,module,exports){
 arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],99:[function(require,module,exports){
+},{"dup":9}],81:[function(require,module,exports){
 arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],100:[function(require,module,exports){
+},{"dup":10}],82:[function(require,module,exports){
 arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],101:[function(require,module,exports){
+},{"dup":11}],83:[function(require,module,exports){
 arguments[4][12][0].apply(exports,arguments)
-},{"dup":12,"robust-scale":97,"robust-subtract":98,"robust-sum":99,"two-product":100}],102:[function(require,module,exports){
+},{"dup":12,"robust-scale":79,"robust-subtract":80,"robust-sum":81,"two-product":82}],84:[function(require,module,exports){
 "use strict"
 
 module.exports = segmentsIntersect
@@ -11453,7 +10646,7 @@ function segmentsIntersect(a0, a1, b0, b1) {
 
   return true
 }
-},{"robust-orientation":101}],103:[function(require,module,exports){
+},{"robust-orientation":83}],85:[function(require,module,exports){
 "use strict"; "use restrict";
 
 module.exports = UnionFind;
@@ -11516,660 +10709,2419 @@ proto.link = function(x, y) {
     ++ranks[xr];
   }
 }
-},{}],104:[function(require,module,exports){
-'use strict'
-
-module.exports = boundary
-
-var bnd = require('boundary-cells')
-var reduce = require('reduce-simplicial-complex')
-
-function boundary(cells) {
-  return reduce(bnd(cells))
-}
-
-},{"boundary-cells":105,"reduce-simplicial-complex":109}],105:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 "use strict"
 
-module.exports = boundary
+var almostEqual = require('almost-equal')
+var dup         = require('dup')
 
-function boundary(cells) {
-  var n = cells.length
-  var sz = 0
-  for(var i=0; i<n; ++i) {
-    sz += cells[i].length
+module.exports = {
+  fromList:       fromList,
+  fromDictionary: fromDictionary,
+  fromDense:      fromDense,
+  fromNDArray:    fromNDArray
+}
+
+var EPSILON = almostEqual.DBL_EPSILON
+
+function CSRMatrix(rows, row_ptrs, columns, column_ptrs, data) {
+  this.rows = rows
+  this.row_ptrs = row_ptrs
+  this.columns = columns
+  this.column_ptrs = column_ptrs
+  this.data = data
+}
+
+var proto = CSRMatrix.prototype
+
+Object.defineProperty(proto, "rowCount", {
+  get: function() {
+    return this.rows[this.rows.length-1]
   }
-  var result = new Array(sz)
-  var ptr = 0
-  for(var i=0; i<n; ++i) {
-    var c = cells[i]
-    var d = c.length
-    for(var j=0; j<d; ++j) {
-      var b = result[ptr++] = new Array(d-1)
-      for(var k=1; k<d; ++k) {
-        b[k-1] = c[(j+k)%d]
+})
+
+Object.defineProperty(proto, "columnCount", {
+  get: function() {
+    return this.columns[this.columns.length-1]
+  }
+})
+
+function applyImpl(rows, row_ptrs, columns, column_ptrs, data, vector, result) {
+  var cptr = 0, dptr = 0, last_r = 0
+  for(var i=0, rlen=rows.length-1; i<rlen; ++i) {
+    var r = rows[i]
+    var next_c = row_ptrs[i+1]
+    var s = 0.0
+    while(++last_r < r) {
+      result[last_r] = 0.0
+    }
+    while(cptr < next_c) {
+      var c = columns[cptr]
+      var next_d = column_ptrs[++cptr]
+      while(dptr < next_d) {
+        s += data[dptr++] * vector[c++]
+      }
+    }
+    result[r] = s
+  }
+  var len = result.length
+  while(++last_r < len) {
+    result[last_r] = 0.0
+  }
+}
+
+proto.apply = function(vector, result) {
+  applyImpl(
+    this.rows,
+    this.row_ptrs,
+    this.columns,
+    this.column_ptrs,
+    this.data,
+    vector,
+    result)
+  return result
+}
+
+proto.transpose = function() {
+  var items = this.toList()
+  for(var i=0; i<items.length; ++i) {
+    var it = items[i]
+    var tmp = it[0]
+    it[0] = it[1]
+    it[1] = tmp
+  }
+  return fromList(items, this.columnCount, this.rowCount)
+}
+
+proto.toList = function() {
+  var result = []
+  for(var i=0, ilen=this.rows.length-1; i<ilen; ++i) {
+    var r = this.rows[i];
+    for(var j=this.row_ptrs[i], jlen=this.row_ptrs[i+1]; j<jlen; ++j) {
+      var c = this.columns[j]
+      for(var k=this.column_ptrs[j], klen=this.column_ptrs[j+1]; k<klen; ++k) {
+        var d = this.data[k]
+        result.push([r, c++, d])
       }
     }
   }
   return result
 }
 
-},{}],106:[function(require,module,exports){
-'use strict'
-
-module.exports = orientation
-
-function orientation(s) {
-  var p = 1
-  for(var i=1; i<s.length; ++i) {
-    for(var j=0; j<i; ++j) {
-      if(s[i] < s[j]) {
-        p = -p
-      } else if(s[j] === s[i]) {
-        return 0
+proto.toDictionary = function() {
+  var result = {}
+  for(var i=0, ilen=this.rows.length-1; i<ilen; ++i) {
+    var r = this.rows[i];
+    for(var j=this.row_ptrs[i], jlen=this.row_ptrs[i+1]; j<jlen; ++j) {
+      var c = this.columns[j]
+      for(var k=this.column_ptrs[j], klen=this.column_ptrs[j+1]; k<klen; ++k) {
+        var d = this.data[k]
+        result[[r, c++]] = d
       }
     }
   }
-  return p
+  return result
 }
 
-},{}],107:[function(require,module,exports){
-arguments[4][89][0].apply(exports,arguments)
-},{"dup":89}],108:[function(require,module,exports){
-'use strict'
-
-var compareCells = require('compare-cell')
-var parity = require('cell-orientation')
-
-module.exports = compareOrientedCells
-
-function compareOrientedCells(a, b) {
-  return compareCells(a, b) || parity(a) - parity(b)
+proto.toDense = function() {
+  var result = dup([this.rowCount, this.columnCount], 0.0)
+  for(var i=0, ilen=this.rows.length-1; i<ilen; ++i) {
+    var r = this.rows[i];
+    for(var j=this.row_ptrs[i], jlen=this.row_ptrs[i+1]; j<jlen; ++j) {
+      var c = this.columns[j]
+      for(var k=this.column_ptrs[j], klen=this.column_ptrs[j+1]; k<klen; ++k) {
+        var d = this.data[k]
+        result[r][c++] = d
+      }
+    }
+  }
+  return result
 }
 
-},{"cell-orientation":106,"compare-cell":107}],109:[function(require,module,exports){
-'use strict'
+CSRMatrix.prototype.toNDArray = function(result) {
+  for(var i=0, ilen=this.rows.length-1; i<ilen; ++i) {
+    var r = this.rows[i];
+    for(var j=this.row_ptrs[i], jlen=this.row_ptrs[i+1]; j<jlen; ++j) {
+      var c = this.columns[j]
+      for(var k=this.column_ptrs[j], klen=this.column_ptrs[j+1]; k<klen; ++k) {
+        var d = this.data[k]
+        result.set(r, c++, d)
+      }
+    }
+  }
+  return result
+}
 
-var compareCell = require('compare-cell')
-var compareOrientedCell = require('compare-oriented-cell')
-var orientation = require('cell-orientation')
+function compareKey(a, b) {
+  return (a[0]-b[0]) || (a[1]-b[1])
+}
 
-module.exports = reduceCellComplex
-
-function reduceCellComplex(cells) {
-  cells.sort(compareOrientedCell)
-  var n = cells.length
-  var ptr = 0
-  for(var i=0; i<n; ++i) {
-    var c = cells[i]
-    var o = orientation(c)
-    if(o === 0) {
+function removeDuplicates(items, nrows, ncols) {
+  var i=0, ptr=0
+  items.sort(compareKey)
+  while(i < items.length) {
+    var it = items[i++]
+    if(it[0] >= nrows || it[1] >= ncols) {
       continue
     }
-    if(ptr > 0) {
-      var f = cells[ptr-1]
-      if(compareCell(c, f) === 0 &&
-         orientation(f)    !== o) {
-        ptr -= 1
-        continue
+    while(i < items.length && compareKey(items[i], it) === 0) {
+      it[2] += items[i++][2]
+    }
+    if(Math.abs(it[2]) > EPSILON) {
+      items[ptr++] = it
+    }
+  }
+  items.length = ptr
+  return items
+}
+
+function fromList(items, nrows, ncols) {
+  items = removeDuplicates(items, nrows || Infinity, ncols || Infinity)
+  var rows = []
+    , row_ptrs = []
+    , cols = []
+    , col_ptrs = []
+    , data = new Float64Array(items.length)
+  nrows = nrows || 0
+  ncols = ncols || 0
+  for(var i=0; i<items.length; ++i) {
+    var item = items[i]
+    if(i === 0 || item[0] !== items[i-1][0]) {
+      rows.push(item[0])
+      row_ptrs.push(cols.length)
+      cols.push(item[1])
+      col_ptrs.push(i)
+    } else if(item[1] !== items[i-1][1]+1) {
+      cols.push(item[1])
+      col_ptrs.push(i)
+    }
+    nrows = Math.max(nrows, item[0]+1)
+    ncols = Math.max(ncols, item[1]+1)
+    data[i] = item[2]
+  }
+  rows.push(nrows)
+  row_ptrs.push(cols.length)
+  cols.push(ncols)
+  col_ptrs.push(data.length)
+  return new CSRMatrix(
+    new Uint32Array(rows),
+    new Uint32Array(row_ptrs),
+    new Uint32Array(cols),
+    new Uint32Array(col_ptrs),
+    data)
+}
+
+function fromDictionary(dict, rows, cols) {
+  return fromList(Object.keys(dict).map(function(item) {
+    var parts = item.split(',')
+    return [parts[0]|0, parts[1]|0, dict[item]]
+  }), rows, cols)
+}
+
+function fromDense(matrix) {
+  var list = []
+  var rows = matrix.length
+  if(rows === 0) {
+    return fromList([], 0, 0)
+  }
+  var cols = matrix[0].length
+  for(var i=0; i<rows; ++i) {
+    var row = matrix[i]
+    for(var j=0; j<cols; ++j) {
+      var v = row[j]
+      if(Math.abs(v) > EPSILON) {
+        list.push([i,j,v])
       }
     }
-    cells[ptr++] = c
   }
-  cells.length = ptr
-  return cells
+  return fromList(list, rows, cols)
 }
 
-},{"cell-orientation":106,"compare-cell":107,"compare-oriented-cell":108}],110:[function(require,module,exports){
-'use strict'
-
-var snapRound = require('clean-pslg')
-var cdt2d = require('cdt2d')
-var bsearch = require('binary-search-bounds')
-var boundary = require('simplicial-complex-boundary')
-
-module.exports = overlayPSLG
-
-var RED  = 0
-var BLUE = 1
-
-var OPERATORS = {
-  'xor':  [0, 1, 1, 0],
-  'or':   [0, 1, 1, 1],
-  'and':  [0, 0, 0, 1],
-  'sub':  [0, 1, 0, 0],
-  'rsub': [0, 0, 1, 0]
-}
-
-function getTable(op) {
-  if(typeof op !== 'string') {
-    return OPERATORS.xor
-  }
-  var x = OPERATORS[op.toLowerCase()]
-  if(x) {
-    return x
-  }
-  return OPERATORS.xor
-}
-
-
-function compareEdge(a, b) {
-  return Math.min(a[0], a[1]) - Math.min(b[0], b[1]) ||
-         Math.max(a[0], a[1]) - Math.max(b[0], b[1])
-}
-
-function edgeCellIndex(edge, cell) {
-  var a = edge[0]
-  var b = edge[1]
-  for(var i=0; i<3; ++i) {
-    if(cell[i] !== a && cell[i] !== b) {
-      return i
-    }
-  }
-  return -1
-}
-
-function buildCellIndex(cells) {
-  //Initialize cell index
-  var cellIndex = new Array(3*cells.length)
-  for(var i=0; i<3*cells.length; ++i) {
-    cellIndex[i] = -1
-  }
-
-  //Sort edges
-  var edges = []
-  for(var i=0; i<cells.length; ++i) {
-    var c = cells[i]
-    for(var j=0; j<3; ++j) {
-      edges.push([c[j], c[(j+1)%3], i])
-    }
-  }
-  edges.sort(compareEdge)
-
-  //For each pair of edges, link adjacent cells
-  for(var i=1; i<edges.length; ++i) {
-    var e = edges[i]
-    var f = edges[i-1]
-    if(compareEdge(e, f) !== 0) {
-      continue
-    }
-    var ce = e[2]
-    var cf = f[2]
-    var ei = edgeCellIndex(e, cells[ce])
-    var fi = edgeCellIndex(f, cells[cf])
-    cellIndex[3*ce+ei] = cf
-    cellIndex[3*cf+fi] = ce
-  }
-
-  return cellIndex
-}
-
-function compareLex2(a, b) {
-  return a[0]-b[0] || a[1]-b[1]
-}
-
-function canonicalizeEdges(edges) {
-  for(var i=0; i<edges.length; ++i) {
-    var e = edges[i]
-    var a = e[0]
-    var b = e[1]
-    e[0] = Math.min(a, b)
-    e[1] = Math.max(a, b)
-  }
-  edges.sort(compareLex2)
-}
-
-
-var TMP = [0,0]
-function isConstraint(edges, a, b) {
-  TMP[0] = Math.min(a,b)
-  TMP[1] = Math.max(a,b)
-  return bsearch.eq(edges, TMP, compareLex2) >= 0
-}
-
-//Classify all cells within boundary
-function markCells(cells, adj, edges) {
-
-  //Initialize active/next queues and flags
-  var flags = new Array(cells.length)
-  var constraint = new Array(3*cells.length)
-  for(var i=0; i<3*cells.length; ++i) {
-    constraint[i] = false
-  }
-  var active = []
-  var next   = []
-  for(var i=0; i<cells.length; ++i) {
-    var c = cells[i]
-    flags[i] = 0
-    for(var j=0; j<3; ++j) {
-      var a = c[(j+1)%3]
-      var b = c[(j+2)%3]
-      var constr = constraint[3*i+j] = isConstraint(edges, a, b)
-      if(adj[3*i+j] >= 0) {
-        continue
+function fromNDArray(array) {
+  var list = []
+  var rows = array.shape[0]
+  var cols = array.shape[1]
+  if(array.stride[1] > array.stride[0]) {
+    for(var j=0; j<cols; ++j) {
+      for(var i=0; i<rows; ++i) {
+        list.push([i, j, array.get(i,j)])
       }
-      if(constr) {
-        next.push(i)
+    }
+  } else {
+    for(var i=0; i<rows; ++i) {
+      for(var j=0; j<cols; ++j) {
+        list.push([i, j, array.get(i,j)])
+      }
+    }
+  }
+  return fromList(list, rows, cols)
+}
+
+},{"almost-equal":87,"dup":88}],87:[function(require,module,exports){
+"use strict"
+
+var abs = Math.abs
+  , min = Math.min
+
+function almostEqual(a, b, absoluteError, relativeError) {
+  var d = abs(a - b)
+  if(d <= absoluteError) {
+    return true
+  }
+  if(d <= relativeError * min(abs(a), abs(b))) {
+    return true
+  }
+  return a === b
+}
+
+almostEqual.FLT_EPSILON = 1.19209290e-7
+almostEqual.DBL_EPSILON = 2.2204460492503131e-16
+
+module.exports = almostEqual
+
+},{}],88:[function(require,module,exports){
+arguments[4][69][0].apply(exports,arguments)
+},{"dup":69}],89:[function(require,module,exports){
+module.exports = function drawTriangles(ctx, positions, cells, start, end) {
+    var v = positions
+    start = (start|0)
+    end = typeof end === 'number' ? (end|0) : cells.length
+
+    for (; start < end && start < cells.length; start++) {
+        var f = cells[start]
+        var v0 = v[f[0]],
+            v1 = v[f[1]],
+            v2 = v[f[2]]
+        ctx.moveTo(v0[0], v0[1])
+        ctx.lineTo(v1[0], v1[1])
+        ctx.lineTo(v2[0], v2[1])
+        ctx.lineTo(v0[0], v0[1])
+    }
+}
+},{}],90:[function(require,module,exports){
+var parseXml = require('xml-parse-from-string')
+
+function extractSvgPath (svgDoc) {
+  // concat all the <path> elements to form an SVG path string
+  if (typeof svgDoc === 'string') {
+    svgDoc = parseXml(svgDoc)
+  }
+  if (!svgDoc || typeof svgDoc.getElementsByTagName !== 'function') {
+    throw new Error('could not get an XML document from the specified SVG contents')
+  }
+
+  var paths = Array.prototype.slice.call(svgDoc.getElementsByTagName('path'))
+  return paths.reduce(function (prev, path) {
+    var d = path.getAttribute('d') || ''
+    return prev + ' ' + d.replace(/\s+/g, ' ').trim()
+  }, '').trim()
+}
+
+module.exports = function () {
+  throw new Error('use extract-svg-path/transform to inline SVG contents into your bundle')
+}
+
+module.exports.parse = extractSvgPath
+
+//deprecated
+module.exports.fromString = extractSvgPath
+
+},{"xml-parse-from-string":91}],91:[function(require,module,exports){
+module.exports = (function xmlparser() {
+  //common browsers
+  if (typeof window.DOMParser !== 'undefined') {
+    return function(str) {
+      var parser = new window.DOMParser()
+      return parser.parseFromString(str, 'application/xml')
+    }
+  }
+
+  //IE8 fallback
+  if (typeof window.ActiveXObject !== 'undefined'
+      && new window.ActiveXObject('Microsoft.XMLDOM')) {
+    return function(str) {
+      var xmlDoc = new window.ActiveXObject("Microsoft.XMLDOM")
+      xmlDoc.async = "false"
+      xmlDoc.loadXML(str)
+      return xmlDoc
+    }
+  }
+
+  //last resort fallback
+  return function(str) {
+    var div = document.createElement('div')
+    div.innerHTML = str
+    return div
+  }
+})()
+},{}],92:[function(require,module,exports){
+module.exports = {
+  union: require('./lib/union'),
+  intersect: require('./lib/intersect'),
+  subtract: require('./lib/subtract'),
+
+  // include utils to make things easier
+  utils: require('./lib/util')
+};
+
+},{"./lib/intersect":94,"./lib/subtract":96,"./lib/union":97,"./lib/util":98}],93:[function(require,module,exports){
+var Ring = require('./ring');
+var Vertex = require('./vertex');
+var pip = require('point-in-polygon');
+var util = require('./util');
+
+/**
+ * Greiner-Hormann clipping uses 3 phases:
+ *
+ * 1. Find intersection vertices, build data structure
+ * 2. Mark vertices as entry/exit points
+ * 3. Build Polygons
+ *
+ * We additionally add in some special case handling
+ * after intersection detection, because GH won't handle
+ * cases where one of the polygons fully encloses the other,
+ * or the two polygons are totally disjoint
+ */
+module.exports = function (subject, clipper, sForward, cForward) {
+  sForward = !!sForward;
+  cForward = !!cForward;
+
+  var mode = detectMode(sForward, cForward);
+  var sPoints = Ring.fromArray(subject);
+  var cPoints = Ring.fromArray(clipper);
+
+  /**
+   * PHASE ONE: Identify Intersections
+   */
+  buildIntersectionLists(sPoints, cPoints, subject, clipper);
+  markDegensAsIntersect(sPoints);
+
+  /**
+   * OPTIMIZATION / EDGE CASES: check for known cases where we can bail out early
+   */
+  var maybeResult = checkQuitCases(sPoints, cPoints, subject, clipper, mode);
+  if (maybeResult) return maybeResult;
+
+  /**
+   * PHASE TWO: Identify Entry/Exit (Includes Degeneracy labelling logic)
+   */
+  setEntryExit(sPoints);
+
+  /**
+   * PHASE THREE: Build clipped polys
+   */
+  return buildPolygons(sPoints, sForward, cForward);
+};
+
+/**
+ * s_forward and c_forward can be manipulated to change the operation
+ * applied to the subject / clipper. This method provides a string
+ * representation of the mode for easy reference.
+ *
+ *  Operation        | s_forward   | c_forward
+ * -----------------------------------------------
+ *  Union            | false       | false
+ *  Intersect        | true        | true
+ *  Subtract (A - B) | false       | true
+ *  Subtract (B - A) | true        | false
+ *
+ * @param  {bool} sForward whether to traverse the subject polygon in forward order
+ * @param  {bool} cForward whether to traverse the clip polygon in forward order
+ * @return {string}           the string description of the selected clip mode
+ */
+function detectMode(sForward, cForward) {
+  var mode;
+
+  if (!sForward && !cForward) {
+    mode = 'union';
+  } else if (sForward && cForward) {
+    mode = 'intersect';
+  } else if (!sForward && cForward) {
+    mode = 'subtractB'; // A - B
+  } else if (sForward && !cForward) {
+    mode = 'subtractA'; // B - A
+  }
+  return mode;
+}
+
+/**
+ * Handles some cases here we can bail out without fully computing the intersection.
+ *
+ * @return {array|null} the result polygons, if an edge case was handled
+ */
+function checkQuitCases(sPoints, cPoints, subject, clipper, mode) {
+  var totalS = sPoints.count();
+  var totalC = cPoints.count();
+
+  // No intersections exist
+  if (sPoints.count('intersect', true) === 0) {
+    switch (mode) {
+      case 'union':
+        if (sPoints.count('type', 'in') === totalS) {
+          return [[clipper]];
+        } else if (cPoints.count('type', 'in') === totalC) {
+          return [[subject]];
+        }
+        // Return both shapes as a multipolygon
+        return [[subject], [clipper]];
+        break;
+      case 'intersect':
+        // There's no intersection, return nothing.
+        return [];
+        break;
+      case 'subtractB':
+        // If B is inside of A, it's a hole.
+        if (cPoints.first.type === 'in') {
+          return [[subject, clipper]];
+        }
+        if (sPoints.count('type', 'in') === totalS) {
+          return [];
+        }
+
+        // Otherwise it's disjoint, so we ignore it.
+        return [[subject]];
+        break;
+      case 'subtractA':
+        // If A is inside of B, it's a hole.
+        if (sPoints.first.type === 'in') {
+          return [[clipper, subject]];
+        }
+        if (cPoints.first.type === 'in') {
+          return [];
+        }
+        // Otherwise it's disjoint, so we ignore it.
+        return [[clipper]];
+        break;
+    }
+  }
+
+  // All points are degenerate. The shapes may be spatially equal.
+  // The intersect === 1 is a dumb hack for certain cases where (probably because of
+  // floating point errors) a single point of a polygon we generated is touching
+  // an edge. This is probably a sign of a bigger issue in intersection detection,
+  // but we'll wait and see how that goes
+  if (totalS === sPoints.count('degenerate', true) || sPoints.count('intersect', true) === 1) {
+    switch (mode) {
+      case 'subtractA':
+        // If all points in the clip are also degenerate, these shapes
+        // are equal.
+        if (totalC === cPoints.count('degenerate', true)) {
+          return [];
+        }
+        return [[clipper]];
+        break;
+      case 'subtractB':
+        // If all points in the clip are also degenerate, these shapes
+        // are equal.
+        if (totalC === cPoints.count('degenerate', true)) {
+          return [];
+        }
+        return [[subject]];
+        break;
+      default:
+        return [[subject]];
+    }
+  }
+}
+
+
+/**
+ * Builds the list of Polygon(s) representing the desired overlap of
+ * the subject/clipper.
+ *
+ * @param  {[type]} sPoints [description]
+ * @return {[type]}         [description]
+ */
+function buildPolygons(sPoints, sForward, cForward) {
+  var curr = sPoints.first;
+  var polylist = [];
+  var onclip = false;
+  var endir = 'next';
+  var exdir = 'prev';
+
+  while ((curr = sPoints.firstIntersect())) {
+    var poly = [[curr.x, curr.y]];
+
+    do {
+      if (onclip) {
+        endir = cForward ? 'next' : 'prev';
+        exdir = cForward ? 'prev' : 'next';
       } else {
-        flags[i] = 1
-        active.push(i)
+        endir = sForward ? 'next' : 'prev';
+        exdir = sForward ? 'prev' : 'next';
+      }
+
+      curr.checked = true;
+      if (curr.neighbor) {
+        curr.neighbor.checked = true;
+      }
+
+      if (curr.entry) {
+        do {
+          curr = curr[endir];
+          poly.push([curr.x, curr.y]);
+        } while (!curr.intersect);
+      } else {
+        do {
+          curr = curr[exdir];
+          poly.push([curr.x, curr.y]);
+        } while (!curr.intersect);
+      }
+
+      // Jump to the other list
+      curr = curr.neighbor;
+      onclip = !onclip;
+
+    } while (!curr.checked);
+
+    if (!util.pointsEqual(poly[0], poly[poly.length - 1])) {
+      poly.push(poly[0]);
+    } else if (poly.length < 4) {
+      continue;
+    }
+    polylist.push({geom: poly, isHole: false});
+  }
+
+  // Generate a graph of which polygons own which other polygons (detect holes)
+  var result = [];
+  var graph = {};
+  for (var i = 0; i < polylist.length; i++) {
+    if (!graph[i]) { graph[i] = []; }
+
+    for (var j = 0; j < polylist.length; j++) {
+      if (i === j) {
+        continue;
+      }
+      // Because we just generated the intersections, we know that
+      // none of these results can intersect eachother, so we only need to
+      // run PIP on a single point of each poly.
+      if (pip(polylist[j].geom[0], polylist[i].geom)) {
+        polylist[j].isHole = true;
+        graph[i].push(j);
       }
     }
   }
 
-  //Mark flags
-  var side = 1
-  while(active.length > 0 || next.length > 0) {
-    while(active.length > 0) {
-      var t = active.pop()
-      if(flags[t] === -side) {
-        continue
-      }
-      flags[t] = side
-      var c = cells[t]
-      for(var j=0; j<3; ++j) {
-        var f = adj[3*t+j]
-        if(f >= 0 && flags[f] === 0) {
-          if(constraint[3*t+j]) {
-            next.push(f)
-          } else {
-            active.push(f)
-            flags[f] = side
+  // Construct polys with their holes
+  for (var key in graph) {
+    if (polylist[key].isHole) {
+      continue;
+    }
+    var p = [polylist[key].geom];
+    for (var idx = 0; idx < graph[key].length; idx++) {
+      p.push(polylist[graph[key][idx]].geom);
+    }
+    result.push(p);
+  }
+  return result;
+}
+
+/**
+ * Builds vertex lists for the subject and clipper. Essentially
+ * the way this will work is that it will detect intersections by
+ * comparing each pair of lines between the subject / clipper, then
+ * injecting intersection vertices (marked by the "intersects" property)
+ * in the appropriate spots in each coordinate list.
+ *
+ * Once this is complete, our subject and clipper coordinate lists will
+ * each contain, in traversable order, every vertex, including ones for
+ * each point where the other polygon intersected.
+ *
+ * @param  {[type]} sPoints [description]
+ * @param  {[type]} cPoints [description]
+ * @return {[type]}         [description]
+ */
+function buildIntersectionLists(sPoints, cPoints, sPoly, cPoly) {
+  var sCurr = sPoints.first;
+
+  do {
+    setPointRelativeLocation(sCurr, cPoly);
+    var cCurr = cPoints.first;
+    if (!sCurr.intersect) {
+      do {
+        setPointRelativeLocation(cCurr, sPoly);
+        if (!cCurr.intersect) {
+          var sEnd = sPoints.nextNonIntersect(sCurr.next);
+          var cEnd = cPoints.nextNonIntersect(cCurr.next);
+          var intersect = lineIntersects(sCurr, sEnd, cCurr, cEnd);
+
+          if (intersect) {
+            cCurr = handleIntersection(sPoints, cPoints, sCurr, sEnd, cCurr, cEnd, intersect);
           }
+        }
+
+        cCurr = cCurr.next;
+      } while (cCurr !== cPoints.first);
+    }
+
+    sCurr = sCurr.next;
+  } while (sCurr !== sPoints.first);
+}
+
+/**
+ * Loop back through, ensuring that all degenerate vertices
+ * are marked as intersections.
+ *
+ * @param  {Ring} points [description]
+ * @return {[type]}        [description]
+ */
+function markDegensAsIntersect(points) {
+  var curr = points.first;
+
+  do {
+    if (curr.degenerate) {
+      curr.intersect = true;
+      curr.neighbor.intersect = true;
+    }
+    curr = curr.next;
+  } while ((curr !== points.first))
+}
+
+/**
+ * Handle inserting / replacing points appropriately for
+ * a found intersection
+ *
+ * @param  {Ring}   sPoints   Subject Ring
+ * @param  {Ring}   cPoints   Clip Ring
+ * @param  {Vertex} sCurr     Start of the Subject line
+ * @param  {Vertex} sEnd      End of the Subject line
+ * @param  {Vertex} cCurr     Start of the Clip line
+ * @param  {Vertex} cEnd      End of the Clip line
+ * @param  {Object} intersect Object representing an intersection
+ * @return {[type]}           [description]
+ */
+function handleIntersection(sPoints, cPoints, sCurr, sEnd, cCurr, cEnd, intersect) {
+  var sPt, cPt;
+  var sBetween = (intersect.alphaA > 0) && intersect.alphaA < 1;
+  var cBetween = (intersect.alphaB > 0) && intersect.alphaB < 1;
+
+  if (sBetween && cBetween) {
+    sPt = new Vertex(intersect.x, intersect.y, intersect.alphaA, true);
+    cPt = new Vertex(intersect.x, intersect.y, intersect.alphaB, true);
+    sPoints.insert(sPt, sCurr, sEnd);
+    cPoints.insert(cPt, cCurr, cEnd);
+  } else {
+    // Handle various degeneracy cases for the subject point
+    if (sBetween) {
+      sPt = new Vertex(intersect.x, intersect.y, intersect.alphaA, true, true);
+      sPoints.insert(sPt, sCurr, sPoints.nextNonIntersect(sCurr.next));
+    } else if (intersect.alphaA === 0) {
+      sCurr.intersect = true;
+      sCurr.degenerate = true;
+      sCurr.alpha = intersect.alphaA;
+      sPt = sCurr;
+    } else if (intersect.alphaA === 1) {
+      // End points get marked as degenerate but don't get marked as intersects.
+      // This allows us to catch them later, and still use them for generating
+      // lines to test against the other polygon
+      sEnd.intersect = false;
+      sEnd.degenerate = true;
+      sEnd.alpha = intersect.alphaA;
+      sPt = sEnd;
+    }
+
+    // Handle various degeneracy cases for the clip point
+    if (cBetween) {
+      cPt = new Vertex(intersect.x, intersect.y, intersect.alphaB, true, true);
+      cPoints.insert(cPt, cCurr, cPoints.nextNonIntersect(cCurr.next));
+    } else if (intersect.alphaB === 0) {
+      cCurr.intersect = true;
+      cCurr.degenerate = true;
+      cCurr.alpha = intersect.alphaB;
+      cPt = cCurr;
+    } else if (intersect.alphaB === 1) {
+      // End points get marked as degenerate but don't get marked as intersects.
+      // This allows us to catch them later, and still use them for generating
+      // lines to test against the other polygon
+      cEnd.intersect = false;
+      cEnd.degenerate = true;
+      cEnd.alpha = intersect.alphaB;
+      cPt = cEnd;
+      if (cCurr.next !== cPoints.first) {
+        cCurr = cCurr.next;
+      }
+    }
+  }
+
+  if (!sPt.intersect) cPt.intersect = false;
+  if (!cPt.intersect) sPt.intersect = false;
+
+  // Neighbors are used to jump back and forth between the lists
+  if (sPt && cPt) {
+    sPt.neighbor = cPt;
+    cPt.neighbor = sPt;
+    // Intersections are always "on" a line
+    sPt.type = 'on';
+    cPt.type = 'on';
+  }
+  return cCurr;
+}
+
+/**
+ * Set a point in or out compared to the other polygon:
+ * - if it's a subject point, compare to the clip polygon,
+ * - if it's a clip point, compare to the subject polygon
+ *
+ * @param {Vertex}  pt   Point to check against the poly
+ * @param {Polygon} poly Check if pt is within this poly
+ */
+function setPointRelativeLocation(pt, poly) {
+  if (!pt.type) {
+    if (pip([pt.x, pt.y], poly)) {
+      pt.type = 'in';
+    } else {
+      pt.type = 'out';
+    }
+  }
+}
+
+/**
+ * Handle setting entry/exit flags for each intersection. This is
+ * where a large part of degeneracy handling happens - the original
+ * GH algorithm uses very simple entry/exit handling, which won't work
+ * for our degenerate cases.
+ *
+ * http://arxiv-web3.library.cornell.edu/pdf/1211.3376v1.pdf
+ *
+ * @param {Ring}    sPoints The subject polygon's vertices
+ */
+function setEntryExit(sPoints) {
+  var first = sPoints.first;
+  var curr = first;
+
+  do {
+    if (curr.intersect && curr.neighbor) {
+      handleEnEx(curr);
+      handleEnEx(curr.neighbor);
+
+      // If this and the neighbor share the same entry / exit flag values
+      // we need to throw them out and relabel
+      switch (curr.entryPair()) {
+        case 'en/en':
+          curr.remove = true;
+          curr.type = 'in';
+          curr.neighbor.type = 'in';
+          curr.intersect = false;
+          curr.neighbor.intersect = false;
+          break;
+        case 'ex/ex':
+          curr.remove = true;
+          curr.type = 'out';
+          curr.neighbor.type = 'out';
+          curr.intersect = false;
+          curr.neighbor.intersect = false;
+          break;
+      }
+    }
+
+    curr = curr.next;
+  } while ((curr !== first))
+}
+
+/**
+ * Handles deciding the entry / exit flag setting for a given point.
+ * This is probably where most of the things could be wrong
+ *
+ * @param  {Vertex} curr The vertex to flag
+ */
+function handleEnEx(curr) {
+  var cp = curr.pairing();
+  switch (cp) {
+    case 'in/out':
+    case 'on/out':
+    case 'in/on':
+      curr.entry = false;
+      break;
+    case 'out/in':
+    case 'on/in':
+    case 'out/on':
+      curr.entry = true;
+      break;
+    case 'out/out':
+    case 'in/in':
+    case 'on/on':
+      var np = curr.neighbor.pairing();
+      if (np === 'out/out' || np === 'in/in' || np === 'on/on' || (cp === 'on/on' && np === 'on/out' && curr.degenerate)) {
+        curr.remove = true;
+        curr.neighbor.remove = true;
+        curr.neighbor.intersect = false;
+        curr.intersect = false;
+      } else {
+        handleEnEx(curr.neighbor);
+        curr.entry = !curr.neighbor.entry;
+      }
+      break;
+    default:
+      // This shouldn't ever happen - It's here to confirm nothing stupid is happening.
+      console.error('UNKNOWN TYPE', curr.pairing());
+  }
+}
+
+
+/**
+ * Take two lines (each represented by the respective
+ * start and end), and tells you where they intersect,
+ * as well as the intersection alphas
+ *
+ * @param  {Vertex} start1 [description]
+ * @param  {Vertex} end1   [description]
+ * @param  {Vertex} start2 [description]
+ * @param  {Vertex} end2   [description]
+ * @return {[type]}        [description]
+ */
+function lineIntersects(start1, end1, start2, end2) {
+  // if the lines intersect, the result contains the x and y of the intersection (treating the lines as infinite) and booleans for whether line segment 1 or line segment 2 contain the point
+  var denominator, a, b, numerator1, numerator2,
+    result = {
+      x: null,
+      y: null,
+      onLine1: false,
+      onLine2: false,
+      alphaA: null,
+      alphaB: null
+    };
+
+  denominator = ((end2.y - start2.y) * (end1.x - start1.x)) - ((end2.x - start2.x) * (end1.y - start1.y));
+  if (denominator === 0) {
+    if (start1.equals(start2)) {
+      result.x = start1.x;
+      result.y = start1.y;
+      result.alphaA = 0;
+      result.alphaB = 0;
+      return result;
+    }
+    return false;
+  }
+
+  a = start1.y - start2.y;
+  b = start1.x - start2.x;
+  numerator1 = ((end2.x - start2.x) * a) - ((end2.y - start2.y) * b);
+  numerator2 = ((end1.x - start1.x) * a) - ((end1.y - start1.y) * b);
+  a = numerator1 / denominator;
+  b = numerator2 / denominator;
+
+  // if we cast these lines infinitely in both directions, they intersect here:
+  result.x = start1.x + (a * (end1.x - start1.x));
+  result.y = start1.y + (a * (end1.y - start1.y));
+  result.alphaA = a;
+  result.alphaB = b;
+
+  // TODO: any better way to handle this?
+  if (result.alphaA > 0.99999999999999) {
+    result.alphaA = 1;
+  }
+  if (result.alphaB > 0.99999999999999) {
+    result.alphaB = 1;
+  }
+  if (result.alphaA < 0.00000000000001) {
+    result.alphaA = 0;
+  }
+  if (result.alphaB < 0.00000000000001) {
+    result.alphaB = 0;
+  }
+
+  // if line1 is a segment and line2 is infinite, they intersect if:
+  if (a >= 0 && a <= 1) {
+    result.onLine1 = true;
+  }
+  // if line2 is a segment and line1 is infinite, they intersect if:
+  if (b >= 0 && b <= 1) {
+    result.onLine2 = true;
+  }
+  // if line1 and line2 are segments, they intersect if both of the above are true
+  if (result.onLine1 && result.onLine2) {
+    return result;
+  } else {
+    return false;
+  }
+}
+
+},{"./ring":95,"./util":98,"./vertex":99,"point-in-polygon":100}],94:[function(require,module,exports){
+var ghClipping = require('./greiner-hormann');
+var union = require('./union');
+var utils = require('./util');
+var subtract = require('./subtract');
+
+module.exports = function (subject, clipper) {
+  subject = utils.clone(subject);
+  clipper = utils.clone(clipper);
+  var sHulls = utils.outerHulls(subject);
+  var cHulls = utils.outerHulls(clipper);
+  var holes = utils.holes(subject).concat(utils.holes(clipper));
+  var result = [];
+
+  for (var i = 0; i < sHulls.length; i++) {
+    for (var j = 0; j < cHulls.length; j++) {
+      var test = ghClipping(sHulls[i], cHulls[j], true, true);
+      if (Array.isArray(test)) {
+        result = result.concat(test);
+      }
+    }
+  }
+
+  // Union all the holes then subtract them rom the result
+  if (holes.length > 0) {
+    var holeUnion = union(utils.wrapToPolygons(holes));
+    return subtract(result, utils.wrapToPolygons(utils.outerHulls(holeUnion)));
+  }
+
+  return result;
+};
+
+},{"./greiner-hormann":93,"./subtract":96,"./union":97,"./util":98}],95:[function(require,module,exports){
+var Vertex = require('./vertex');
+var clockwise = require('turf-is-clockwise');
+
+/**
+ * Ring is a circular doubly-linked list; Every node
+ * has a next and a prev, even if it's the only node in the list.
+ *
+ * This supports some search methods that need to wrap back to the start of the list.
+ */
+function Ring() {
+  this.first = null;
+}
+
+Ring.prototype.count = function (countkey, countval) {
+  var curr = this.first;
+  var count = 0;
+  while (true) {
+    if (countkey) {
+      if (curr[countkey] === countval) count++;
+    } else {
+      count++;
+    }
+    curr = curr.next;
+
+    if (curr === this.first) break;
+  }
+  return count;
+};
+
+
+/**
+ * Takes an array of coordinates and constructs a Ring
+ *
+ * @param  {array} coordinates   the array of coordinates to convert to a Ring
+ * @return {Ring}
+ */
+Ring.fromArray = function (coordinates) {
+  var ring = new Ring();
+
+  if (!clockwise(coordinates)) coordinates = coordinates.reverse();
+
+  for (var i = 0; i < (coordinates.length - 1); i++) {
+    var elem = coordinates[i];
+    ring.push(new Vertex(elem[0], elem[1]));
+  }
+
+  return ring;
+};
+
+/**
+ * Push a vertex into the ring's list. This
+ * just updates pointers to put the point at
+ * the end of the list
+ *
+ * @param  {Vertex} vertex the vertex to push
+ */
+Ring.prototype.push = function (vertex) {
+  if (!this.first) {
+    this.first = vertex;
+    this.first.prev = vertex;
+    this.first.next = vertex;
+  } else {
+    var next = this.first;
+    var prev = next.prev;
+    next.prev = vertex;
+    vertex.next = next;
+    vertex.prev = prev;
+    prev.next = vertex;
+  }
+};
+
+/**
+ * Insert a vertex between specific vertices
+ *
+ * If there are intersection points, inbetween
+ * start and end, the new vertex is inserted
+ * based on it's alpha value
+ *
+ * @param  {Vertex} vertex the vertex to insert
+ * @param  {Vertex} start  the "leftmost" vertex this point could be inserted next to
+ * @param  {Vertex} end    the "rightmost" vertex this could could be inserted next to
+ */
+Ring.prototype.insert = function (vertex, start, end) {
+  var curr = start.next;
+
+  while (curr !== end && curr.alpha < vertex.alpha) {
+    curr = curr.next;
+  }
+
+  // Insert just before the "curr" value
+  vertex.next = curr;
+  var prev = curr.prev;
+  vertex.prev = prev;
+  prev.next = vertex;
+  curr.prev = vertex;
+};
+
+/**
+ * Start at the start vertex, and get the next
+ * point that isn't an intersection
+ *
+ * @param  {Vertex} start the vertex to start searching at
+ * @return {Vertex} the next non-intersect
+ */
+Ring.prototype.nextNonIntersect = function (start) {
+  var curr = start;
+  while (curr.intersect && curr !== this.first) {
+    curr = curr.next;
+  }
+  return curr;
+};
+
+/**
+ * Returns the first unchecked intersection in the list
+ *
+ * @return {Vertex|bool}
+ */
+Ring.prototype.firstIntersect = function () {
+  var curr =  this.first;
+
+  while (true) {
+    if (curr.intersect && !curr.checked) return curr;
+    curr = curr.next;
+    if (curr === this.first) break;
+  }
+  return false;
+};
+
+/**
+ * Converts the Ring into an array
+ *
+ * @return {array} array representation of the ring
+ */
+Ring.prototype.toArray = function () {
+  var curr = this.first;
+  var points = [];
+
+  do {
+    points.push([curr.x, curr.y]);
+    curr = curr.next;
+  } while (curr !== this.first);
+
+  return points;
+};
+
+
+
+
+/**
+ * Utility method for logging points
+ *
+ * @param  {[type]} sPoints [description]
+ * @param  {[type]} cPoints [description]
+ * @return {[type]}         [description]
+ */
+Ring.prototype.log = function () {
+  console.log('POINTS');
+  console.log('-----------------');
+  var curr = this.first;
+  do {
+    curr.log();
+    curr = curr.next;
+  } while (curr !== this.first)
+  console.log('-----------------');
+};
+
+/**
+ * Utility method for logging intersecions and degenerate points
+ *
+ * @param  {[type]} sPoints [description]
+ * @return {[type]}         [description]
+ */
+Ring.prototype.logIntersections = function () {
+  console.log('-------------------');
+  console.log('INTERSECTION LIST: ');
+  console.log('-------------------');
+  var curr = this.first;
+  do {
+    if (curr.intersect || curr.degenerate) {
+      curr.log();
+    }
+    curr = curr.next;
+  } while ((curr !== this.first))
+  console.log('');
+};
+
+
+module.exports = Ring;
+
+},{"./vertex":99,"turf-is-clockwise":101}],96:[function(require,module,exports){
+var util = require('./util');
+var ghClipping = require('./greiner-hormann');
+
+function intersect(hulls, holes) {
+  var result = [];
+  for (var i = 0; i < hulls.length; i++) {
+    for (var j = 0; j < holes.length; j++) {
+      var test = ghClipping(hulls[i], holes[j], true, true);
+      if (Array.isArray(test)) {
+        result = result.concat(test);
+      }
+    }
+  }
+  return result;
+}
+
+function subtract(subject, clip, skiploop) {
+  skiploop = !!skiploop;
+  subject = util.clone(subject);
+  clip = util.clone(clip);
+
+  var sHulls = util.outerHulls(subject);
+  var cHulls = util.outerHulls(clip);
+  var cHoles = util.holes(clip);
+
+  // TODO:
+  // If there are any holes in the subject, subtract those as well
+  // If there are any holes in the clip, which overlap the original
+  // subject, these should be unioned in. This means we'll have to
+  // check polygon within-ness for each clip hole
+
+  // first intersect any holes in clip against the hulls in the subject.
+  // If there are results from these, then these holes overlap the subject,
+  // meaning they (or some part of them) will be saved in the final output as
+  // outer hulls
+  if (cHoles.length > 0) {
+    cHoles = intersect(sHulls, cHoles);
+  }
+
+  if (util.isPolygon(subject)) {
+    subject = [subject];
+  } else {
+    subject = util.wrapToPolygons(subject);
+  }
+
+  for (var i = 0; i < cHulls.length; i++) {
+    var ilen = subject.length;
+    for (var j = 0; j < subject.length; j++) {
+      var test = ghClipping(subject[j][0], cHulls[i], false, true);
+      if (test.length === 0) {
+        subject.splice(j, 1);
+        j--;
+        continue;
+      }
+
+      subject[j][0] = test[0][0];
+
+      // Copy in each hole (if there were any) for the primary hull
+      for (var k = 1; k < test[0].length; k++) {
+        subject[j].push(test[0][k]);
+      }
+
+      // If there are any additional polygons in the result,
+      // they were newly created by intersecting this hole.
+      // Push the new polygon (hull and any holes) straight
+      // into the intersect list
+      for (var l = 1; l < test.length; l++) {
+        subject.splice(j + l, null, test[l]);
+      }
+      j += (test.length - 1);
+    }
+
+    // If the length has changed, this hole created
+    // new intersection polygons, which means it's not a hole
+    // anymore (it crossed the polys, now it's boundary is
+    // part of the new intersection hulls). Therefore, we
+    // remove this hole from the list so it won't be returned.
+    if (ilen !== subject.length) {
+      cHulls.splice(i, 1);
+      i--;
+    }
+  }
+
+  // Union remaining clip-polygon holes if they exist.
+  if (cHoles.length > 0) {
+    subject = subject.concat(util.wrapToPolygons(cHoles));
+  }
+
+  // Re-cut everything against the subject's holes to be
+  // 100% certain they don't change any information in the output
+  var sHoles = util.unionRings(util.holes(subject), []);
+
+  if (sHoles.length > 0 && !skiploop) {
+    return subtract(util.wrapToPolygons(util.outerHulls(subject)), util.wrapToPolygons(sHoles), true);
+  }
+
+  return subject;
+}
+
+
+module.exports = subtract;
+
+},{"./greiner-hormann":93,"./util":98}],97:[function(require,module,exports){
+var utils = require('./util');
+var subtract = require('./subtract');
+
+/**
+ * Iteratively join all rings in the passed set.
+ *
+ * @param  {array} rings An array of polygon rings
+ * @return {[type]}       [description]
+ */
+
+
+/**
+ * Method for subtracting hulls from holes. This is used
+ * before calculating the union to ensure correctly shaped
+ * holes in all of the input polygons
+ *
+ * @param  {[type]} coords [description]
+ * @param  {[type]} j      [description]
+ * @param  {[type]} i      [description]
+ * @return {[type]}        [description]
+ */
+function clipHoles(coords, hullIdx, holeIdx) {
+  var hulls = utils.outerHulls(coords[hullIdx]);
+  var holes = utils.holes(coords[holeIdx]);
+  if (holes.length > 0) {
+    var newholes = subtract(utils.wrapToPolygons(holes), hulls);
+    coords[holeIdx].splice(1);
+    coords[holeIdx] = coords[holeIdx].concat(utils.outerHulls(newholes));
+  }
+}
+
+// TODO: make this support polys + holes. Right now
+// it takes an array of rings, not array of polys.
+//
+// TODO: think about the function signature here? Should it be
+// traditional "union A + B", or is passing a set of things to union more useful
+//
+// TODO: think about using the approach here: http://blog.cleverelephant.ca/2009/01/must-faster-unions-in-postgis-14.html
+// to make things faster for complex / very degenerate sets
+module.exports = function (coords, coords2) {
+  if (typeof coords2 !== 'undefined' && coords2 !== null) {
+    // TODO: make this more robust. This will fail in some cases
+    if (!utils.isMultiPolygon(coords)) {
+      coords = [coords];
+    }
+    if (!utils.isMultiPolygon(coords2)) {
+      coords2 = [coords2];
+    }
+    coords = coords.concat(coords2);
+  }
+
+  coords = utils.clone(coords);
+  // Preprocess the holes. This covers cases such as the one here:
+  // https://github.com/tchannel/greiner-hormann/issues/7
+  for (var i = 0; i < coords.length; i++) {
+    for (var j = i + 1; j < coords.length; j++) {
+      clipHoles(coords, j, i);
+      clipHoles(coords, i, j);
+    }
+  }
+
+  var hulls = utils.outerHulls(coords);
+  var holes = utils.holes(coords);
+  // Union all hulls. Holes is passed in, to handle cases where the union
+  // generates new holes (they'll be pushed into the holes array)
+  hulls = utils.wrapToPolygons(utils.unionRings(hulls, holes));
+
+  // Union all holes - If holes overlap, they should be joined
+  if (holes.length > 0) {
+    holes = utils.unionRings(holes);
+    holes = utils.wrapToPolygons(holes);
+    // Subtract all rings from the unioned set
+    return subtract(hulls, holes);
+  }
+
+  return hulls;
+};
+
+},{"./subtract":96,"./util":98}],98:[function(require,module,exports){
+if (!Array.isArray) {
+  Array.isArray = function (arg) {
+    return Object.prototype.toString.call(arg) === '[object Array]';
+  };
+}
+
+// deep clone an array of coordinates / polygons
+exports.clone = function cloneArray(array) {
+  var newArray = array.slice();
+
+  for (var i = 0; i < newArray.length; i++) {
+    if (Array.isArray(newArray[i])) {
+      newArray[i] = cloneArray(newArray[i]);
+    }
+  }
+
+  return newArray;
+};
+
+// Wrap an array of geometries to an array of polygons
+exports.wrapToPolygons = function (array) {
+  var wrapped = [];
+  for (var i = 0; i < array.length; i++) {
+    if (exports.isRing(array[i])) {
+      wrapped.push([array[i]]);
+    } else if (exports.isMultiPolygon(array[i])) {
+      wrapped.concat(array[i]);
+    } else if (exports.isPolygon(array[i])) {
+      wrapped.push(array[i]);
+    }
+  }
+  return wrapped;
+};
+
+// Unwrap polygons to an array of rings
+exports.unwrap = function (array) {
+  var unwrapped = [];
+  for (var i = 0; i < array.length; i++) {
+    for (var j = 0; j < array[i].length; j++) {
+      unwrapped.push(array[i][j]);
+    }
+  }
+};
+
+
+/**
+ * Count array depth (used to check for geom type)
+ *
+ * @param  {[type]} collection [description]
+ * @return {[type]}            [description]
+ */
+exports.depth = function (collection) {
+  function depth(collection, num) {
+    if (Array.isArray(collection)) {
+      return depth(collection[0], num + 1);
+    }
+    return num;
+  }
+
+  return depth(collection, 0);
+};
+
+
+exports.isMultiPolygon = function (poly) {
+  if (exports.depth(poly) === 4) {
+    return true;
+  }
+  return false;
+};
+
+
+exports.isPolygon = function (poly) {
+  if (exports.depth(poly) === 3) {
+    return true;
+  }
+  return false;
+};
+
+exports.isRing = function (poly) {
+  if (exports.depth(poly) === 2) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Takes a list of polygons / multipolygons and returns only the outer hulls
+ *
+ * @param  {[type]} collection [description]
+ * @return {[type]}            [description]
+ */
+exports.outerHulls = function (collection) {
+  var hulls = [];
+
+  if (exports.isPolygon(collection)) {
+    return [collection[0]];
+  }
+
+  for (var i = 0; i < collection.length; i++) {
+    if (exports.isMultiPolygon(collection[i])) {
+      // Each polygon
+      for (var j = 0; j < collection[i].length; j++) {
+        hulls.push(collection[i][j][0]);
+      }
+    } else if (exports.isPolygon(collection[i])) {
+      hulls.push(collection[i][0]);
+    } else if (exports.isRing(collection[i])) {
+      hulls.push(collection[i]);
+    }
+  }
+
+  return hulls;
+};
+
+/**
+ * Takes a list of multipolygons / polygons and returns only the holes
+ *
+ * @param  {[type]} collection [description]
+ * @return {[type]}            [description]
+ */
+exports.holes = function (collection) {
+  var holes = [];
+
+  if (exports.isPolygon(collection)) {
+    return collection.slice(1);
+  }
+
+  for (var i = 0; i < collection.length; i++) {
+    if (exports.isMultiPolygon(collection[i])) {
+      // Each polygon
+      for (var j = 0; j < collection[i].length; j++) {
+        for (var k = 1; k < collection[i][j].length; k++) {
+          holes.push(collection[i][j][k]);
+        }
+      }
+    } else if (exports.isPolygon(collection[i])) {
+      for (var l = 1; l < collection[i].length; l++) {
+        holes.push(collection[i][l]);
+      }
+    }
+  }
+
+  return holes;
+};
+
+
+exports.pointsEqual = function (pt1, pt2) {
+  if (pt1[0] === pt2[0] && pt1[1] === pt2[1]) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Iteratively join all rings in the passed set.
+ *
+ * @param  {array} rings An array of polygon rings
+ * @return {[type]}       [description]
+ */
+exports.unionRings = function (rings, holes) {
+  var ghClipping = require('./greiner-hormann');
+
+  for (var i = 0; i < rings.length; i++) {
+    for (var j = i + 1; j < rings.length; j++) {
+      if (i === j) {
+        continue;
+      }
+      var test = ghClipping(rings[i], rings[j], false, false);
+
+      // If the length is 1, we joined the two areas, so replace
+      // rings[i] with the new shape, and remove rings[j]
+      // Then reset the j iterator so we can make sure that none of
+      // the previous rings will now overlap the new rings[i]
+      if (test.length === 1) {
+        rings[i] = test[0][0];
+        rings.splice(j, 1);
+        j = i;
+
+        // If there are holes, copy them into the holes array.
+        for (var idx = 1; idx < test[0].length; idx++) {
+          holes.push(test[0][idx]);
         }
       }
     }
-
-    //Swap arrays and loop
-    var tmp = next
-    next = active
-    active = tmp
-    next.length = 0
-    side = -side
   }
+  return rings;
+};
 
-  return flags
+},{"./greiner-hormann":93}],99:[function(require,module,exports){
+function Vertex(x, y, alpha, intersect, degenerate) {
+  this.x = x;
+  this.y = y;
+  this.alpha = alpha || 0.0;
+  this.intersect = intersect || false;
+  this.entry = true; // Set to true by default, for degeneracy handling
+  this.checked = false;
+  this.degenerate = degenerate || false;
+  this.neighbor = null;
+  this.next = null;
+  this.prev = null;
+  this.type = null; // can be 'in', 'out', 'on'
+  this.remove = false;
 }
 
-function setIntersect(colored, edges) {
-  var ptr = 0
-  for(var i=0,j=0; i<colored.length&&j<edges.length; ) {
-    var e = colored[i]
-    var f = edges[j]
-    var d = e[0]-f[0] || e[1]-f[1]
-    if(d < 0) {
-      i += 1
-    } else if(d > 0) {
-      j += 1
-    } else {
-      colored[ptr++] = colored[i]
-      i += 1
-      j += 1
+/**
+ * Returns a string representing the types of the previous and next vertices.
+ * For example, if the prev vertex had type 'in' and the next had type 'out',
+ * the pairing would be 'in/out'. This matches the way pairs are referenced in
+ * the Greiner-Hormann Degeneracy paper.
+ *
+ * @return {String} the pairing description
+ */
+Vertex.prototype.pairing = function () {
+  return this.prev.type + '/' + this.next.type;
+};
+
+/**
+ * Returns a string representing the entry / exit flag of this vertex and it's neighbor
+ * For example, if the current vertex was flagged entry = true and it's neighbor was flagged
+ * entry = false, the entryPair would be 'en/ex' (short for 'entry/exit'). This matches the
+ * way flags are referenced in the Greiner-Hormann Degeneracy paper.
+ *
+ * @return {String} the entry/exit pair string
+ */
+Vertex.prototype.entryPair = function () {
+  var entry = this.entry ? 'en' : 'ex';
+  var nEntry = this.neighbor.entry ? 'en' : 'ex';
+
+  return entry + '/' + nEntry;
+};
+
+/**
+ * Determine if this vertex is equal to another
+ *
+ * @param  {Vertex} other the vertex to compare with
+ * @return {bool}   whether or not the vertices are equal
+ */
+Vertex.prototype.equals = function (other) {
+  if (this.x === other.x && this.y === other.y) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Utility method to log the vertex, only for debugging
+ */
+Vertex.prototype.log = function () {
+  console.log(
+    'INTERSECT: ' + (this.intersect ? 'Yes' : 'No ') +
+    ' ENTRY: ' + (this.entry ? 'Yes' : 'No ') +
+    ' DEGEN: ' + (this.degenerate ? 'Yes' : 'No ') +
+    ' TYPE: ' + String(this.prev.type + ' ').slice(0, 3) +
+    ' / ' + String(this.type + ' ').slice(0, 3) +
+    ' / ' + String(this.next.type + ' ').slice(0, 3) +
+    ' ENTRY: ' + this.entryPair() +
+    ' ALPHA: ' + this.alpha.toPrecision(3) +
+    ' REMOVE: ' + (this.remove ? 'Yes' : 'No') + ' ' +
+    this.x + ', ' + this.y
+  );
+};
+
+
+module.exports = Vertex;
+
+},{}],100:[function(require,module,exports){
+module.exports = function (point, vs) {
+    // ray-casting algorithm based on
+    // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
+
+    var x = point[0], y = point[1];
+
+    var inside = false;
+    for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        var xi = vs[i][0], yi = vs[i][1];
+        var xj = vs[j][0], yj = vs[j][1];
+
+        var intersect = ((yi > y) != (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
     }
+
+    return inside;
+};
+
+},{}],101:[function(require,module,exports){
+module.exports = function(ring){
+  var sum = 0;
+  var i = 1;
+  var len = ring.length;
+  var prev,cur;
+  while(i<len){
+    prev = cur||ring[0];
+    cur = ring[i];
+    sum += ((cur[0]-prev[0])*(cur[1]+prev[1]));
+    i++;
   }
-  colored.length = ptr
-  return colored
+  return sum > 0;
+}
+},{}],102:[function(require,module,exports){
+var xhr = require('xhr');
+
+module.exports = function (opts, cb) {
+    if (typeof opts === 'string') opts = { uri: opts };
+
+    xhr(opts, function (err, res, body) {
+        if (err) return cb(err);
+        if (!/^2/.test(res.statusCode)) {
+            return cb(new Error('http status code: ' + res.statusCode));
+        }
+        var div = document.createElement('div');
+        div.innerHTML = body;
+        var svg = div.querySelector('svg');
+        if (!svg) return cb(new Error('svg not present in resource'));
+        cb(null, svg);
+    });
+};
+
+},{"xhr":103}],103:[function(require,module,exports){
+var window = require("global/window")
+var once = require("once")
+var parseHeaders = require('parse-headers')
+
+var messages = {
+    "0": "Internal XMLHttpRequest Error",
+    "4": "4xx Client Error",
+    "5": "5xx Server Error"
 }
 
-function relabelEdges(edges, labels) {
-  for(var i=0; i<edges.length; ++i) {
-    var e = edges[i]
-    e[0] = labels[e[0]]
-    e[1] = labels[e[1]]
-  }
-}
+var XHR = window.XMLHttpRequest || noop
+var XDR = "withCredentials" in (new XHR()) ? XHR : window.XDomainRequest
 
-function markEdgesActive(edges, labels) {
-  for(var i=0; i<edges.length; ++i) {
-    var e = edges[i]
-    labels[e[0]] = labels[e[1]] = 1
-  }
-}
+module.exports = createXHR
 
-function removeUnusedPoints(points, redE, blueE) {
-  var labels = new Array(points.length)
-  for(var i=0; i<labels.length; ++i) {
-    labels[i] = -1
-  }
-  markEdgesActive(redE, labels)
-  markEdgesActive(blueE, labels)
-
-  var ptr = 0
-  for(var i=0; i<points.length; ++i) {
-    if(labels[i] > 0) {
-      labels[i] = ptr
-      points[ptr++] = points[i]
+function createXHR(options, callback) {
+    if (typeof options === "string") {
+        options = { uri: options }
     }
-  }
-  points.length = ptr
-  relabelEdges(redE, labels)
-  relabelEdges(blueE, labels)
+
+    options = options || {}
+    callback = once(callback)
+
+    var xhr = options.xhr || null
+
+    if (!xhr) {
+        if (options.cors || options.useXDR) {
+            xhr = new XDR()
+        }else{
+            xhr = new XHR()
+        }
+    }
+
+    var uri = xhr.url = options.uri || options.url
+    var method = xhr.method = options.method || "GET"
+    var body = options.body || options.data
+    var headers = xhr.headers = options.headers || {}
+    var sync = !!options.sync
+    var isJson = false
+    var key
+    var load = options.response ? loadResponse : loadXhr
+
+    if ("json" in options) {
+        isJson = true
+        headers["Accept"] = "application/json"
+        if (method !== "GET" && method !== "HEAD") {
+            headers["Content-Type"] = "application/json"
+            body = JSON.stringify(options.json)
+        }
+    }
+
+    xhr.onreadystatechange = readystatechange
+    xhr.onload = load
+    xhr.onerror = error
+    // IE9 must have onprogress be set to a unique function.
+    xhr.onprogress = function () {
+        // IE must die
+    }
+    // hate IE
+    xhr.ontimeout = noop
+    xhr.open(method, uri, !sync)
+                                    //backward compatibility
+    if (options.withCredentials || (options.cors && options.withCredentials !== false)) {
+        xhr.withCredentials = true
+    }
+
+    // Cannot set timeout with sync request
+    if (!sync) {
+        xhr.timeout = "timeout" in options ? options.timeout : 5000
+    }
+
+    if (xhr.setRequestHeader) {
+        for(key in headers){
+            if(headers.hasOwnProperty(key)){
+                xhr.setRequestHeader(key, headers[key])
+            }
+        }
+    } else if (options.headers) {
+        throw new Error("Headers cannot be set on an XDomainRequest object")
+    }
+
+    if ("responseType" in options) {
+        xhr.responseType = options.responseType
+    }
+
+    if ("beforeSend" in options &&
+        typeof options.beforeSend === "function"
+    ) {
+        options.beforeSend(xhr)
+    }
+
+    xhr.send(body)
+
+    return xhr
+
+    function readystatechange() {
+        if (xhr.readyState === 4) {
+            load()
+        }
+    }
+
+    function getBody() {
+        // Chrome with requestType=blob throws errors arround when even testing access to responseText
+        var body = null
+
+        if (xhr.response) {
+            body = xhr.response
+        } else if (xhr.responseType === 'text' || !xhr.responseType) {
+            body = xhr.responseText || xhr.responseXML
+        }
+
+        if (isJson) {
+            try {
+                body = JSON.parse(body)
+            } catch (e) {}
+        }
+
+        return body
+    }
+
+    function getStatusCode() {
+        return xhr.status === 1223 ? 204 : xhr.status
+    }
+
+    // if we're getting a none-ok statusCode, build & return an error
+    function errorFromStatusCode(status, body) {
+        var error = null
+        if (status === 0 || (status >= 400 && status < 600)) {
+            var message = (typeof body === "string" ? body : false) ||
+                messages[String(status).charAt(0)]
+            error = new Error(message)
+            error.statusCode = status
+        }
+
+        return error
+    }
+
+    // will load the data & process the response in a special response object
+    function loadResponse() {
+        var status = getStatusCode()
+        var body = getBody()
+        var error = errorFromStatusCode(status, body)
+        var response = {
+            body: body,
+            statusCode: status,
+            statusText: xhr.statusText,
+            raw: xhr
+        }
+        if(xhr.getAllResponseHeaders){ //remember xhr can in fact be XDR for CORS in IE
+            response.headers = parseHeaders(xhr.getAllResponseHeaders())
+        } else {
+            response.headers = {}
+        }
+
+        callback(error, response, response.body)
+    }
+
+    // will load the data and add some response properties to the source xhr
+    // and then respond with that
+    function loadXhr() {
+        var status = getStatusCode()
+        var error = errorFromStatusCode(status)
+
+        xhr.status = xhr.statusCode = status
+        xhr.body = getBody()
+        xhr.headers = parseHeaders(xhr.getAllResponseHeaders())
+
+        callback(error, xhr, xhr.body)
+    }
+
+    function error(evt) {
+        callback(evt, xhr)
+    }
 }
 
-function overlayPSLG(redPoints, redEdges, bluePoints, blueEdges, op) {
-  //1.  concatenate points
-  var numRedPoints = redPoints.length
-  var points = redPoints.concat(bluePoints)
 
-  //2.  concatenate edges
-  var numRedEdges  = redEdges.length
-  var numBlueEdges = blueEdges.length
-  var edges        = new Array(numRedEdges + numBlueEdges)
-  var colors       = new Array(numRedEdges + numBlueEdges)
-  for(var i=0; i<redEdges.length; ++i) {
-    var e      = redEdges[i]
-    colors[i]  = RED
-    edges[i]   = [ e[0], e[1] ]
-  }
-  for(var i=0; i<blueEdges.length; ++i) {
-    var e      = blueEdges[i]
-    colors[i+numRedEdges]  = BLUE
-    edges[i+numRedEdges]   = [ e[0]+numRedPoints, e[1]+numRedPoints ]
-  }
+function noop() {}
 
-  //3.  run snap rounding with edge colors
-  snapRound(points, edges, colors)
+},{"global/window":104,"once":105,"parse-headers":109}],104:[function(require,module,exports){
+(function (global){
+if (typeof window !== "undefined") {
+    module.exports = window;
+} else if (typeof global !== "undefined") {
+    module.exports = global;
+} else if (typeof self !== "undefined"){
+    module.exports = self;
+} else {
+    module.exports = {};
+}
 
-  //4. Sort edges
-  canonicalizeEdges(edges)
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}],105:[function(require,module,exports){
+module.exports = once
 
-  //5.  extract red and blue edges
-  var redE = [], blueE = []
-  for(var i=0; i<edges.length; ++i) {
-    if(colors[i] === RED) {
-      redE.push(edges[i])
-    } else {
-      blueE.push(edges[i])
-    }
-  }
+once.proto = once(function () {
+  Object.defineProperty(Function.prototype, 'once', {
+    value: function () {
+      return once(this)
+    },
+    configurable: true
+  })
+})
 
-  //6.  triangulate
-  var cells = cdt2d(points, edges, { delaunay: false })
-
-  //7. build adjacency data structure
-  var adj = buildCellIndex(cells)
-
-  //8. classify triangles
-  var redFlags = markCells(cells, adj, redE)
-  var blueFlags = markCells(cells, adj, blueE)
-
-  //9. filter out cels which are not part of triangulation
-  var table = getTable(op)
-  var ptr = 0
-  for(var i=0; i<cells.length; ++i) {
-    var code = ((redFlags[i] < 0)<<1) + (blueFlags[i] < 0)
-    if(table[code]) {
-      cells[ptr++] = cells[i]
-    }
-  }
-  cells.length = ptr
-
-  //10. extract boundary
-  var bnd = boundary(cells)
-  canonicalizeEdges(bnd)
-
-  //11. Intersect constraint edges with boundary
-  redE = setIntersect(redE, bnd)
-  blueE = setIntersect(blueE, bnd)
-
-  //12. filter old points
-  removeUnusedPoints(points, redE, blueE)
-
-  return {
-    points: points,
-    red:    redE,
-    blue:   blueE
+function once (fn) {
+  var called = false
+  return function () {
+    if (called) return
+    called = true
+    return fn.apply(this, arguments)
   }
 }
 
-},{"binary-search-bounds":40,"cdt2d":41,"clean-pslg":58,"simplicial-complex-boundary":104}],111:[function(require,module,exports){
-arguments[4][58][0].apply(exports,arguments)
-},{"./lib/rat-seg-intersect":112,"big-rat":116,"big-rat/cmp":114,"big-rat/to-float":131,"box-intersect":132,"compare-cell":142,"dup":58,"nextafter":143,"rat-vec":146,"robust-segment-intersect":155,"union-find":156}],112:[function(require,module,exports){
-arguments[4][59][0].apply(exports,arguments)
-},{"big-rat/div":115,"big-rat/mul":125,"big-rat/sign":129,"big-rat/sub":130,"big-rat/to-float":131,"dup":59,"rat-vec/add":145,"rat-vec/muls":147,"rat-vec/sub":148}],113:[function(require,module,exports){
-arguments[4][60][0].apply(exports,arguments)
-},{"./lib/rationalize":123,"dup":60}],114:[function(require,module,exports){
-arguments[4][61][0].apply(exports,arguments)
-},{"dup":61}],115:[function(require,module,exports){
-arguments[4][62][0].apply(exports,arguments)
-},{"./lib/rationalize":123,"dup":62}],116:[function(require,module,exports){
-arguments[4][63][0].apply(exports,arguments)
-},{"./div":115,"./is-rat":117,"./lib/is-bn":121,"./lib/num-to-bn":122,"./lib/rationalize":123,"./lib/str-to-bn":124,"dup":63}],117:[function(require,module,exports){
-arguments[4][64][0].apply(exports,arguments)
-},{"./lib/is-bn":121,"dup":64}],118:[function(require,module,exports){
-arguments[4][65][0].apply(exports,arguments)
-},{"bn.js":127,"dup":65}],119:[function(require,module,exports){
-arguments[4][66][0].apply(exports,arguments)
-},{"dup":66}],120:[function(require,module,exports){
-arguments[4][67][0].apply(exports,arguments)
-},{"bit-twiddle":126,"double-bits":128,"dup":67}],121:[function(require,module,exports){
-arguments[4][68][0].apply(exports,arguments)
-},{"bn.js":127,"dup":68}],122:[function(require,module,exports){
-arguments[4][69][0].apply(exports,arguments)
-},{"bn.js":127,"double-bits":128,"dup":69}],123:[function(require,module,exports){
-arguments[4][70][0].apply(exports,arguments)
-},{"./bn-sign":118,"./num-to-bn":122,"dup":70}],124:[function(require,module,exports){
-arguments[4][71][0].apply(exports,arguments)
-},{"bn.js":127,"dup":71}],125:[function(require,module,exports){
-arguments[4][72][0].apply(exports,arguments)
-},{"./lib/rationalize":123,"dup":72}],126:[function(require,module,exports){
-arguments[4][35][0].apply(exports,arguments)
-},{"dup":35}],127:[function(require,module,exports){
-arguments[4][74][0].apply(exports,arguments)
-},{"dup":74}],128:[function(require,module,exports){
-arguments[4][75][0].apply(exports,arguments)
-},{"buffer":1,"dup":75}],129:[function(require,module,exports){
-arguments[4][76][0].apply(exports,arguments)
-},{"./lib/bn-sign":118,"dup":76}],130:[function(require,module,exports){
-arguments[4][77][0].apply(exports,arguments)
-},{"./lib/rationalize":123,"dup":77}],131:[function(require,module,exports){
-arguments[4][78][0].apply(exports,arguments)
-},{"./lib/bn-to-num":119,"./lib/ctz":120,"dup":78}],132:[function(require,module,exports){
-arguments[4][79][0].apply(exports,arguments)
-},{"./lib/intersect":134,"./lib/sweep":138,"dup":79,"typedarray-pool":141}],133:[function(require,module,exports){
-arguments[4][80][0].apply(exports,arguments)
-},{"dup":80}],134:[function(require,module,exports){
-arguments[4][81][0].apply(exports,arguments)
-},{"./brute":133,"./median":135,"./partition":136,"./sweep":138,"bit-twiddle":139,"dup":81,"typedarray-pool":141}],135:[function(require,module,exports){
-arguments[4][82][0].apply(exports,arguments)
-},{"./partition":136,"dup":82}],136:[function(require,module,exports){
-arguments[4][83][0].apply(exports,arguments)
-},{"dup":83}],137:[function(require,module,exports){
-arguments[4][84][0].apply(exports,arguments)
-},{"dup":84}],138:[function(require,module,exports){
-arguments[4][85][0].apply(exports,arguments)
-},{"./sort":137,"bit-twiddle":139,"dup":85,"typedarray-pool":141}],139:[function(require,module,exports){
-arguments[4][35][0].apply(exports,arguments)
-},{"dup":35}],140:[function(require,module,exports){
-arguments[4][22][0].apply(exports,arguments)
-},{"dup":22}],141:[function(require,module,exports){
-arguments[4][37][0].apply(exports,arguments)
-},{"bit-twiddle":139,"buffer":1,"dup":37}],142:[function(require,module,exports){
-arguments[4][89][0].apply(exports,arguments)
-},{"dup":89}],143:[function(require,module,exports){
-arguments[4][90][0].apply(exports,arguments)
-},{"double-bits":144,"dup":90}],144:[function(require,module,exports){
-arguments[4][75][0].apply(exports,arguments)
-},{"buffer":1,"dup":75}],145:[function(require,module,exports){
-arguments[4][92][0].apply(exports,arguments)
-},{"big-rat/add":113,"dup":92}],146:[function(require,module,exports){
-arguments[4][93][0].apply(exports,arguments)
-},{"big-rat":116,"dup":93}],147:[function(require,module,exports){
-arguments[4][94][0].apply(exports,arguments)
-},{"big-rat":116,"big-rat/mul":125,"dup":94}],148:[function(require,module,exports){
-arguments[4][95][0].apply(exports,arguments)
-},{"big-rat/sub":130,"dup":95}],149:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],150:[function(require,module,exports){
-arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":153,"two-sum":149}],151:[function(require,module,exports){
-arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],152:[function(require,module,exports){
-arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],153:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],154:[function(require,module,exports){
-arguments[4][12][0].apply(exports,arguments)
-},{"dup":12,"robust-scale":150,"robust-subtract":151,"robust-sum":152,"two-product":153}],155:[function(require,module,exports){
-arguments[4][102][0].apply(exports,arguments)
-},{"dup":102,"robust-orientation":154}],156:[function(require,module,exports){
-arguments[4][103][0].apply(exports,arguments)
-},{"dup":103}],157:[function(require,module,exports){
+},{}],106:[function(require,module,exports){
+var isFunction = require('is-function')
+
+module.exports = forEach
+
+var toString = Object.prototype.toString
+var hasOwnProperty = Object.prototype.hasOwnProperty
+
+function forEach(list, iterator, context) {
+    if (!isFunction(iterator)) {
+        throw new TypeError('iterator must be a function')
+    }
+
+    if (arguments.length < 3) {
+        context = this
+    }
+
+    if (toString.call(list) === '[object Array]')
+        forEachArray(list, iterator, context)
+    else if (typeof list === 'string')
+        forEachString(list, iterator, context)
+    else
+        forEachObject(list, iterator, context)
+}
+
+function forEachArray(array, iterator, context) {
+    for (var i = 0, len = array.length; i < len; i++) {
+        if (hasOwnProperty.call(array, i)) {
+            iterator.call(context, array[i], i, array)
+        }
+    }
+}
+
+function forEachString(string, iterator, context) {
+    for (var i = 0, len = string.length; i < len; i++) {
+        // no such thing as a sparse string.
+        iterator.call(context, string.charAt(i), i, string)
+    }
+}
+
+function forEachObject(object, iterator, context) {
+    for (var k in object) {
+        if (hasOwnProperty.call(object, k)) {
+            iterator.call(context, object[k], k, object)
+        }
+    }
+}
+
+},{"is-function":107}],107:[function(require,module,exports){
+module.exports = isFunction
+
+var toString = Object.prototype.toString
+
+function isFunction (fn) {
+  var string = toString.call(fn)
+  return string === '[object Function]' ||
+    (typeof fn === 'function' && string !== '[object RegExp]') ||
+    (typeof window !== 'undefined' &&
+     // IE8 and below
+     (fn === window.setTimeout ||
+      fn === window.alert ||
+      fn === window.confirm ||
+      fn === window.prompt))
+};
+
+},{}],108:[function(require,module,exports){
+
+exports = module.exports = trim;
+
+function trim(str){
+  return str.replace(/^\s*|\s*$/g, '');
+}
+
+exports.left = function(str){
+  return str.replace(/^\s*/, '');
+};
+
+exports.right = function(str){
+  return str.replace(/\s*$/, '');
+};
+
+},{}],109:[function(require,module,exports){
+var trim = require('trim')
+  , forEach = require('for-each')
+  , isArray = function(arg) {
+      return Object.prototype.toString.call(arg) === '[object Array]';
+    }
+
+module.exports = function (headers) {
+  if (!headers)
+    return {}
+
+  var result = {}
+
+  forEach(
+      trim(headers).split('\n')
+    , function (row) {
+        var index = row.indexOf(':')
+          , key = trim(row.slice(0, index)).toLowerCase()
+          , value = trim(row.slice(index + 1))
+
+        if (typeof(result[key]) === 'undefined') {
+          result[key] = value
+        } else if (isArray(result[key])) {
+          result[key].push(value)
+        } else {
+          result[key] = [ result[key], value ]
+        }
+      }
+  )
+
+  return result
+}
+},{"for-each":106,"trim":108}],110:[function(require,module,exports){
 'use strict'
 
-module.exports = polygonToPSLG
+var pool = require('typedarray-pool')
 
-var cleanPSLG = require('clean-pslg')
+module.exports = meshLaplacian
 
-//Converts a polygon to a planar straight line graph
-function polygonToPSLG(loops, options) {
-  if(!Array.isArray(loops)) {
-    throw new Error('poly-to-pslg: Error, invalid polygon')
-  }
-  if(loops.length === 0) {
-    return {
-      points: [],
-      edges:  []
-    }
-  }
-
-  options = options || {}
-
-  var nested = true
-  if('nested' in options) {
-    nested = !!options.nested
-  } else if(loops[0].length === 2 && typeof loops[0][0] === 'number') {
-    //Hack:  If use doesn't pass in a loop, then try to guess if it is nested
-    nested = false
-  }
-  if(!nested) {
-    loops = [loops]
-  }
-
-  //First we just unroll all the points in the dumb/obvious way
-  var points = []
-  var edges = []
-  for(var i=0; i<loops.length; ++i) {
-    var loop = loops[i]
-    var offset = points.length
-    for(var j=0; j<loop.length; ++j) {
-      points.push(loop[j])
-      edges.push([ offset+j, offset+(j+1)%loop.length ])
-    }
-  }
-
-  //Then we run snap rounding to clean up self intersections and duplicate verts
-  var clean = 'clean' in options ? true : !!options.clean
-  if(clean) {
-    cleanPSLG(points, edges)
-  }
-
-  //Finally, we return the resulting PSLG
-  return {
-    points: points,
-    edges:  edges
-  }
+function hypot(x, y, z) {
+  return Math.sqrt(
+    Math.pow(x, 2) +
+    Math.pow(y, 2) +
+    Math.pow(z, 2))
 }
 
-},{"clean-pslg":111}],158:[function(require,module,exports){
-arguments[4][41][0].apply(exports,arguments)
-},{"./lib/delaunay":159,"./lib/filter":160,"./lib/monotone":161,"./lib/triangulation":162,"dup":41}],159:[function(require,module,exports){
-arguments[4][42][0].apply(exports,arguments)
-},{"binary-search-bounds":163,"dup":42,"robust-in-sphere":164}],160:[function(require,module,exports){
-arguments[4][43][0].apply(exports,arguments)
-},{"binary-search-bounds":163,"dup":43}],161:[function(require,module,exports){
-arguments[4][44][0].apply(exports,arguments)
-},{"binary-search-bounds":163,"dup":44,"robust-orientation":175}],162:[function(require,module,exports){
-arguments[4][45][0].apply(exports,arguments)
-},{"binary-search-bounds":163,"dup":45}],163:[function(require,module,exports){
-arguments[4][40][0].apply(exports,arguments)
-},{"dup":40}],164:[function(require,module,exports){
-arguments[4][46][0].apply(exports,arguments)
-},{"dup":46,"robust-scale":166,"robust-subtract":167,"robust-sum":168,"two-product":169}],165:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],166:[function(require,module,exports){
-arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":169,"two-sum":165}],167:[function(require,module,exports){
-arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],168:[function(require,module,exports){
-arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],169:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],170:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],171:[function(require,module,exports){
-arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":174,"two-sum":170}],172:[function(require,module,exports){
-arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],173:[function(require,module,exports){
-arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],174:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],175:[function(require,module,exports){
-arguments[4][12][0].apply(exports,arguments)
-},{"dup":12,"robust-scale":171,"robust-subtract":172,"robust-sum":173,"two-product":174}],176:[function(require,module,exports){
-arguments[4][104][0].apply(exports,arguments)
-},{"boundary-cells":177,"dup":104,"reduce-simplicial-complex":181}],177:[function(require,module,exports){
-arguments[4][105][0].apply(exports,arguments)
-},{"dup":105}],178:[function(require,module,exports){
-arguments[4][106][0].apply(exports,arguments)
-},{"dup":106}],179:[function(require,module,exports){
-arguments[4][89][0].apply(exports,arguments)
-},{"dup":89}],180:[function(require,module,exports){
-arguments[4][108][0].apply(exports,arguments)
-},{"cell-orientation":178,"compare-cell":179,"dup":108}],181:[function(require,module,exports){
-arguments[4][109][0].apply(exports,arguments)
-},{"cell-orientation":178,"compare-cell":179,"compare-oriented-cell":180,"dup":109}],182:[function(require,module,exports){
-'use strict'
+function compareEntry(a, b) {
+  return (a[0]-b[0]) || (a[1]-b[1])
+}
 
-var cdt2d     = require('cdt2d')
-var boundary  = require('simplicial-complex-boundary')
+function meshLaplacian(cells, positions) {
+  var numVerts = positions.length
+  var numCells = cells.length
 
-module.exports = pslgToPolygon
-
-function pslgToPolygon(points, edges) {
-  //Get cells
-  var cells = cdt2d(points, edges, {
-    delaunay: false,
-    exterior: false })
-
-  //Extract boundary
-  var bnd = boundary(cells)
-
-  //Construct adjacency list from boundary
-  var adj = new Array(points.length)
-  for(var i=0; i<points.length; ++i) {
-    adj[i] = []
+  var areas = pool.mallocDouble(numVerts)
+  for(var i=0; i<numVerts; ++i) {
+    areas[i] = 0
   }
 
-  for(var i=0; i<bnd.length; ++i) {
-    var e = bnd[i]
-    adj[e[0]].push(e[1])
-  }
+  var entries = []
+  for(var i=0; i<numCells; ++i) {
+    var cell = cells[i]
+    var ia = cell[0]
+    var ib = cell[1]
+    var ic = cell[2]
 
-  //Extract boundary cycle
-  var loops = []
-  for(var i=0; i<points.length; ++i) {
-    if(adj[i].length === 0) {
+    var a  = positions[ia]
+    var b  = positions[ib]
+    var c  = positions[ic]
+
+    var abx = a[0] - b[0]
+    var aby = a[1] - b[1]
+    var abz = a[2] - b[2]
+
+    var bcx = b[0] - c[0]
+    var bcy = b[1] - c[1]
+    var bcz = b[2] - c[2]
+
+    var cax = c[0] - a[0]
+    var cay = c[1] - a[1]
+    var caz = c[2] - a[2]
+
+    var area = 0.5 * hypot(
+      aby * caz - abz * cay,
+      abz * cax - abx * caz,
+      abx * cay - aby * cax)
+
+    //Skip thin triangles
+    if(area < 1e-8) {
       continue
     }
-    var v = i, loop = []
-    do {
-      loop.push(points[v])
-      v = adj[v].pop()
-    } while(v !== i)
-    loops.push(loop)
+
+    var w = -0.5 / area
+    var wa = w * (abx * cax + aby * cay + abz * caz)
+    var wb = w * (bcx * abx + bcy * aby + bcz * abz)
+    var wc = w * (cax * bcx + cay * bcy + caz * bcz)
+
+    var varea = area / 3
+    areas[ia] += varea
+    areas[ib] += varea
+    areas[ic] += varea
+
+    entries.push(
+      [ib,ic,wa],
+      [ic,ib,wa],
+      [ic,ia,wb],
+      [ia,ic,wb],
+      [ia,ib,wc],
+      [ib,ia,wc]
+    )
   }
 
-  return loops
+  var weights = pool.mallocDouble(numVerts)
+  for(var i=0; i<numVerts; ++i) {
+    weights[i] = 0
+  }
+
+  entries.sort(compareEntry)
+
+  var ptr = 0
+  for(var i=0; i<entries.length; ) {
+    var entry = entries[i++]
+    while(
+      i < entries.length &&
+      entries[i][0] === entry[0] &&
+      entries[i][1] === entry[1] ) {
+        entry[2] += entries[i++][2]
+    }
+    entry[2] /= areas[entry[0]]
+    weights[entry[0]] += entry[2]
+    entries[ptr++] = entry
+  }
+  entries.length = ptr
+
+  for(var i=0; i<numVerts; ++i) {
+    entries.push([i, i, -weights[i]])
+  }
+
+  pool.free(areas)
+  pool.free(weights)
+
+  return entries
 }
 
-},{"cdt2d":158,"simplicial-complex-boundary":176}],183:[function(require,module,exports){
+},{"typedarray-pool":113}],111:[function(require,module,exports){
+arguments[4][55][0].apply(exports,arguments)
+},{"dup":55}],112:[function(require,module,exports){
+arguments[4][69][0].apply(exports,arguments)
+},{"dup":69}],113:[function(require,module,exports){
+arguments[4][70][0].apply(exports,arguments)
+},{"bit-twiddle":111,"buffer":1,"dup":70}],114:[function(require,module,exports){
+module.exports = reindex
+
+function reindex(array) {
+  var pos = []
+  var cel = []
+
+  var i = 0
+  var c = 0
+  while (i < array.length) {
+    cel.push([c++, c++, c++])
+    pos.push([
+        array[i++]
+      , array[i++]
+      , array[i++]
+    ], [
+        array[i++]
+      , array[i++]
+      , array[i++]
+    ], [
+        array[i++]
+      , array[i++]
+      , array[i++]
+    ])
+  }
+
+  return {
+      positions: pos
+    , cells: cel
+  }
+}
+
+},{}],115:[function(require,module,exports){
+var getBounds = require('bound-points')
+var unlerp = require('unlerp')
+
+module.exports = normalizePathScale
+function normalizePathScale (positions, bounds) {
+  if (!Array.isArray(positions)) {
+    throw new TypeError('must specify positions as first argument')
+  }
+  if (!Array.isArray(bounds)) {
+    bounds = getBounds(positions)
+  }
+
+  var min = bounds[0]
+  var max = bounds[1]
+
+  var width = max[0] - min[0]
+  var height = max[1] - min[1]
+
+  var aspectX = width > height ? 1 : (height / width)
+  var aspectY = width > height ? (width / height) : 1
+
+  if (max[0] - min[0] === 0 || max[1] - min[1] === 0) {
+    return positions // div by zero; leave positions unchanged
+  }
+
+  for (var i = 0; i < positions.length; i++) {
+    var pos = positions[i]
+    pos[0] = (unlerp(min[0], max[0], pos[0]) * 2 - 1) / aspectX
+    pos[1] = (unlerp(min[1], max[1], pos[1]) * 2 - 1) / aspectY
+  }
+  return positions
+}
+},{"bound-points":21,"unlerp":116}],116:[function(require,module,exports){
+module.exports = function range(min, max, value) {
+  return (value - min) / (max - min)
+}
+},{}],117:[function(require,module,exports){
+/* eslint-disable no-unused-vars */
+'use strict';
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+var propIsEnumerable = Object.prototype.propertyIsEnumerable;
+
+function toObject(val) {
+  if (val === null || val === undefined) {
+    throw new TypeError('Object.assign cannot be called with null or undefined');
+  }
+
+  return Object(val);
+}
+
+module.exports = Object.assign || function (target, source) {
+  var from;
+  var to = toObject(target);
+  var symbols;
+
+  for (var s = 1; s < arguments.length; s++) {
+    from = Object(arguments[s]);
+
+    for (var key in from) {
+      if (hasOwnProperty.call(from, key)) {
+        to[key] = from[key];
+      }
+    }
+
+    if (Object.getOwnPropertySymbols) {
+      symbols = Object.getOwnPropertySymbols(from);
+      for (var i = 0; i < symbols.length; i++) {
+        if (propIsEnumerable.call(from, symbols[i])) {
+          to[symbols[i]] = from[symbols[i]];
+        }
+      }
+    }
+  }
+
+  return to;
+};
+
+},{}],118:[function(require,module,exports){
+
+module.exports = parse
+
+/**
+ * expected argument lengths
+ * @type {Object}
+ */
+
+var length = {a: 7, c: 6, h: 1, l: 2, m: 2, q: 4, s: 4, t: 2, v: 1, z: 0}
+
+/**
+ * segment pattern
+ * @type {RegExp}
+ */
+
+var segment = /([astvzqmhlc])([^astvzqmhlc]*)/ig
+
+/**
+ * parse an svg path data string. Generates an Array
+ * of commands where each command is an Array of the
+ * form `[command, arg1, arg2, ...]`
+ *
+ * @param {String} path
+ * @return {Array}
+ */
+
+function parse(path) {
+  var data = []
+  path.replace(segment, function(_, command, args){
+    var type = command.toLowerCase()
+    args = parseValues(args)
+
+    // overloaded moveTo
+    if (type == 'm' && args.length > 2) {
+      data.push([command].concat(args.splice(0, 2)))
+      type = 'l'
+      command = command == 'm' ? 'l' : 'L'
+    }
+
+    while (true) {
+      if (args.length == length[type]) {
+        args.unshift(command)
+        return data.push(args)
+      }
+      if (args.length < length[type]) throw new Error('malformed path data')
+      data.push([command].concat(args.splice(0, length[type])))
+    }
+  })
+  return data
+}
+
+function parseValues(args){
+  args = args.match(/-?[.0-9]+(?:e[-+]?\d+)?/ig)
+  return args ? args.map(Number) : []
+}
+
+},{}],119:[function(require,module,exports){
+//http://www.blackpawn.com/texts/pointinpoly/
+module.exports = function pointInTriangle(point, triangle) {
+    //compute vectors & dot products
+    var cx = point[0], cy = point[1],
+        t0 = triangle[0], t1 = triangle[1], t2 = triangle[2],
+        v0x = t2[0]-t0[0], v0y = t2[1]-t0[1],
+        v1x = t1[0]-t0[0], v1y = t1[1]-t0[1],
+        v2x = cx-t0[0], v2y = cy-t0[1],
+        dot00 = v0x*v0x + v0y*v0y,
+        dot01 = v0x*v1x + v0y*v1y,
+        dot02 = v0x*v2x + v0y*v2y,
+        dot11 = v1x*v1x + v1y*v1y,
+        dot12 = v1x*v2x + v1y*v2y
+
+    // Compute barycentric coordinates
+    var b = (dot00 * dot11 - dot01 * dot01),
+        inv = b === 0 ? 0 : (1 / b),
+        u = (dot11*dot02 - dot01*dot12) * inv,
+        v = (dot00*dot12 - dot01*dot02) * inv
+    return u>=0 && v>=0 && (u+v < 1)
+}
+},{}],120:[function(require,module,exports){
+'use strict';
+module.exports = function (min, max) {
+  if (max === undefined) {
+    max = min;
+    min = 0;
+  }
+
+  if (typeof min !== 'number' || typeof max !== 'number') {
+    throw new TypeError('Expected all arguments to be numbers');
+  }
+
+  return Math.random() * (max - min) + min;
+};
+
+},{}],121:[function(require,module,exports){
+// square distance from a point to a segment
+function getSqSegDist(p, p1, p2) {
+    var x = p1[0],
+        y = p1[1],
+        dx = p2[0] - x,
+        dy = p2[1] - y;
+
+    if (dx !== 0 || dy !== 0) {
+
+        var t = ((p[0] - x) * dx + (p[1] - y) * dy) / (dx * dx + dy * dy);
+
+        if (t > 1) {
+            x = p2[0];
+            y = p2[1];
+
+        } else if (t > 0) {
+            x += dx * t;
+            y += dy * t;
+        }
+    }
+
+    dx = p[0] - x;
+    dy = p[1] - y;
+
+    return dx * dx + dy * dy;
+}
+
+function simplifyDPStep(points, first, last, sqTolerance, simplified) {
+    var maxSqDist = sqTolerance,
+        index;
+
+    for (var i = first + 1; i < last; i++) {
+        var sqDist = getSqSegDist(points[i], points[first], points[last]);
+
+        if (sqDist > maxSqDist) {
+            index = i;
+            maxSqDist = sqDist;
+        }
+    }
+
+    if (maxSqDist > sqTolerance) {
+        if (index - first > 1) simplifyDPStep(points, first, index, sqTolerance, simplified);
+        simplified.push(points[index]);
+        if (last - index > 1) simplifyDPStep(points, index, last, sqTolerance, simplified);
+    }
+}
+
+// simplification using Ramer-Douglas-Peucker algorithm
+module.exports = function simplifyDouglasPeucker(points, tolerance) {
+    if (points.length<=1)
+        return points;
+    tolerance = typeof tolerance === 'number' ? tolerance : 1;
+    var sqTolerance = tolerance * tolerance;
+
+    var last = points.length - 1;
+
+    var simplified = [points[0]];
+    simplifyDPStep(points, 0, last, sqTolerance, simplified);
+    simplified.push(points[last]);
+
+    return simplified;
+}
+
+},{}],122:[function(require,module,exports){
+var simplifyRadialDist = require('./radial-distance')
+var simplifyDouglasPeucker = require('./douglas-peucker')
+
+//simplifies using both algorithms
+module.exports = function simplify(points, tolerance) {
+    points = simplifyRadialDist(points, tolerance);
+    points = simplifyDouglasPeucker(points, tolerance);
+    return points;
+}
+
+module.exports.radialDistance = simplifyRadialDist;
+module.exports.douglasPeucker = simplifyDouglasPeucker;
+},{"./douglas-peucker":121,"./radial-distance":123}],123:[function(require,module,exports){
+function getSqDist(p1, p2) {
+    var dx = p1[0] - p2[0],
+        dy = p1[1] - p2[1];
+
+    return dx * dx + dy * dy;
+}
+
+// basic distance-based simplification
+module.exports = function simplifyRadialDist(points, tolerance) {
+    if (points.length<=1)
+        return points;
+    tolerance = typeof tolerance === 'number' ? tolerance : 1;
+    var sqTolerance = tolerance * tolerance;
+
+    var prevPoint = points[0],
+        newPoints = [prevPoint],
+        point;
+
+    for (var i = 1, len = points.length; i < len; i++) {
+        point = points[i];
+
+        if (getSqDist(point, prevPoint) > sqTolerance) {
+            newPoints.push(point);
+            prevPoint = point;
+        }
+    }
+
+    if (prevPoint !== point) newPoints.push(point);
+
+    return newPoints;
+}
+},{}],124:[function(require,module,exports){
 // expose module classes
 
 exports.intersect = require('./lib/intersect');
 exports.shape = require('./lib/IntersectionParams').newShape;
-},{"./lib/IntersectionParams":185,"./lib/intersect":186}],184:[function(require,module,exports){
+},{"./lib/IntersectionParams":126,"./lib/intersect":127}],125:[function(require,module,exports){
 /**
  *  Intersection
  */
@@ -12208,7 +13160,7 @@ Intersection.prototype.appendPoints = function(points) {
 
 module.exports = Intersection;
 
-},{}],185:[function(require,module,exports){
+},{}],126:[function(require,module,exports){
 var Point2D = require('kld-affine').Point2D;
 
 
@@ -13110,7 +14062,7 @@ RelativeSmoothCurveto3.prototype.getIntersectionParams = function() {
 
 module.exports = IntersectionParams;
 
-},{"kld-affine":187}],186:[function(require,module,exports){
+},{"kld-affine":128}],127:[function(require,module,exports){
 /**
  *
  *  Intersection.js
@@ -13816,14 +14768,14 @@ module.exports = intersect;
 
 
 
-},{"./Intersection":184,"./IntersectionParams":185,"kld-affine":187,"kld-polynomial":191}],187:[function(require,module,exports){
+},{"./Intersection":125,"./IntersectionParams":126,"kld-affine":128,"kld-polynomial":132}],128:[function(require,module,exports){
 // expose classes
 
 exports.Point2D = require('./lib/Point2D');
 exports.Vector2D = require('./lib/Vector2D');
 exports.Matrix2D = require('./lib/Matrix2D');
 
-},{"./lib/Matrix2D":188,"./lib/Point2D":189,"./lib/Vector2D":190}],188:[function(require,module,exports){
+},{"./lib/Matrix2D":129,"./lib/Point2D":130,"./lib/Vector2D":131}],129:[function(require,module,exports){
 /**
  *
  *   Matrix2D.js
@@ -14249,7 +15201,7 @@ Matrix2D.prototype.toString = function() {
 if (typeof module !== "undefined") {
     module.exports = Matrix2D;
 }
-},{}],189:[function(require,module,exports){
+},{}],130:[function(require,module,exports){
 /**
  *
  *   Point2D.js
@@ -14426,7 +15378,7 @@ if (typeof module !== "undefined") {
     module.exports = Point2D;
 }
 
-},{}],190:[function(require,module,exports){
+},{}],131:[function(require,module,exports){
 /**
  *
  *   Vector2D.js
@@ -14662,13 +15614,13 @@ if (typeof module !== "undefined") {
     module.exports = Vector2D;
 }
 
-},{}],191:[function(require,module,exports){
+},{}],132:[function(require,module,exports){
 // expose classes
 
 exports.Polynomial = require('./lib/Polynomial');
 exports.SqrtPolynomial = require('./lib/SqrtPolynomial');
 
-},{"./lib/Polynomial":192,"./lib/SqrtPolynomial":193}],192:[function(require,module,exports){
+},{"./lib/Polynomial":133,"./lib/SqrtPolynomial":134}],133:[function(require,module,exports){
 /**
  *
  *   Polynomial.js
@@ -15300,7 +16252,7 @@ if (typeof module !== "undefined") {
     module.exports = Polynomial;
 }
 
-},{}],193:[function(require,module,exports){
+},{}],134:[function(require,module,exports){
 /**
  *
  *   SqrtPolynomial.js
@@ -15362,541 +16314,7 @@ if (typeof module !== "undefined") {
     module.exports = SqrtPolynomial;
 }
 
-},{"./Polynomial":192}],194:[function(require,module,exports){
-var parseSVG = require('parse-svg-path')
-var getContours = require('svg-path-contours')
-var cdt2d = require('cdt2d')
-var cleanPSLG = require('clean-pslg')
-var getBounds = require('bound-points')
-var normalize = require('normalize-path-scale')
-var random = require('random-float')
-var assign = require('object-assign')
-var simplify = require('simplify-path')
-
-module.exports = svgMesh3d
-function svgMesh3d (svgPath, opt) {
-  if (typeof svgPath !== 'string') {
-    throw new TypeError('must provide a string as first parameter')
-  }
-
-  opt = assign({
-    delaunay: true,
-    clean: true,
-    exterior: false,
-    randomization: 0,
-    simplify: 0,
-    scale: 1
-  }, opt)
-
-  var i
-  // parse string as a list of operations
-  var svg = parseSVG(svgPath)
-
-  // convert curves into discrete points
-  var contours = getContours(svg, opt.scale)
-
-  // optionally simplify the path for faster triangulation and/or aesthetics
-  if (opt.simplify > 0 && typeof opt.simplify === 'number') {
-    for (i = 0; i < contours.length; i++) {
-      contours[i] = simplify(contours[i], opt.simplify)
-    }
-  }
-
-  // prepare for triangulation
-  var polyline = denestPolyline(contours)
-  var positions = polyline.positions
-  var bounds = getBounds(positions)
-
-  // optionally add random points for aesthetics
-  var randomization = opt.randomization
-  if (typeof randomization === 'number' && randomization > 0) {
-    addRandomPoints(positions, bounds, randomization)
-  }
-
-  var loops = polyline.edges
-  var edges = []
-  for (i = 0; i < loops.length; ++i) {
-    var loop = loops[i]
-    for (var j = 0; j < loop.length; ++j) {
-      edges.push([loop[j], loop[(j + 1) % loop.length]])
-    }
-  }
-
-  // this updates points/edges so that they now form a valid PSLG
-  if (opt.clean !== false) {
-    cleanPSLG(positions, edges)
-  }
-
-  // triangulate mesh
-  var cells = cdt2d(positions, edges, opt)
-
-  // rescale to [-1 ... 1]
-  normalize(positions, bounds)
-
-  // convert to 3D representation and flip on Y axis for convenience w/ OpenGL
-  to3D(positions)
-
-  return {
-    positions: positions,
-    cells: cells
-  }
-}
-
-function to3D (positions) {
-  for (var i = 0; i < positions.length; i++) {
-    var xy = positions[i]
-    xy[1] *= -1
-    xy[2] = xy[2] || 0
-  }
-}
-
-function addRandomPoints (positions, bounds, count) {
-  var min = bounds[0]
-  var max = bounds[1]
-
-  for (var i = 0; i < count; i++) {
-    positions.push([ // random [ x, y ]
-      random(min[0], max[0]),
-      random(min[1], max[1])
-    ])
-  }
-}
-
-function denestPolyline (nested) {
-  var positions = []
-  var edges = []
-
-  for (var i = 0; i < nested.length; i++) {
-    var path = nested[i]
-    var loop = []
-    for (var j = 0; j < path.length; j++) {
-      var pos = path[j]
-      var idx = positions.indexOf(pos)
-      if (idx === -1) {
-        positions.push(pos)
-        idx = positions.length - 1
-      }
-      loop.push(idx)
-    }
-    edges.push(loop)
-  }
-  return {
-    positions: positions,
-    edges: edges
-  }
-}
-
-},{"bound-points":195,"cdt2d":196,"clean-pslg":214,"normalize-path-scale":260,"object-assign":262,"parse-svg-path":263,"random-float":264,"simplify-path":266,"svg-path-contours":268}],195:[function(require,module,exports){
-'use strict'
-
-module.exports = findBounds
-
-function findBounds(points) {
-  var n = points.length
-  if(n === 0) {
-    return [[], []]
-  }
-  var d = points[0].length
-  var lo = points[0].slice()
-  var hi = points[0].slice()
-  for(var i=1; i<n; ++i) {
-    var p = points[i]
-    for(var j=0; j<d; ++j) {
-      var x = p[j]
-      lo[j] = Math.min(lo[j], x)
-      hi[j] = Math.max(hi[j], x)
-    }
-  }
-  return [lo, hi]
-}
-},{}],196:[function(require,module,exports){
-arguments[4][41][0].apply(exports,arguments)
-},{"./lib/delaunay":197,"./lib/filter":198,"./lib/monotone":199,"./lib/triangulation":200,"dup":41}],197:[function(require,module,exports){
-arguments[4][42][0].apply(exports,arguments)
-},{"binary-search-bounds":201,"dup":42,"robust-in-sphere":202}],198:[function(require,module,exports){
-arguments[4][43][0].apply(exports,arguments)
-},{"binary-search-bounds":201,"dup":43}],199:[function(require,module,exports){
-arguments[4][44][0].apply(exports,arguments)
-},{"binary-search-bounds":201,"dup":44,"robust-orientation":213}],200:[function(require,module,exports){
-arguments[4][45][0].apply(exports,arguments)
-},{"binary-search-bounds":201,"dup":45}],201:[function(require,module,exports){
-arguments[4][40][0].apply(exports,arguments)
-},{"dup":40}],202:[function(require,module,exports){
-arguments[4][46][0].apply(exports,arguments)
-},{"dup":46,"robust-scale":204,"robust-subtract":205,"robust-sum":206,"two-product":207}],203:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],204:[function(require,module,exports){
-arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":207,"two-sum":203}],205:[function(require,module,exports){
-arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],206:[function(require,module,exports){
-arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],207:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],208:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],209:[function(require,module,exports){
-arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":212,"two-sum":208}],210:[function(require,module,exports){
-arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],211:[function(require,module,exports){
-arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],212:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],213:[function(require,module,exports){
-arguments[4][12][0].apply(exports,arguments)
-},{"dup":12,"robust-scale":209,"robust-subtract":210,"robust-sum":211,"two-product":212}],214:[function(require,module,exports){
-arguments[4][58][0].apply(exports,arguments)
-},{"./lib/rat-seg-intersect":215,"big-rat":219,"big-rat/cmp":217,"big-rat/to-float":234,"box-intersect":235,"compare-cell":245,"dup":58,"nextafter":246,"rat-vec":249,"robust-segment-intersect":258,"union-find":259}],215:[function(require,module,exports){
-arguments[4][59][0].apply(exports,arguments)
-},{"big-rat/div":218,"big-rat/mul":228,"big-rat/sign":232,"big-rat/sub":233,"big-rat/to-float":234,"dup":59,"rat-vec/add":248,"rat-vec/muls":250,"rat-vec/sub":251}],216:[function(require,module,exports){
-arguments[4][60][0].apply(exports,arguments)
-},{"./lib/rationalize":226,"dup":60}],217:[function(require,module,exports){
-arguments[4][61][0].apply(exports,arguments)
-},{"dup":61}],218:[function(require,module,exports){
-arguments[4][62][0].apply(exports,arguments)
-},{"./lib/rationalize":226,"dup":62}],219:[function(require,module,exports){
-arguments[4][63][0].apply(exports,arguments)
-},{"./div":218,"./is-rat":220,"./lib/is-bn":224,"./lib/num-to-bn":225,"./lib/rationalize":226,"./lib/str-to-bn":227,"dup":63}],220:[function(require,module,exports){
-arguments[4][64][0].apply(exports,arguments)
-},{"./lib/is-bn":224,"dup":64}],221:[function(require,module,exports){
-arguments[4][65][0].apply(exports,arguments)
-},{"bn.js":230,"dup":65}],222:[function(require,module,exports){
-arguments[4][66][0].apply(exports,arguments)
-},{"dup":66}],223:[function(require,module,exports){
-arguments[4][67][0].apply(exports,arguments)
-},{"bit-twiddle":229,"double-bits":231,"dup":67}],224:[function(require,module,exports){
-arguments[4][68][0].apply(exports,arguments)
-},{"bn.js":230,"dup":68}],225:[function(require,module,exports){
-arguments[4][69][0].apply(exports,arguments)
-},{"bn.js":230,"double-bits":231,"dup":69}],226:[function(require,module,exports){
-arguments[4][70][0].apply(exports,arguments)
-},{"./bn-sign":221,"./num-to-bn":225,"dup":70}],227:[function(require,module,exports){
-arguments[4][71][0].apply(exports,arguments)
-},{"bn.js":230,"dup":71}],228:[function(require,module,exports){
-arguments[4][72][0].apply(exports,arguments)
-},{"./lib/rationalize":226,"dup":72}],229:[function(require,module,exports){
-arguments[4][35][0].apply(exports,arguments)
-},{"dup":35}],230:[function(require,module,exports){
-arguments[4][74][0].apply(exports,arguments)
-},{"dup":74}],231:[function(require,module,exports){
-arguments[4][75][0].apply(exports,arguments)
-},{"buffer":1,"dup":75}],232:[function(require,module,exports){
-arguments[4][76][0].apply(exports,arguments)
-},{"./lib/bn-sign":221,"dup":76}],233:[function(require,module,exports){
-arguments[4][77][0].apply(exports,arguments)
-},{"./lib/rationalize":226,"dup":77}],234:[function(require,module,exports){
-arguments[4][78][0].apply(exports,arguments)
-},{"./lib/bn-to-num":222,"./lib/ctz":223,"dup":78}],235:[function(require,module,exports){
-arguments[4][79][0].apply(exports,arguments)
-},{"./lib/intersect":237,"./lib/sweep":241,"dup":79,"typedarray-pool":244}],236:[function(require,module,exports){
-arguments[4][80][0].apply(exports,arguments)
-},{"dup":80}],237:[function(require,module,exports){
-arguments[4][81][0].apply(exports,arguments)
-},{"./brute":236,"./median":238,"./partition":239,"./sweep":241,"bit-twiddle":242,"dup":81,"typedarray-pool":244}],238:[function(require,module,exports){
-arguments[4][82][0].apply(exports,arguments)
-},{"./partition":239,"dup":82}],239:[function(require,module,exports){
-arguments[4][83][0].apply(exports,arguments)
-},{"dup":83}],240:[function(require,module,exports){
-arguments[4][84][0].apply(exports,arguments)
-},{"dup":84}],241:[function(require,module,exports){
-arguments[4][85][0].apply(exports,arguments)
-},{"./sort":240,"bit-twiddle":242,"dup":85,"typedarray-pool":244}],242:[function(require,module,exports){
-arguments[4][35][0].apply(exports,arguments)
-},{"dup":35}],243:[function(require,module,exports){
-arguments[4][22][0].apply(exports,arguments)
-},{"dup":22}],244:[function(require,module,exports){
-arguments[4][37][0].apply(exports,arguments)
-},{"bit-twiddle":242,"buffer":1,"dup":37}],245:[function(require,module,exports){
-arguments[4][89][0].apply(exports,arguments)
-},{"dup":89}],246:[function(require,module,exports){
-arguments[4][90][0].apply(exports,arguments)
-},{"double-bits":247,"dup":90}],247:[function(require,module,exports){
-arguments[4][75][0].apply(exports,arguments)
-},{"buffer":1,"dup":75}],248:[function(require,module,exports){
-arguments[4][92][0].apply(exports,arguments)
-},{"big-rat/add":216,"dup":92}],249:[function(require,module,exports){
-arguments[4][93][0].apply(exports,arguments)
-},{"big-rat":219,"dup":93}],250:[function(require,module,exports){
-arguments[4][94][0].apply(exports,arguments)
-},{"big-rat":219,"big-rat/mul":228,"dup":94}],251:[function(require,module,exports){
-arguments[4][95][0].apply(exports,arguments)
-},{"big-rat/sub":233,"dup":95}],252:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],253:[function(require,module,exports){
-arguments[4][8][0].apply(exports,arguments)
-},{"dup":8,"two-product":256,"two-sum":252}],254:[function(require,module,exports){
-arguments[4][9][0].apply(exports,arguments)
-},{"dup":9}],255:[function(require,module,exports){
-arguments[4][10][0].apply(exports,arguments)
-},{"dup":10}],256:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],257:[function(require,module,exports){
-arguments[4][12][0].apply(exports,arguments)
-},{"dup":12,"robust-scale":253,"robust-subtract":254,"robust-sum":255,"two-product":256}],258:[function(require,module,exports){
-arguments[4][102][0].apply(exports,arguments)
-},{"dup":102,"robust-orientation":257}],259:[function(require,module,exports){
-arguments[4][103][0].apply(exports,arguments)
-},{"dup":103}],260:[function(require,module,exports){
-var getBounds = require('bound-points')
-var unlerp = require('unlerp')
-
-module.exports = normalizePathScale
-function normalizePathScale (positions, bounds) {
-  if (!Array.isArray(positions)) {
-    throw new TypeError('must specify positions as first argument')
-  }
-  if (!Array.isArray(bounds)) {
-    bounds = getBounds(positions)
-  }
-
-  var min = bounds[0]
-  var max = bounds[1]
-
-  var width = max[0] - min[0]
-  var height = max[1] - min[1]
-
-  var aspectX = width > height ? 1 : (height / width)
-  var aspectY = width > height ? (width / height) : 1
-
-  if (max[0] - min[0] === 0 || max[1] - min[1] === 0) {
-    return positions // div by zero; leave positions unchanged
-  }
-
-  for (var i = 0; i < positions.length; i++) {
-    var pos = positions[i]
-    pos[0] = (unlerp(min[0], max[0], pos[0]) * 2 - 1) / aspectX
-    pos[1] = (unlerp(min[1], max[1], pos[1]) * 2 - 1) / aspectY
-  }
-  return positions
-}
-},{"bound-points":195,"unlerp":261}],261:[function(require,module,exports){
-module.exports = function range(min, max, value) {
-  return (value - min) / (max - min)
-}
-},{}],262:[function(require,module,exports){
-/* eslint-disable no-unused-vars */
-'use strict';
-var hasOwnProperty = Object.prototype.hasOwnProperty;
-var propIsEnumerable = Object.prototype.propertyIsEnumerable;
-
-function toObject(val) {
-  if (val === null || val === undefined) {
-    throw new TypeError('Object.assign cannot be called with null or undefined');
-  }
-
-  return Object(val);
-}
-
-module.exports = Object.assign || function (target, source) {
-  var from;
-  var to = toObject(target);
-  var symbols;
-
-  for (var s = 1; s < arguments.length; s++) {
-    from = Object(arguments[s]);
-
-    for (var key in from) {
-      if (hasOwnProperty.call(from, key)) {
-        to[key] = from[key];
-      }
-    }
-
-    if (Object.getOwnPropertySymbols) {
-      symbols = Object.getOwnPropertySymbols(from);
-      for (var i = 0; i < symbols.length; i++) {
-        if (propIsEnumerable.call(from, symbols[i])) {
-          to[symbols[i]] = from[symbols[i]];
-        }
-      }
-    }
-  }
-
-  return to;
-};
-
-},{}],263:[function(require,module,exports){
-
-module.exports = parse
-
-/**
- * expected argument lengths
- * @type {Object}
- */
-
-var length = {a: 7, c: 6, h: 1, l: 2, m: 2, q: 4, s: 4, t: 2, v: 1, z: 0}
-
-/**
- * segment pattern
- * @type {RegExp}
- */
-
-var segment = /([astvzqmhlc])([^astvzqmhlc]*)/ig
-
-/**
- * parse an svg path data string. Generates an Array
- * of commands where each command is an Array of the
- * form `[command, arg1, arg2, ...]`
- *
- * @param {String} path
- * @return {Array}
- */
-
-function parse(path) {
-  var data = []
-  path.replace(segment, function(_, command, args){
-    var type = command.toLowerCase()
-    args = parseValues(args)
-
-    // overloaded moveTo
-    if (type == 'm' && args.length > 2) {
-      data.push([command].concat(args.splice(0, 2)))
-      type = 'l'
-      command = command == 'm' ? 'l' : 'L'
-    }
-
-    while (true) {
-      if (args.length == length[type]) {
-        args.unshift(command)
-        return data.push(args)
-      }
-      if (args.length < length[type]) throw new Error('malformed path data')
-      data.push([command].concat(args.splice(0, length[type])))
-    }
-  })
-  return data
-}
-
-function parseValues(args){
-  args = args.match(/-?[.0-9]+(?:e[-+]?\d+)?/ig)
-  return args ? args.map(Number) : []
-}
-
-},{}],264:[function(require,module,exports){
-'use strict';
-module.exports = function (min, max) {
-  if (max === undefined) {
-    max = min;
-    min = 0;
-  }
-
-  if (typeof min !== 'number' || typeof max !== 'number') {
-    throw new TypeError('Expected all arguments to be numbers');
-  }
-
-  return Math.random() * (max - min) + min;
-};
-
-},{}],265:[function(require,module,exports){
-// square distance from a point to a segment
-function getSqSegDist(p, p1, p2) {
-    var x = p1[0],
-        y = p1[1],
-        dx = p2[0] - x,
-        dy = p2[1] - y;
-
-    if (dx !== 0 || dy !== 0) {
-
-        var t = ((p[0] - x) * dx + (p[1] - y) * dy) / (dx * dx + dy * dy);
-
-        if (t > 1) {
-            x = p2[0];
-            y = p2[1];
-
-        } else if (t > 0) {
-            x += dx * t;
-            y += dy * t;
-        }
-    }
-
-    dx = p[0] - x;
-    dy = p[1] - y;
-
-    return dx * dx + dy * dy;
-}
-
-function simplifyDPStep(points, first, last, sqTolerance, simplified) {
-    var maxSqDist = sqTolerance,
-        index;
-
-    for (var i = first + 1; i < last; i++) {
-        var sqDist = getSqSegDist(points[i], points[first], points[last]);
-
-        if (sqDist > maxSqDist) {
-            index = i;
-            maxSqDist = sqDist;
-        }
-    }
-
-    if (maxSqDist > sqTolerance) {
-        if (index - first > 1) simplifyDPStep(points, first, index, sqTolerance, simplified);
-        simplified.push(points[index]);
-        if (last - index > 1) simplifyDPStep(points, index, last, sqTolerance, simplified);
-    }
-}
-
-// simplification using Ramer-Douglas-Peucker algorithm
-module.exports = function simplifyDouglasPeucker(points, tolerance) {
-    if (points.length<=1)
-        return points;
-    tolerance = typeof tolerance === 'number' ? tolerance : 1;
-    var sqTolerance = tolerance * tolerance;
-
-    var last = points.length - 1;
-
-    var simplified = [points[0]];
-    simplifyDPStep(points, 0, last, sqTolerance, simplified);
-    simplified.push(points[last]);
-
-    return simplified;
-}
-
-},{}],266:[function(require,module,exports){
-var simplifyRadialDist = require('./radial-distance')
-var simplifyDouglasPeucker = require('./douglas-peucker')
-
-//simplifies using both algorithms
-module.exports = function simplify(points, tolerance) {
-    points = simplifyRadialDist(points, tolerance);
-    points = simplifyDouglasPeucker(points, tolerance);
-    return points;
-}
-
-module.exports.radialDistance = simplifyRadialDist;
-module.exports.douglasPeucker = simplifyDouglasPeucker;
-},{"./douglas-peucker":265,"./radial-distance":267}],267:[function(require,module,exports){
-function getSqDist(p1, p2) {
-    var dx = p1[0] - p2[0],
-        dy = p1[1] - p2[1];
-
-    return dx * dx + dy * dy;
-}
-
-// basic distance-based simplification
-module.exports = function simplifyRadialDist(points, tolerance) {
-    if (points.length<=1)
-        return points;
-    tolerance = typeof tolerance === 'number' ? tolerance : 1;
-    var sqTolerance = tolerance * tolerance;
-
-    var prevPoint = points[0],
-        newPoints = [prevPoint],
-        point;
-
-    for (var i = 1, len = points.length; i < len; i++) {
-        point = points[i];
-
-        if (getSqDist(point, prevPoint) > sqTolerance) {
-            newPoints.push(point);
-            prevPoint = point;
-        }
-    }
-
-    if (prevPoint !== point) newPoints.push(point);
-
-    return newPoints;
-}
-},{}],268:[function(require,module,exports){
+},{"./Polynomial":133}],135:[function(require,module,exports){
 var bezier = require('adaptive-bezier-curve')
 var abs = require('abs-svg-path')
 var norm = require('normalize-svg-path')
@@ -15942,7 +16360,7 @@ module.exports = function contours(svg, scale) {
         paths.push(points)
     return paths
 }
-},{"abs-svg-path":269,"adaptive-bezier-curve":271,"normalize-svg-path":272,"vec2-copy":273}],269:[function(require,module,exports){
+},{"abs-svg-path":136,"adaptive-bezier-curve":138,"normalize-svg-path":139,"vec2-copy":140}],136:[function(require,module,exports){
 
 module.exports = absolutize
 
@@ -16011,7 +16429,7 @@ function absolutize(path){
   })
 }
 
-},{}],270:[function(require,module,exports){
+},{}],137:[function(require,module,exports){
 function clone(point) { //TODO: use gl-vec2 for this
     return [point[0], point[1]]
 }
@@ -16210,9 +16628,9 @@ module.exports = function createBezierBuilder(opt) {
     }
 }
 
-},{}],271:[function(require,module,exports){
+},{}],138:[function(require,module,exports){
 module.exports = require('./function')()
-},{"./function":270}],272:[function(require,module,exports){
+},{"./function":137}],139:[function(require,module,exports){
 
 var π = Math.PI
 var _120 = radians(120)
@@ -16414,13 +16832,13 @@ function radians(degress){
   return degress * (π / 180)
 }
 
-},{}],273:[function(require,module,exports){
+},{}],140:[function(require,module,exports){
 module.exports = function vec2Copy(out, a) {
     out[0] = a[0]
     out[1] = a[1]
     return out
 }
-},{}],274:[function(require,module,exports){
+},{}],141:[function(require,module,exports){
 var inherits = require('inherits')
 
 module.exports = function(THREE) {
@@ -16474,7 +16892,7 @@ module.exports = function(THREE) {
 
     return Complex
 }
-},{"inherits":275}],275:[function(require,module,exports){
+},{"inherits":142}],142:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -16499,7 +16917,3512 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],276:[function(require,module,exports){
+},{}],143:[function(require,module,exports){
+var Tess2 = require('tess2')
+var xtend = require('xtend')
+
+module.exports = function(contours, opt) {
+    opt = opt||{}
+    contours = contours.filter(function(c) {
+        return c.length>0
+    })
+
+    if (contours.length === 0) {
+        return {
+            positions: [],
+            cells: []
+        }
+    }
+
+    if (typeof opt.vertexSize !== 'number')
+        opt.vertexSize = contours[0][0].length
+
+    //flatten for tess2.js
+    contours = contours.map(function(c) {
+        return c.reduce(function(a, b) {
+            return a.concat(b)
+        })
+    })
+
+    // Tesselate
+    var res = Tess2.tesselate(xtend({
+        contours: contours,
+        windingRule: Tess2.WINDING_ODD,
+        elementType: Tess2.POLYGONS,
+        polySize: 3,
+        vertexSize: 2
+    }, opt))
+
+    var positions = []
+    for (var i=0; i<res.vertices.length; i+=opt.vertexSize) {
+        var pos = res.vertices.slice(i, i+opt.vertexSize)
+        positions.push(pos)
+    }
+
+    var cells = []
+    for (i=0; i<res.elements.length; i+=3) {
+        var a = res.elements[i],
+            b = res.elements[i+1],
+            c = res.elements[i+2]
+        cells.push([a, b, c])
+    }
+
+    //return a simplicial complex
+    return {
+        positions: positions,
+        cells: cells
+    }
+}
+},{"tess2":144,"xtend":146}],144:[function(require,module,exports){
+module.exports = require('./src/tess2');
+},{"./src/tess2":145}],145:[function(require,module,exports){
+/*
+** SGI FREE SOFTWARE LICENSE B (Version 2.0, Sept. 18, 2008)
+** Copyright (C) [dates of first publication] Silicon Graphics, Inc.
+** All Rights Reserved.
+**
+** Permission is hereby granted, free of charge, to any person obtaining a copy
+** of this software and associated documentation files (the "Software"), to deal
+** in the Software without restriction, including without limitation the rights
+** to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+** of the Software, and to permit persons to whom the Software is furnished to do so,
+** subject to the following conditions:
+**
+** The above copyright notice including the dates of first publication and either this
+** permission notice or a reference to http://oss.sgi.com/projects/FreeB/ shall be
+** included in all copies or substantial portions of the Software.
+**
+** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+** INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+** PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL SILICON GRAPHICS, INC.
+** BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+** TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
+** OR OTHER DEALINGS IN THE SOFTWARE.
+**
+** Except as contained in this notice, the name of Silicon Graphics, Inc. shall not
+** be used in advertising or otherwise to promote the sale, use or other dealings in
+** this Software without prior written authorization from Silicon Graphics, Inc.
+*/
+/*
+** Author: Mikko Mononen, Aug 2013.
+** The code is based on GLU libtess by Eric Veach, July 1994
+*/
+
+  "use strict";
+
+  /* Public API */
+
+  var Tess2 = {};
+
+  module.exports = Tess2;
+
+  Tess2.WINDING_ODD = 0;
+  Tess2.WINDING_NONZERO = 1;
+  Tess2.WINDING_POSITIVE = 2;
+  Tess2.WINDING_NEGATIVE = 3;
+  Tess2.WINDING_ABS_GEQ_TWO = 4;
+
+  Tess2.POLYGONS = 0;
+  Tess2.CONNECTED_POLYGONS = 1;
+  Tess2.BOUNDARY_CONTOURS = 2;
+
+  Tess2.tesselate = function(opts) {
+    var debug =  opts.debug || false;
+    var tess = new Tesselator();
+    for (var i = 0; i < opts.contours.length; i++) {
+      tess.addContour(opts.vertexSize || 2, opts.contours[i]);
+    }
+    tess.tesselate(opts.windingRule || Tess2.WINDING_ODD,
+             opts.elementType || Tess2.POLYGONS,
+             opts.polySize || 3,
+             opts.vertexSize || 2,
+             opts.normal || [0,0,1]);
+    return {
+      vertices: tess.vertices,
+      vertexIndices: tess.vertexIndices,
+      vertexCount: tess.vertexCount,
+      elements: tess.elements,
+      elementCount: tess.elementCount,
+      mesh: debug ? tess.mesh : undefined
+    };
+  };
+
+  /* Internal */
+
+  var assert = function(cond) {
+    if (!cond) {
+      throw "Assertion Failed!";
+    }
+  }
+
+  /* The mesh structure is similar in spirit, notation, and operations
+  * to the "quad-edge" structure (see L. Guibas and J. Stolfi, Primitives
+  * for the manipulation of general subdivisions and the computation of
+  * Voronoi diagrams, ACM Transactions on Graphics, 4(2):74-123, April 1985).
+  * For a simplified description, see the course notes for CS348a,
+  * "Mathematical Foundations of Computer Graphics", available at the
+  * Stanford bookstore (and taught during the fall quarter).
+  * The implementation also borrows a tiny subset of the graph-based approach
+  * use in Mantyla's Geometric Work Bench (see M. Mantyla, An Introduction
+  * to Sold Modeling, Computer Science Press, Rockville, Maryland, 1988).
+  *
+  * The fundamental data structure is the "half-edge".  Two half-edges
+  * go together to make an edge, but they point in opposite directions.
+  * Each half-edge has a pointer to its mate (the "symmetric" half-edge Sym),
+  * its origin vertex (Org), the face on its left side (Lface), and the
+  * adjacent half-edges in the CCW direction around the origin vertex
+  * (Onext) and around the left face (Lnext).  There is also a "next"
+  * pointer for the global edge list (see below).
+  *
+  * The notation used for mesh navigation:
+  *  Sym   = the mate of a half-edge (same edge, but opposite direction)
+  *  Onext = edge CCW around origin vertex (keep same origin)
+  *  Dnext = edge CCW around destination vertex (keep same dest)
+  *  Lnext = edge CCW around left face (dest becomes new origin)
+  *  Rnext = edge CCW around right face (origin becomes new dest)
+  *
+  * "prev" means to substitute CW for CCW in the definitions above.
+  *
+  * The mesh keeps global lists of all vertices, faces, and edges,
+  * stored as doubly-linked circular lists with a dummy header node.
+  * The mesh stores pointers to these dummy headers (vHead, fHead, eHead).
+  *
+  * The circular edge list is special; since half-edges always occur
+  * in pairs (e and e->Sym), each half-edge stores a pointer in only
+  * one direction.  Starting at eHead and following the e->next pointers
+  * will visit each *edge* once (ie. e or e->Sym, but not both).
+  * e->Sym stores a pointer in the opposite direction, thus it is
+  * always true that e->Sym->next->Sym->next == e.
+  *
+  * Each vertex has a pointer to next and previous vertices in the
+  * circular list, and a pointer to a half-edge with this vertex as
+  * the origin (NULL if this is the dummy header).  There is also a
+  * field "data" for client data.
+  *
+  * Each face has a pointer to the next and previous faces in the
+  * circular list, and a pointer to a half-edge with this face as
+  * the left face (NULL if this is the dummy header).  There is also
+  * a field "data" for client data.
+  *
+  * Note that what we call a "face" is really a loop; faces may consist
+  * of more than one loop (ie. not simply connected), but there is no
+  * record of this in the data structure.  The mesh may consist of
+  * several disconnected regions, so it may not be possible to visit
+  * the entire mesh by starting at a half-edge and traversing the edge
+  * structure.
+  *
+  * The mesh does NOT support isolated vertices; a vertex is deleted along
+  * with its last edge.  Similarly when two faces are merged, one of the
+  * faces is deleted (see tessMeshDelete below).  For mesh operations,
+  * all face (loop) and vertex pointers must not be NULL.  However, once
+  * mesh manipulation is finished, TESSmeshZapFace can be used to delete
+  * faces of the mesh, one at a time.  All external faces can be "zapped"
+  * before the mesh is returned to the client; then a NULL face indicates
+  * a region which is not part of the output polygon.
+  */
+
+  function TESSvertex() {
+    this.next = null; /* next vertex (never NULL) */
+    this.prev = null; /* previous vertex (never NULL) */
+    this.anEdge = null; /* a half-edge with this origin */
+
+    /* Internal data (keep hidden) */
+    this.coords = [0,0,0];  /* vertex location in 3D */
+    this.s = 0.0;
+    this.t = 0.0;     /* projection onto the sweep plane */
+    this.pqHandle = 0;    /* to allow deletion from priority queue */
+    this.n = 0;       /* to allow identify unique vertices */
+    this.idx = 0;     /* to allow map result to original verts */
+  }
+
+  function TESSface() {
+    this.next = null;   /* next face (never NULL) */
+    this.prev = null;   /* previous face (never NULL) */
+    this.anEdge = null;   /* a half edge with this left face */
+
+    /* Internal data (keep hidden) */
+    this.trail = null;    /* "stack" for conversion to strips */
+    this.n = 0;       /* to allow identiy unique faces */
+    this.marked = false;  /* flag for conversion to strips */
+    this.inside = false;  /* this face is in the polygon interior */
+  };
+
+  function TESShalfEdge(side) {
+    this.next = null;   /* doubly-linked list (prev==Sym->next) */
+    this.Sym = null;    /* same edge, opposite direction */
+    this.Onext = null;    /* next edge CCW around origin */
+    this.Lnext = null;    /* next edge CCW around left face */
+    this.Org = null;    /* origin vertex (Overtex too long) */
+    this.Lface = null;    /* left face */
+
+    /* Internal data (keep hidden) */
+    this.activeRegion = null; /* a region with this upper edge (sweep.c) */
+    this.winding = 0;     /* change in winding number when crossing
+                     from the right face to the left face */
+    this.side = side;
+  };
+
+  TESShalfEdge.prototype = {
+    get Rface() { return this.Sym.Lface; },
+    set Rface(v) { this.Sym.Lface = v; },
+    get Dst() { return this.Sym.Org; },
+    set Dst(v) { this.Sym.Org = v; },
+    get Oprev() { return this.Sym.Lnext; },
+    set Oprev(v) { this.Sym.Lnext = v; },
+    get Lprev() { return this.Onext.Sym; },
+    set Lprev(v) { this.Onext.Sym = v; },
+    get Dprev() { return this.Lnext.Sym; },
+    set Dprev(v) { this.Lnext.Sym = v; },
+    get Rprev() { return this.Sym.Onext; },
+    set Rprev(v) { this.Sym.Onext = v; },
+    get Dnext() { return /*this.Rprev*/this.Sym.Onext.Sym; },  /* 3 pointers */
+    set Dnext(v) { /*this.Rprev*/this.Sym.Onext.Sym = v; },  /* 3 pointers */
+    get Rnext() { return /*this.Oprev*/this.Sym.Lnext.Sym; },  /* 3 pointers */
+    set Rnext(v) { /*this.Oprev*/this.Sym.Lnext.Sym = v; },  /* 3 pointers */
+  };
+
+
+
+  function TESSmesh() {
+    var v = new TESSvertex();
+    var f = new TESSface();
+    var e = new TESShalfEdge(0);
+    var eSym = new TESShalfEdge(1);
+
+    v.next = v.prev = v;
+    v.anEdge = null;
+
+    f.next = f.prev = f;
+    f.anEdge = null;
+    f.trail = null;
+    f.marked = false;
+    f.inside = false;
+
+    e.next = e;
+    e.Sym = eSym;
+    e.Onext = null;
+    e.Lnext = null;
+    e.Org = null;
+    e.Lface = null;
+    e.winding = 0;
+    e.activeRegion = null;
+
+    eSym.next = eSym;
+    eSym.Sym = e;
+    eSym.Onext = null;
+    eSym.Lnext = null;
+    eSym.Org = null;
+    eSym.Lface = null;
+    eSym.winding = 0;
+    eSym.activeRegion = null;
+
+    this.vHead = v;   /* dummy header for vertex list */
+    this.fHead = f;   /* dummy header for face list */
+    this.eHead = e;   /* dummy header for edge list */
+    this.eHeadSym = eSym; /* and its symmetric counterpart */
+  };
+
+  /* The mesh operations below have three motivations: completeness,
+  * convenience, and efficiency.  The basic mesh operations are MakeEdge,
+  * Splice, and Delete.  All the other edge operations can be implemented
+  * in terms of these.  The other operations are provided for convenience
+  * and/or efficiency.
+  *
+  * When a face is split or a vertex is added, they are inserted into the
+  * global list *before* the existing vertex or face (ie. e->Org or e->Lface).
+  * This makes it easier to process all vertices or faces in the global lists
+  * without worrying about processing the same data twice.  As a convenience,
+  * when a face is split, the "inside" flag is copied from the old face.
+  * Other internal data (v->data, v->activeRegion, f->data, f->marked,
+  * f->trail, e->winding) is set to zero.
+  *
+  * ********************** Basic Edge Operations **************************
+  *
+  * tessMeshMakeEdge( mesh ) creates one edge, two vertices, and a loop.
+  * The loop (face) consists of the two new half-edges.
+  *
+  * tessMeshSplice( eOrg, eDst ) is the basic operation for changing the
+  * mesh connectivity and topology.  It changes the mesh so that
+  *  eOrg->Onext <- OLD( eDst->Onext )
+  *  eDst->Onext <- OLD( eOrg->Onext )
+  * where OLD(...) means the value before the meshSplice operation.
+  *
+  * This can have two effects on the vertex structure:
+  *  - if eOrg->Org != eDst->Org, the two vertices are merged together
+  *  - if eOrg->Org == eDst->Org, the origin is split into two vertices
+  * In both cases, eDst->Org is changed and eOrg->Org is untouched.
+  *
+  * Similarly (and independently) for the face structure,
+  *  - if eOrg->Lface == eDst->Lface, one loop is split into two
+  *  - if eOrg->Lface != eDst->Lface, two distinct loops are joined into one
+  * In both cases, eDst->Lface is changed and eOrg->Lface is unaffected.
+  *
+  * tessMeshDelete( eDel ) removes the edge eDel.  There are several cases:
+  * if (eDel->Lface != eDel->Rface), we join two loops into one; the loop
+  * eDel->Lface is deleted.  Otherwise, we are splitting one loop into two;
+  * the newly created loop will contain eDel->Dst.  If the deletion of eDel
+  * would create isolated vertices, those are deleted as well.
+  *
+  * ********************** Other Edge Operations **************************
+  *
+  * tessMeshAddEdgeVertex( eOrg ) creates a new edge eNew such that
+  * eNew == eOrg->Lnext, and eNew->Dst is a newly created vertex.
+  * eOrg and eNew will have the same left face.
+  *
+  * tessMeshSplitEdge( eOrg ) splits eOrg into two edges eOrg and eNew,
+  * such that eNew == eOrg->Lnext.  The new vertex is eOrg->Dst == eNew->Org.
+  * eOrg and eNew will have the same left face.
+  *
+  * tessMeshConnect( eOrg, eDst ) creates a new edge from eOrg->Dst
+  * to eDst->Org, and returns the corresponding half-edge eNew.
+  * If eOrg->Lface == eDst->Lface, this splits one loop into two,
+  * and the newly created loop is eNew->Lface.  Otherwise, two disjoint
+  * loops are merged into one, and the loop eDst->Lface is destroyed.
+  *
+  * ************************ Other Operations *****************************
+  *
+  * tessMeshNewMesh() creates a new mesh with no edges, no vertices,
+  * and no loops (what we usually call a "face").
+  *
+  * tessMeshUnion( mesh1, mesh2 ) forms the union of all structures in
+  * both meshes, and returns the new mesh (the old meshes are destroyed).
+  *
+  * tessMeshDeleteMesh( mesh ) will free all storage for any valid mesh.
+  *
+  * tessMeshZapFace( fZap ) destroys a face and removes it from the
+  * global face list.  All edges of fZap will have a NULL pointer as their
+  * left face.  Any edges which also have a NULL pointer as their right face
+  * are deleted entirely (along with any isolated vertices this produces).
+  * An entire mesh can be deleted by zapping its faces, one at a time,
+  * in any order.  Zapped faces cannot be used in further mesh operations!
+  *
+  * tessMeshCheckMesh( mesh ) checks a mesh for self-consistency.
+  */
+
+  TESSmesh.prototype = {
+
+    /* MakeEdge creates a new pair of half-edges which form their own loop.
+    * No vertex or face structures are allocated, but these must be assigned
+    * before the current edge operation is completed.
+    */
+    //static TESShalfEdge *MakeEdge( TESSmesh* mesh, TESShalfEdge *eNext )
+    makeEdge_: function(eNext) {
+      var e = new TESShalfEdge(0);
+      var eSym = new TESShalfEdge(1);
+
+      /* Make sure eNext points to the first edge of the edge pair */
+      if( eNext.Sym.side < eNext.side ) { eNext = eNext.Sym; }
+
+      /* Insert in circular doubly-linked list before eNext.
+      * Note that the prev pointer is stored in Sym->next.
+      */
+      var ePrev = eNext.Sym.next;
+      eSym.next = ePrev;
+      ePrev.Sym.next = e;
+      e.next = eNext;
+      eNext.Sym.next = eSym;
+
+      e.Sym = eSym;
+      e.Onext = e;
+      e.Lnext = eSym;
+      e.Org = null;
+      e.Lface = null;
+      e.winding = 0;
+      e.activeRegion = null;
+
+      eSym.Sym = e;
+      eSym.Onext = eSym;
+      eSym.Lnext = e;
+      eSym.Org = null;
+      eSym.Lface = null;
+      eSym.winding = 0;
+      eSym.activeRegion = null;
+
+      return e;
+    },
+
+    /* Splice( a, b ) is best described by the Guibas/Stolfi paper or the
+    * CS348a notes (see mesh.h).  Basically it modifies the mesh so that
+    * a->Onext and b->Onext are exchanged.  This can have various effects
+    * depending on whether a and b belong to different face or vertex rings.
+    * For more explanation see tessMeshSplice() below.
+    */
+    // static void Splice( TESShalfEdge *a, TESShalfEdge *b )
+    splice_: function(a, b) {
+      var aOnext = a.Onext;
+      var bOnext = b.Onext;
+      aOnext.Sym.Lnext = b;
+      bOnext.Sym.Lnext = a;
+      a.Onext = bOnext;
+      b.Onext = aOnext;
+    },
+
+    /* MakeVertex( newVertex, eOrig, vNext ) attaches a new vertex and makes it the
+    * origin of all edges in the vertex loop to which eOrig belongs. "vNext" gives
+    * a place to insert the new vertex in the global vertex list.  We insert
+    * the new vertex *before* vNext so that algorithms which walk the vertex
+    * list will not see the newly created vertices.
+    */
+    //static void MakeVertex( TESSvertex *newVertex, TESShalfEdge *eOrig, TESSvertex *vNext )
+    makeVertex_: function(newVertex, eOrig, vNext) {
+      var vNew = newVertex;
+      assert(vNew !== null);
+
+      /* insert in circular doubly-linked list before vNext */
+      var vPrev = vNext.prev;
+      vNew.prev = vPrev;
+      vPrev.next = vNew;
+      vNew.next = vNext;
+      vNext.prev = vNew;
+
+      vNew.anEdge = eOrig;
+      /* leave coords, s, t undefined */
+
+      /* fix other edges on this vertex loop */
+      var e = eOrig;
+      do {
+        e.Org = vNew;
+        e = e.Onext;
+      } while(e !== eOrig);
+    },
+
+    /* MakeFace( newFace, eOrig, fNext ) attaches a new face and makes it the left
+    * face of all edges in the face loop to which eOrig belongs.  "fNext" gives
+    * a place to insert the new face in the global face list.  We insert
+    * the new face *before* fNext so that algorithms which walk the face
+    * list will not see the newly created faces.
+    */
+    // static void MakeFace( TESSface *newFace, TESShalfEdge *eOrig, TESSface *fNext )
+    makeFace_: function(newFace, eOrig, fNext) {
+      var fNew = newFace;
+      assert(fNew !== null);
+
+      /* insert in circular doubly-linked list before fNext */
+      var fPrev = fNext.prev;
+      fNew.prev = fPrev;
+      fPrev.next = fNew;
+      fNew.next = fNext;
+      fNext.prev = fNew;
+
+      fNew.anEdge = eOrig;
+      fNew.trail = null;
+      fNew.marked = false;
+
+      /* The new face is marked "inside" if the old one was.  This is a
+      * convenience for the common case where a face has been split in two.
+      */
+      fNew.inside = fNext.inside;
+
+      /* fix other edges on this face loop */
+      var e = eOrig;
+      do {
+        e.Lface = fNew;
+        e = e.Lnext;
+      } while(e !== eOrig);
+    },
+
+    /* KillEdge( eDel ) destroys an edge (the half-edges eDel and eDel->Sym),
+    * and removes from the global edge list.
+    */
+    //static void KillEdge( TESSmesh *mesh, TESShalfEdge *eDel )
+    killEdge_: function(eDel) {
+      /* Half-edges are allocated in pairs, see EdgePair above */
+      if( eDel.Sym.side < eDel.side ) { eDel = eDel.Sym; }
+
+      /* delete from circular doubly-linked list */
+      var eNext = eDel.next;
+      var ePrev = eDel.Sym.next;
+      eNext.Sym.next = ePrev;
+      ePrev.Sym.next = eNext;
+    },
+
+
+    /* KillVertex( vDel ) destroys a vertex and removes it from the global
+    * vertex list.  It updates the vertex loop to point to a given new vertex.
+    */
+    //static void KillVertex( TESSmesh *mesh, TESSvertex *vDel, TESSvertex *newOrg )
+    killVertex_: function(vDel, newOrg) {
+      var eStart = vDel.anEdge;
+      /* change the origin of all affected edges */
+      var e = eStart;
+      do {
+        e.Org = newOrg;
+        e = e.Onext;
+      } while(e !== eStart);
+
+      /* delete from circular doubly-linked list */
+      var vPrev = vDel.prev;
+      var vNext = vDel.next;
+      vNext.prev = vPrev;
+      vPrev.next = vNext;
+    },
+
+    /* KillFace( fDel ) destroys a face and removes it from the global face
+    * list.  It updates the face loop to point to a given new face.
+    */
+    //static void KillFace( TESSmesh *mesh, TESSface *fDel, TESSface *newLface )
+    killFace_: function(fDel, newLface) {
+      var eStart = fDel.anEdge;
+
+      /* change the left face of all affected edges */
+      var e = eStart;
+      do {
+        e.Lface = newLface;
+        e = e.Lnext;
+      } while(e !== eStart);
+
+      /* delete from circular doubly-linked list */
+      var fPrev = fDel.prev;
+      var fNext = fDel.next;
+      fNext.prev = fPrev;
+      fPrev.next = fNext;
+    },
+
+    /****************** Basic Edge Operations **********************/
+
+    /* tessMeshMakeEdge creates one edge, two vertices, and a loop (face).
+    * The loop consists of the two new half-edges.
+    */
+    //TESShalfEdge *tessMeshMakeEdge( TESSmesh *mesh )
+    makeEdge: function() {
+      var newVertex1 = new TESSvertex();
+      var newVertex2 = new TESSvertex();
+      var newFace = new TESSface();
+      var e = this.makeEdge_( this.eHead);
+      this.makeVertex_( newVertex1, e, this.vHead );
+      this.makeVertex_( newVertex2, e.Sym, this.vHead );
+      this.makeFace_( newFace, e, this.fHead );
+      return e;
+    },
+
+    /* tessMeshSplice( eOrg, eDst ) is the basic operation for changing the
+    * mesh connectivity and topology.  It changes the mesh so that
+    * eOrg->Onext <- OLD( eDst->Onext )
+    * eDst->Onext <- OLD( eOrg->Onext )
+    * where OLD(...) means the value before the meshSplice operation.
+    *
+    * This can have two effects on the vertex structure:
+    *  - if eOrg->Org != eDst->Org, the two vertices are merged together
+    *  - if eOrg->Org == eDst->Org, the origin is split into two vertices
+    * In both cases, eDst->Org is changed and eOrg->Org is untouched.
+    *
+    * Similarly (and independently) for the face structure,
+    *  - if eOrg->Lface == eDst->Lface, one loop is split into two
+    *  - if eOrg->Lface != eDst->Lface, two distinct loops are joined into one
+    * In both cases, eDst->Lface is changed and eOrg->Lface is unaffected.
+    *
+    * Some special cases:
+    * If eDst == eOrg, the operation has no effect.
+    * If eDst == eOrg->Lnext, the new face will have a single edge.
+    * If eDst == eOrg->Lprev, the old face will have a single edge.
+    * If eDst == eOrg->Onext, the new vertex will have a single edge.
+    * If eDst == eOrg->Oprev, the old vertex will have a single edge.
+    */
+    //int tessMeshSplice( TESSmesh* mesh, TESShalfEdge *eOrg, TESShalfEdge *eDst )
+    splice: function(eOrg, eDst) {
+      var joiningLoops = false;
+      var joiningVertices = false;
+
+      if( eOrg === eDst ) return;
+
+      if( eDst.Org !== eOrg.Org ) {
+        /* We are merging two disjoint vertices -- destroy eDst->Org */
+        joiningVertices = true;
+        this.killVertex_( eDst.Org, eOrg.Org );
+      }
+      if( eDst.Lface !== eOrg.Lface ) {
+        /* We are connecting two disjoint loops -- destroy eDst->Lface */
+        joiningLoops = true;
+        this.killFace_( eDst.Lface, eOrg.Lface );
+      }
+
+      /* Change the edge structure */
+      this.splice_( eDst, eOrg );
+
+      if( ! joiningVertices ) {
+        var newVertex = new TESSvertex();
+
+        /* We split one vertex into two -- the new vertex is eDst->Org.
+        * Make sure the old vertex points to a valid half-edge.
+        */
+        this.makeVertex_( newVertex, eDst, eOrg.Org );
+        eOrg.Org.anEdge = eOrg;
+      }
+      if( ! joiningLoops ) {
+        var newFace = new TESSface();
+
+        /* We split one loop into two -- the new loop is eDst->Lface.
+        * Make sure the old face points to a valid half-edge.
+        */
+        this.makeFace_( newFace, eDst, eOrg.Lface );
+        eOrg.Lface.anEdge = eOrg;
+      }
+    },
+
+    /* tessMeshDelete( eDel ) removes the edge eDel.  There are several cases:
+    * if (eDel->Lface != eDel->Rface), we join two loops into one; the loop
+    * eDel->Lface is deleted.  Otherwise, we are splitting one loop into two;
+    * the newly created loop will contain eDel->Dst.  If the deletion of eDel
+    * would create isolated vertices, those are deleted as well.
+    *
+    * This function could be implemented as two calls to tessMeshSplice
+    * plus a few calls to memFree, but this would allocate and delete
+    * unnecessary vertices and faces.
+    */
+    //int tessMeshDelete( TESSmesh *mesh, TESShalfEdge *eDel )
+    delete: function(eDel) {
+      var eDelSym = eDel.Sym;
+      var joiningLoops = false;
+
+      /* First step: disconnect the origin vertex eDel->Org.  We make all
+      * changes to get a consistent mesh in this "intermediate" state.
+      */
+      if( eDel.Lface !== eDel.Rface ) {
+        /* We are joining two loops into one -- remove the left face */
+        joiningLoops = true;
+        this.killFace_( eDel.Lface, eDel.Rface );
+      }
+
+      if( eDel.Onext === eDel ) {
+        this.killVertex_( eDel.Org, null );
+      } else {
+        /* Make sure that eDel->Org and eDel->Rface point to valid half-edges */
+        eDel.Rface.anEdge = eDel.Oprev;
+        eDel.Org.anEdge = eDel.Onext;
+
+        this.splice_( eDel, eDel.Oprev );
+        if( ! joiningLoops ) {
+          var newFace = new TESSface();
+
+          /* We are splitting one loop into two -- create a new loop for eDel. */
+          this.makeFace_( newFace, eDel, eDel.Lface );
+        }
+      }
+
+      /* Claim: the mesh is now in a consistent state, except that eDel->Org
+      * may have been deleted.  Now we disconnect eDel->Dst.
+      */
+      if( eDelSym.Onext === eDelSym ) {
+        this.killVertex_( eDelSym.Org, null );
+        this.killFace_( eDelSym.Lface, null );
+      } else {
+        /* Make sure that eDel->Dst and eDel->Lface point to valid half-edges */
+        eDel.Lface.anEdge = eDelSym.Oprev;
+        eDelSym.Org.anEdge = eDelSym.Onext;
+        this.splice_( eDelSym, eDelSym.Oprev );
+      }
+
+      /* Any isolated vertices or faces have already been freed. */
+      this.killEdge_( eDel );
+    },
+
+    /******************** Other Edge Operations **********************/
+
+    /* All these routines can be implemented with the basic edge
+    * operations above.  They are provided for convenience and efficiency.
+    */
+
+
+    /* tessMeshAddEdgeVertex( eOrg ) creates a new edge eNew such that
+    * eNew == eOrg->Lnext, and eNew->Dst is a newly created vertex.
+    * eOrg and eNew will have the same left face.
+    */
+    // TESShalfEdge *tessMeshAddEdgeVertex( TESSmesh *mesh, TESShalfEdge *eOrg );
+    addEdgeVertex: function(eOrg) {
+      var eNew = this.makeEdge_( eOrg );
+      var eNewSym = eNew.Sym;
+
+      /* Connect the new edge appropriately */
+      this.splice_( eNew, eOrg.Lnext );
+
+      /* Set the vertex and face information */
+      eNew.Org = eOrg.Dst;
+
+      var newVertex = new TESSvertex();
+      this.makeVertex_( newVertex, eNewSym, eNew.Org );
+
+      eNew.Lface = eNewSym.Lface = eOrg.Lface;
+
+      return eNew;
+    },
+
+
+    /* tessMeshSplitEdge( eOrg ) splits eOrg into two edges eOrg and eNew,
+    * such that eNew == eOrg->Lnext.  The new vertex is eOrg->Dst == eNew->Org.
+    * eOrg and eNew will have the same left face.
+    */
+    // TESShalfEdge *tessMeshSplitEdge( TESSmesh *mesh, TESShalfEdge *eOrg );
+    splitEdge: function(eOrg, eDst) {
+      var tempHalfEdge = this.addEdgeVertex( eOrg );
+      var eNew = tempHalfEdge.Sym;
+
+      /* Disconnect eOrg from eOrg->Dst and connect it to eNew->Org */
+      this.splice_( eOrg.Sym, eOrg.Sym.Oprev );
+      this.splice_( eOrg.Sym, eNew );
+
+      /* Set the vertex and face information */
+      eOrg.Dst = eNew.Org;
+      eNew.Dst.anEdge = eNew.Sym; /* may have pointed to eOrg->Sym */
+      eNew.Rface = eOrg.Rface;
+      eNew.winding = eOrg.winding;  /* copy old winding information */
+      eNew.Sym.winding = eOrg.Sym.winding;
+
+      return eNew;
+    },
+
+
+    /* tessMeshConnect( eOrg, eDst ) creates a new edge from eOrg->Dst
+    * to eDst->Org, and returns the corresponding half-edge eNew.
+    * If eOrg->Lface == eDst->Lface, this splits one loop into two,
+    * and the newly created loop is eNew->Lface.  Otherwise, two disjoint
+    * loops are merged into one, and the loop eDst->Lface is destroyed.
+    *
+    * If (eOrg == eDst), the new face will have only two edges.
+    * If (eOrg->Lnext == eDst), the old face is reduced to a single edge.
+    * If (eOrg->Lnext->Lnext == eDst), the old face is reduced to two edges.
+    */
+
+    // TESShalfEdge *tessMeshConnect( TESSmesh *mesh, TESShalfEdge *eOrg, TESShalfEdge *eDst );
+    connect: function(eOrg, eDst) {
+      var joiningLoops = false;
+      var eNew = this.makeEdge_( eOrg );
+      var eNewSym = eNew.Sym;
+
+      if( eDst.Lface !== eOrg.Lface ) {
+        /* We are connecting two disjoint loops -- destroy eDst->Lface */
+        joiningLoops = true;
+        this.killFace_( eDst.Lface, eOrg.Lface );
+      }
+
+      /* Connect the new edge appropriately */
+      this.splice_( eNew, eOrg.Lnext );
+      this.splice_( eNewSym, eDst );
+
+      /* Set the vertex and face information */
+      eNew.Org = eOrg.Dst;
+      eNewSym.Org = eDst.Org;
+      eNew.Lface = eNewSym.Lface = eOrg.Lface;
+
+      /* Make sure the old face points to a valid half-edge */
+      eOrg.Lface.anEdge = eNewSym;
+
+      if( ! joiningLoops ) {
+        var newFace = new TESSface();
+        /* We split one loop into two -- the new loop is eNew->Lface */
+        this.makeFace_( newFace, eNew, eOrg.Lface );
+      }
+      return eNew;
+    },
+
+    /* tessMeshZapFace( fZap ) destroys a face and removes it from the
+    * global face list.  All edges of fZap will have a NULL pointer as their
+    * left face.  Any edges which also have a NULL pointer as their right face
+    * are deleted entirely (along with any isolated vertices this produces).
+    * An entire mesh can be deleted by zapping its faces, one at a time,
+    * in any order.  Zapped faces cannot be used in further mesh operations!
+    */
+    zapFace: function( fZap )
+    {
+      var eStart = fZap.anEdge;
+      var e, eNext, eSym;
+      var fPrev, fNext;
+
+      /* walk around face, deleting edges whose right face is also NULL */
+      eNext = eStart.Lnext;
+      do {
+        e = eNext;
+        eNext = e.Lnext;
+
+        e.Lface = null;
+        if( e.Rface === null ) {
+          /* delete the edge -- see TESSmeshDelete above */
+
+          if( e.Onext === e ) {
+            this.killVertex_( e.Org, null );
+          } else {
+            /* Make sure that e->Org points to a valid half-edge */
+            e.Org.anEdge = e.Onext;
+            this.splice_( e, e.Oprev );
+          }
+          eSym = e.Sym;
+          if( eSym.Onext === eSym ) {
+            this.killVertex_( eSym.Org, null );
+          } else {
+            /* Make sure that eSym->Org points to a valid half-edge */
+            eSym.Org.anEdge = eSym.Onext;
+            this.splice_( eSym, eSym.Oprev );
+          }
+          this.killEdge_( e );
+        }
+      } while( e != eStart );
+
+      /* delete from circular doubly-linked list */
+      fPrev = fZap.prev;
+      fNext = fZap.next;
+      fNext.prev = fPrev;
+      fPrev.next = fNext;
+    },
+
+    countFaceVerts_: function(f) {
+      var eCur = f.anEdge;
+      var n = 0;
+      do
+      {
+        n++;
+        eCur = eCur.Lnext;
+      }
+      while (eCur !== f.anEdge);
+      return n;
+    },
+
+    //int tessMeshMergeConvexFaces( TESSmesh *mesh, int maxVertsPerFace )
+    mergeConvexFaces: function(maxVertsPerFace) {
+      var f;
+      var eCur, eNext, eSym;
+      var vStart;
+      var curNv, symNv;
+
+      for( f = this.fHead.next; f !== this.fHead; f = f.next )
+      {
+        // Skip faces which are outside the result.
+        if( !f.inside )
+          continue;
+
+        eCur = f.anEdge;
+        vStart = eCur.Org;
+
+        while (true)
+        {
+          eNext = eCur.Lnext;
+          eSym = eCur.Sym;
+
+          // Try to merge if the neighbour face is valid.
+          if( eSym && eSym.Lface && eSym.Lface.inside )
+          {
+            // Try to merge the neighbour faces if the resulting polygons
+            // does not exceed maximum number of vertices.
+            curNv = this.countFaceVerts_( f );
+            symNv = this.countFaceVerts_( eSym.Lface );
+            if( (curNv+symNv-2) <= maxVertsPerFace )
+            {
+              // Merge if the resulting poly is convex.
+              if( Geom.vertCCW( eCur.Lprev.Org, eCur.Org, eSym.Lnext.Lnext.Org ) &&
+                Geom.vertCCW( eSym.Lprev.Org, eSym.Org, eCur.Lnext.Lnext.Org ) )
+              {
+                eNext = eSym.Lnext;
+                this.delete( eSym );
+                eCur = null;
+                eSym = null;
+              }
+            }
+          }
+
+          if( eCur && eCur.Lnext.Org === vStart )
+            break;
+
+          // Continue to next edge.
+          eCur = eNext;
+        }
+      }
+
+      return true;
+    },
+
+    /* tessMeshCheckMesh( mesh ) checks a mesh for self-consistency.
+    */
+    check: function() {
+      var fHead = this.fHead;
+      var vHead = this.vHead;
+      var eHead = this.eHead;
+      var f, fPrev, v, vPrev, e, ePrev;
+
+      fPrev = fHead;
+      for( fPrev = fHead ; (f = fPrev.next) !== fHead; fPrev = f) {
+        assert( f.prev === fPrev );
+        e = f.anEdge;
+        do {
+          assert( e.Sym !== e );
+          assert( e.Sym.Sym === e );
+          assert( e.Lnext.Onext.Sym === e );
+          assert( e.Onext.Sym.Lnext === e );
+          assert( e.Lface === f );
+          e = e.Lnext;
+        } while( e !== f.anEdge );
+      }
+      assert( f.prev === fPrev && f.anEdge === null );
+
+      vPrev = vHead;
+      for( vPrev = vHead ; (v = vPrev.next) !== vHead; vPrev = v) {
+        assert( v.prev === vPrev );
+        e = v.anEdge;
+        do {
+          assert( e.Sym !== e );
+          assert( e.Sym.Sym === e );
+          assert( e.Lnext.Onext.Sym === e );
+          assert( e.Onext.Sym.Lnext === e );
+          assert( e.Org === v );
+          e = e.Onext;
+        } while( e !== v.anEdge );
+      }
+      assert( v.prev === vPrev && v.anEdge === null );
+
+      ePrev = eHead;
+      for( ePrev = eHead ; (e = ePrev.next) !== eHead; ePrev = e) {
+        assert( e.Sym.next === ePrev.Sym );
+        assert( e.Sym !== e );
+        assert( e.Sym.Sym === e );
+        assert( e.Org !== null );
+        assert( e.Dst !== null );
+        assert( e.Lnext.Onext.Sym === e );
+        assert( e.Onext.Sym.Lnext === e );
+      }
+      assert( e.Sym.next === ePrev.Sym
+        && e.Sym === this.eHeadSym
+        && e.Sym.Sym === e
+        && e.Org === null && e.Dst === null
+        && e.Lface === null && e.Rface === null );
+    }
+
+  };
+
+  var Geom = {};
+
+  Geom.vertEq = function(u,v) {
+    return (u.s === v.s && u.t === v.t);
+  };
+
+  /* Returns TRUE if u is lexicographically <= v. */
+  Geom.vertLeq = function(u,v) {
+    return ((u.s < v.s) || (u.s === v.s && u.t <= v.t));
+  };
+
+  /* Versions of VertLeq, EdgeSign, EdgeEval with s and t transposed. */
+  Geom.transLeq = function(u,v) {
+    return ((u.t < v.t) || (u.t === v.t && u.s <= v.s));
+  };
+
+  Geom.edgeGoesLeft = function(e) {
+    return Geom.vertLeq( e.Dst, e.Org );
+  };
+
+  Geom.edgeGoesRight = function(e) {
+    return Geom.vertLeq( e.Org, e.Dst );
+  };
+
+  Geom.vertL1dist = function(u,v) {
+    return (Math.abs(u.s - v.s) + Math.abs(u.t - v.t));
+  };
+
+  //TESSreal tesedgeEval( TESSvertex *u, TESSvertex *v, TESSvertex *w )
+  Geom.edgeEval = function( u, v, w ) {
+    /* Given three vertices u,v,w such that VertLeq(u,v) && VertLeq(v,w),
+    * evaluates the t-coord of the edge uw at the s-coord of the vertex v.
+    * Returns v->t - (uw)(v->s), ie. the signed distance from uw to v.
+    * If uw is vertical (and thus passes thru v), the result is zero.
+    *
+    * The calculation is extremely accurate and stable, even when v
+    * is very close to u or w.  In particular if we set v->t = 0 and
+    * let r be the negated result (this evaluates (uw)(v->s)), then
+    * r is guaranteed to satisfy MIN(u->t,w->t) <= r <= MAX(u->t,w->t).
+    */
+    assert( Geom.vertLeq( u, v ) && Geom.vertLeq( v, w ));
+
+    var gapL = v.s - u.s;
+    var gapR = w.s - v.s;
+
+    if( gapL + gapR > 0.0 ) {
+      if( gapL < gapR ) {
+        return (v.t - u.t) + (u.t - w.t) * (gapL / (gapL + gapR));
+      } else {
+        return (v.t - w.t) + (w.t - u.t) * (gapR / (gapL + gapR));
+      }
+    }
+    /* vertical line */
+    return 0.0;
+  };
+
+  //TESSreal tesedgeSign( TESSvertex *u, TESSvertex *v, TESSvertex *w )
+  Geom.edgeSign = function( u, v, w ) {
+    /* Returns a number whose sign matches EdgeEval(u,v,w) but which
+    * is cheaper to evaluate.  Returns > 0, == 0 , or < 0
+    * as v is above, on, or below the edge uw.
+    */
+    assert( Geom.vertLeq( u, v ) && Geom.vertLeq( v, w ));
+
+    var gapL = v.s - u.s;
+    var gapR = w.s - v.s;
+
+    if( gapL + gapR > 0.0 ) {
+      return (v.t - w.t) * gapL + (v.t - u.t) * gapR;
+    }
+    /* vertical line */
+    return 0.0;
+  };
+
+
+  /***********************************************************************
+  * Define versions of EdgeSign, EdgeEval with s and t transposed.
+  */
+
+  //TESSreal testransEval( TESSvertex *u, TESSvertex *v, TESSvertex *w )
+  Geom.transEval = function( u, v, w ) {
+    /* Given three vertices u,v,w such that TransLeq(u,v) && TransLeq(v,w),
+    * evaluates the t-coord of the edge uw at the s-coord of the vertex v.
+    * Returns v->s - (uw)(v->t), ie. the signed distance from uw to v.
+    * If uw is vertical (and thus passes thru v), the result is zero.
+    *
+    * The calculation is extremely accurate and stable, even when v
+    * is very close to u or w.  In particular if we set v->s = 0 and
+    * let r be the negated result (this evaluates (uw)(v->t)), then
+    * r is guaranteed to satisfy MIN(u->s,w->s) <= r <= MAX(u->s,w->s).
+    */
+    assert( Geom.transLeq( u, v ) && Geom.transLeq( v, w ));
+
+    var gapL = v.t - u.t;
+    var gapR = w.t - v.t;
+
+    if( gapL + gapR > 0.0 ) {
+      if( gapL < gapR ) {
+        return (v.s - u.s) + (u.s - w.s) * (gapL / (gapL + gapR));
+      } else {
+        return (v.s - w.s) + (w.s - u.s) * (gapR / (gapL + gapR));
+      }
+    }
+    /* vertical line */
+    return 0.0;
+  };
+
+  //TESSreal testransSign( TESSvertex *u, TESSvertex *v, TESSvertex *w )
+  Geom.transSign = function( u, v, w ) {
+    /* Returns a number whose sign matches TransEval(u,v,w) but which
+    * is cheaper to evaluate.  Returns > 0, == 0 , or < 0
+    * as v is above, on, or below the edge uw.
+    */
+    assert( Geom.transLeq( u, v ) && Geom.transLeq( v, w ));
+
+    var gapL = v.t - u.t;
+    var gapR = w.t - v.t;
+
+    if( gapL + gapR > 0.0 ) {
+      return (v.s - w.s) * gapL + (v.s - u.s) * gapR;
+    }
+    /* vertical line */
+    return 0.0;
+  };
+
+
+  //int tesvertCCW( TESSvertex *u, TESSvertex *v, TESSvertex *w )
+  Geom.vertCCW = function( u, v, w ) {
+    /* For almost-degenerate situations, the results are not reliable.
+    * Unless the floating-point arithmetic can be performed without
+    * rounding errors, *any* implementation will give incorrect results
+    * on some degenerate inputs, so the client must have some way to
+    * handle this situation.
+    */
+    return (u.s*(v.t - w.t) + v.s*(w.t - u.t) + w.s*(u.t - v.t)) >= 0.0;
+  };
+
+  /* Given parameters a,x,b,y returns the value (b*x+a*y)/(a+b),
+  * or (x+y)/2 if a==b==0.  It requires that a,b >= 0, and enforces
+  * this in the rare case that one argument is slightly negative.
+  * The implementation is extremely stable numerically.
+  * In particular it guarantees that the result r satisfies
+  * MIN(x,y) <= r <= MAX(x,y), and the results are very accurate
+  * even when a and b differ greatly in magnitude.
+  */
+  Geom.interpolate = function(a,x,b,y) {
+    return (a = (a < 0) ? 0 : a, b = (b < 0) ? 0 : b, ((a <= b) ? ((b == 0) ? ((x+y) / 2) : (x + (y-x) * (a/(a+b)))) : (y + (x-y) * (b/(a+b)))));
+  };
+
+  /*
+  #ifndef FOR_TRITE_TEST_PROGRAM
+  #define Interpolate(a,x,b,y)  RealInterpolate(a,x,b,y)
+  #else
+
+  // Claim: the ONLY property the sweep algorithm relies on is that
+  // MIN(x,y) <= r <= MAX(x,y).  This is a nasty way to test that.
+  #include <stdlib.h>
+  extern int RandomInterpolate;
+
+  double Interpolate( double a, double x, double b, double y)
+  {
+    printf("*********************%d\n",RandomInterpolate);
+    if( RandomInterpolate ) {
+      a = 1.2 * drand48() - 0.1;
+      a = (a < 0) ? 0 : ((a > 1) ? 1 : a);
+      b = 1.0 - a;
+    }
+    return RealInterpolate(a,x,b,y);
+  }
+  #endif*/
+
+  Geom.intersect = function( o1, d1, o2, d2, v ) {
+    /* Given edges (o1,d1) and (o2,d2), compute their point of intersection.
+    * The computed point is guaranteed to lie in the intersection of the
+    * bounding rectangles defined by each edge.
+    */
+    var z1, z2;
+    var t;
+
+    /* This is certainly not the most efficient way to find the intersection
+    * of two line segments, but it is very numerically stable.
+    *
+    * Strategy: find the two middle vertices in the VertLeq ordering,
+    * and interpolate the intersection s-value from these.  Then repeat
+    * using the TransLeq ordering to find the intersection t-value.
+    */
+
+    if( ! Geom.vertLeq( o1, d1 )) { t = o1; o1 = d1; d1 = t; } //swap( o1, d1 ); }
+    if( ! Geom.vertLeq( o2, d2 )) { t = o2; o2 = d2; d2 = t; } //swap( o2, d2 ); }
+    if( ! Geom.vertLeq( o1, o2 )) { t = o1; o1 = o2; o2 = t; t = d1; d1 = d2; d2 = t; }//swap( o1, o2 ); swap( d1, d2 ); }
+
+    if( ! Geom.vertLeq( o2, d1 )) {
+      /* Technically, no intersection -- do our best */
+      v.s = (o2.s + d1.s) / 2;
+    } else if( Geom.vertLeq( d1, d2 )) {
+      /* Interpolate between o2 and d1 */
+      z1 = Geom.edgeEval( o1, o2, d1 );
+      z2 = Geom.edgeEval( o2, d1, d2 );
+      if( z1+z2 < 0 ) { z1 = -z1; z2 = -z2; }
+      v.s = Geom.interpolate( z1, o2.s, z2, d1.s );
+    } else {
+      /* Interpolate between o2 and d2 */
+      z1 = Geom.edgeSign( o1, o2, d1 );
+      z2 = -Geom.edgeSign( o1, d2, d1 );
+      if( z1+z2 < 0 ) { z1 = -z1; z2 = -z2; }
+      v.s = Geom.interpolate( z1, o2.s, z2, d2.s );
+    }
+
+    /* Now repeat the process for t */
+
+    if( ! Geom.transLeq( o1, d1 )) { t = o1; o1 = d1; d1 = t; } //swap( o1, d1 ); }
+    if( ! Geom.transLeq( o2, d2 )) { t = o2; o2 = d2; d2 = t; } //swap( o2, d2 ); }
+    if( ! Geom.transLeq( o1, o2 )) { t = o1; o1 = o2; o2 = t; t = d1; d1 = d2; d2 = t; } //swap( o1, o2 ); swap( d1, d2 ); }
+
+    if( ! Geom.transLeq( o2, d1 )) {
+      /* Technically, no intersection -- do our best */
+      v.t = (o2.t + d1.t) / 2;
+    } else if( Geom.transLeq( d1, d2 )) {
+      /* Interpolate between o2 and d1 */
+      z1 = Geom.transEval( o1, o2, d1 );
+      z2 = Geom.transEval( o2, d1, d2 );
+      if( z1+z2 < 0 ) { z1 = -z1; z2 = -z2; }
+      v.t = Geom.interpolate( z1, o2.t, z2, d1.t );
+    } else {
+      /* Interpolate between o2 and d2 */
+      z1 = Geom.transSign( o1, o2, d1 );
+      z2 = -Geom.transSign( o1, d2, d1 );
+      if( z1+z2 < 0 ) { z1 = -z1; z2 = -z2; }
+      v.t = Geom.interpolate( z1, o2.t, z2, d2.t );
+    }
+  };
+
+
+
+  function DictNode() {
+    this.key = null;
+    this.next = null;
+    this.prev = null;
+  };
+
+  function Dict(frame, leq) {
+    this.head = new DictNode();
+    this.head.next = this.head;
+    this.head.prev = this.head;
+    this.frame = frame;
+    this.leq = leq;
+  };
+
+  Dict.prototype = {
+    min: function() {
+      return this.head.next;
+    },
+
+    max: function() {
+      return this.head.prev;
+    },
+
+    insert: function(k) {
+      return this.insertBefore(this.head, k);
+    },
+
+    search: function(key) {
+      /* Search returns the node with the smallest key greater than or equal
+      * to the given key.  If there is no such key, returns a node whose
+      * key is NULL.  Similarly, Succ(Max(d)) has a NULL key, etc.
+      */
+      var node = this.head;
+      do {
+        node = node.next;
+      } while( node.key !== null && ! this.leq(this.frame, key, node.key));
+
+      return node;
+    },
+
+    insertBefore: function(node, key) {
+      do {
+        node = node.prev;
+      } while( node.key !== null && ! this.leq(this.frame, node.key, key));
+
+      var newNode = new DictNode();
+      newNode.key = key;
+      newNode.next = node.next;
+      node.next.prev = newNode;
+      newNode.prev = node;
+      node.next = newNode;
+
+      return newNode;
+    },
+
+    delete: function(node) {
+      node.next.prev = node.prev;
+      node.prev.next = node.next;
+    }
+  };
+
+
+  function PQnode() {
+    this.handle = null;
+  }
+
+  function PQhandleElem() {
+    this.key = null;
+    this.node = null;
+  }
+
+  function PriorityQ(size, leq) {
+    this.size = 0;
+    this.max = size;
+
+    this.nodes = [];
+    this.nodes.length = size+1;
+    for (var i = 0; i < this.nodes.length; i++)
+      this.nodes[i] = new PQnode();
+
+    this.handles = [];
+    this.handles.length = size+1;
+    for (var i = 0; i < this.handles.length; i++)
+      this.handles[i] = new PQhandleElem();
+
+    this.initialized = false;
+    this.freeList = 0;
+    this.leq = leq;
+
+    this.nodes[1].handle = 1; /* so that Minimum() returns NULL */
+    this.handles[1].key = null;
+  };
+
+  PriorityQ.prototype = {
+
+    floatDown_: function( curr )
+    {
+      var n = this.nodes;
+      var h = this.handles;
+      var hCurr, hChild;
+      var child;
+
+      hCurr = n[curr].handle;
+      for( ;; ) {
+        child = curr << 1;
+        if( child < this.size && this.leq( h[n[child+1].handle].key, h[n[child].handle].key )) {
+          ++child;
+        }
+
+        assert(child <= this.max);
+
+        hChild = n[child].handle;
+        if( child > this.size || this.leq( h[hCurr].key, h[hChild].key )) {
+          n[curr].handle = hCurr;
+          h[hCurr].node = curr;
+          break;
+        }
+        n[curr].handle = hChild;
+        h[hChild].node = curr;
+        curr = child;
+      }
+    },
+
+    floatUp_: function( curr )
+    {
+      var n = this.nodes;
+      var h = this.handles;
+      var hCurr, hParent;
+      var parent;
+
+      hCurr = n[curr].handle;
+      for( ;; ) {
+        parent = curr >> 1;
+        hParent = n[parent].handle;
+        if( parent == 0 || this.leq( h[hParent].key, h[hCurr].key )) {
+          n[curr].handle = hCurr;
+          h[hCurr].node = curr;
+          break;
+        }
+        n[curr].handle = hParent;
+        h[hParent].node = curr;
+        curr = parent;
+      }
+    },
+
+    init: function() {
+      /* This method of building a heap is O(n), rather than O(n lg n). */
+      for( var i = this.size; i >= 1; --i ) {
+        this.floatDown_( i );
+      }
+      this.initialized = true;
+    },
+
+    min: function() {
+      return this.handles[this.nodes[1].handle].key;
+    },
+
+    isEmpty: function() {
+      this.size === 0;
+    },
+
+    /* really pqHeapInsert */
+    /* returns INV_HANDLE iff out of memory */
+    //PQhandle pqHeapInsert( TESSalloc* alloc, PriorityQHeap *pq, PQkey keyNew )
+    insert: function(keyNew)
+    {
+      var curr;
+      var free;
+
+      curr = ++this.size;
+      if( (curr*2) > this.max ) {
+        this.max *= 2;
+        var s;
+        s = this.nodes.length;
+        this.nodes.length = this.max+1;
+        for (var i = s; i < this.nodes.length; i++)
+          this.nodes[i] = new PQnode();
+
+        s = this.handles.length;
+        this.handles.length = this.max+1;
+        for (var i = s; i < this.handles.length; i++)
+          this.handles[i] = new PQhandleElem();
+      }
+
+      if( this.freeList === 0 ) {
+        free = curr;
+      } else {
+        free = this.freeList;
+        this.freeList = this.handles[free].node;
+      }
+
+      this.nodes[curr].handle = free;
+      this.handles[free].node = curr;
+      this.handles[free].key = keyNew;
+
+      if( this.initialized ) {
+        this.floatUp_( curr );
+      }
+      return free;
+    },
+
+    //PQkey pqHeapExtractMin( PriorityQHeap *pq )
+    extractMin: function() {
+      var n = this.nodes;
+      var h = this.handles;
+      var hMin = n[1].handle;
+      var min = h[hMin].key;
+
+      if( this.size > 0 ) {
+        n[1].handle = n[this.size].handle;
+        h[n[1].handle].node = 1;
+
+        h[hMin].key = null;
+        h[hMin].node = this.freeList;
+        this.freeList = hMin;
+
+        --this.size;
+        if( this.size > 0 ) {
+          this.floatDown_( 1 );
+        }
+      }
+      return min;
+    },
+
+    delete: function( hCurr ) {
+      var n = this.nodes;
+      var h = this.handles;
+      var curr;
+
+      assert( hCurr >= 1 && hCurr <= this.max && h[hCurr].key !== null );
+
+      curr = h[hCurr].node;
+      n[curr].handle = n[this.size].handle;
+      h[n[curr].handle].node = curr;
+
+      --this.size;
+      if( curr <= this.size ) {
+        if( curr <= 1 || this.leq( h[n[curr>>1].handle].key, h[n[curr].handle].key )) {
+          this.floatDown_( curr );
+        } else {
+          this.floatUp_( curr );
+        }
+      }
+      h[hCurr].key = null;
+      h[hCurr].node = this.freeList;
+      this.freeList = hCurr;
+    }
+  };
+
+
+  /* For each pair of adjacent edges crossing the sweep line, there is
+  * an ActiveRegion to represent the region between them.  The active
+  * regions are kept in sorted order in a dynamic dictionary.  As the
+  * sweep line crosses each vertex, we update the affected regions.
+  */
+
+  function ActiveRegion() {
+    this.eUp = null;    /* upper edge, directed right to left */
+    this.nodeUp = null; /* dictionary node corresponding to eUp */
+    this.windingNumber = 0; /* used to determine which regions are
+                * inside the polygon */
+    this.inside = false;    /* is this region inside the polygon? */
+    this.sentinel = false;  /* marks fake edges at t = +/-infinity */
+    this.dirty = false;   /* marks regions where the upper or lower
+            * edge has changed, but we haven't checked
+            * whether they intersect yet */
+    this.fixUpperEdge = false;  /* marks temporary edges introduced when
+              * we process a "right vertex" (one without
+              * any edges leaving to the right) */
+  };
+
+  var Sweep = {};
+
+  Sweep.regionBelow = function(r) {
+    return r.nodeUp.prev.key;
+  }
+
+  Sweep.regionAbove = function(r) {
+    return r.nodeUp.next.key;
+  }
+
+  Sweep.debugEvent = function( tess ) {
+    // empty
+  }
+
+
+  /*
+  * Invariants for the Edge Dictionary.
+  * - each pair of adjacent edges e2=Succ(e1) satisfies EdgeLeq(e1,e2)
+  *   at any valid location of the sweep event
+  * - if EdgeLeq(e2,e1) as well (at any valid sweep event), then e1 and e2
+  *   share a common endpoint
+  * - for each e, e->Dst has been processed, but not e->Org
+  * - each edge e satisfies VertLeq(e->Dst,event) && VertLeq(event,e->Org)
+  *   where "event" is the current sweep line event.
+  * - no edge e has zero length
+  *
+  * Invariants for the Mesh (the processed portion).
+  * - the portion of the mesh left of the sweep line is a planar graph,
+  *   ie. there is *some* way to embed it in the plane
+  * - no processed edge has zero length
+  * - no two processed vertices have identical coordinates
+  * - each "inside" region is monotone, ie. can be broken into two chains
+  *   of monotonically increasing vertices according to VertLeq(v1,v2)
+  *   - a non-invariant: these chains may intersect (very slightly)
+  *
+  * Invariants for the Sweep.
+  * - if none of the edges incident to the event vertex have an activeRegion
+  *   (ie. none of these edges are in the edge dictionary), then the vertex
+  *   has only right-going edges.
+  * - if an edge is marked "fixUpperEdge" (it is a temporary edge introduced
+  *   by ConnectRightVertex), then it is the only right-going edge from
+  *   its associated vertex.  (This says that these edges exist only
+  *   when it is necessary.)
+  */
+
+  /* When we merge two edges into one, we need to compute the combined
+  * winding of the new edge.
+  */
+  Sweep.addWinding = function(eDst,eSrc) {
+    eDst.winding += eSrc.winding;
+    eDst.Sym.winding += eSrc.Sym.winding;
+  }
+
+
+  //static int EdgeLeq( TESStesselator *tess, ActiveRegion *reg1, ActiveRegion *reg2 )
+  Sweep.edgeLeq = function( tess, reg1, reg2 ) {
+    /*
+    * Both edges must be directed from right to left (this is the canonical
+    * direction for the upper edge of each region).
+    *
+    * The strategy is to evaluate a "t" value for each edge at the
+    * current sweep line position, given by tess->event.  The calculations
+    * are designed to be very stable, but of course they are not perfect.
+    *
+    * Special case: if both edge destinations are at the sweep event,
+    * we sort the edges by slope (they would otherwise compare equally).
+    */
+    var ev = tess.event;
+    var t1, t2;
+
+    var e1 = reg1.eUp;
+    var e2 = reg2.eUp;
+
+    if( e1.Dst === ev ) {
+      if( e2.Dst === ev ) {
+        /* Two edges right of the sweep line which meet at the sweep event.
+        * Sort them by slope.
+        */
+        if( Geom.vertLeq( e1.Org, e2.Org )) {
+          return Geom.edgeSign( e2.Dst, e1.Org, e2.Org ) <= 0;
+        }
+        return Geom.edgeSign( e1.Dst, e2.Org, e1.Org ) >= 0;
+      }
+      return Geom.edgeSign( e2.Dst, ev, e2.Org ) <= 0;
+    }
+    if( e2.Dst === ev ) {
+      return Geom.edgeSign( e1.Dst, ev, e1.Org ) >= 0;
+    }
+
+    /* General case - compute signed distance *from* e1, e2 to event */
+    var t1 = Geom.edgeEval( e1.Dst, ev, e1.Org );
+    var t2 = Geom.edgeEval( e2.Dst, ev, e2.Org );
+    return (t1 >= t2);
+  }
+
+
+  //static void DeleteRegion( TESStesselator *tess, ActiveRegion *reg )
+  Sweep.deleteRegion = function( tess, reg ) {
+    if( reg.fixUpperEdge ) {
+      /* It was created with zero winding number, so it better be
+      * deleted with zero winding number (ie. it better not get merged
+      * with a real edge).
+      */
+      assert( reg.eUp.winding === 0 );
+    }
+    reg.eUp.activeRegion = null;
+    tess.dict.delete( reg.nodeUp );
+  }
+
+  //static int FixUpperEdge( TESStesselator *tess, ActiveRegion *reg, TESShalfEdge *newEdge )
+  Sweep.fixUpperEdge = function( tess, reg, newEdge ) {
+    /*
+    * Replace an upper edge which needs fixing (see ConnectRightVertex).
+    */
+    assert( reg.fixUpperEdge );
+    tess.mesh.delete( reg.eUp );
+    reg.fixUpperEdge = false;
+    reg.eUp = newEdge;
+    newEdge.activeRegion = reg;
+  }
+
+  //static ActiveRegion *TopLeftRegion( TESStesselator *tess, ActiveRegion *reg )
+  Sweep.topLeftRegion = function( tess, reg ) {
+    var org = reg.eUp.Org;
+    var e;
+
+    /* Find the region above the uppermost edge with the same origin */
+    do {
+      reg = Sweep.regionAbove( reg );
+    } while( reg.eUp.Org === org );
+
+    /* If the edge above was a temporary edge introduced by ConnectRightVertex,
+    * now is the time to fix it.
+    */
+    if( reg.fixUpperEdge ) {
+      e = tess.mesh.connect( Sweep.regionBelow(reg).eUp.Sym, reg.eUp.Lnext );
+      if (e === null) return null;
+      Sweep.fixUpperEdge( tess, reg, e );
+      reg = Sweep.regionAbove( reg );
+    }
+    return reg;
+  }
+
+  //static ActiveRegion *TopRightRegion( ActiveRegion *reg )
+  Sweep.topRightRegion = function( reg )
+  {
+    var dst = reg.eUp.Dst;
+    var reg = null;
+    /* Find the region above the uppermost edge with the same destination */
+    do {
+      reg = Sweep.regionAbove( reg );
+    } while( reg.eUp.Dst === dst );
+    return reg;
+  }
+
+  //static ActiveRegion *AddRegionBelow( TESStesselator *tess, ActiveRegion *regAbove, TESShalfEdge *eNewUp )
+  Sweep.addRegionBelow = function( tess, regAbove, eNewUp ) {
+    /*
+    * Add a new active region to the sweep line, *somewhere* below "regAbove"
+    * (according to where the new edge belongs in the sweep-line dictionary).
+    * The upper edge of the new region will be "eNewUp".
+    * Winding number and "inside" flag are not updated.
+    */
+    var regNew = new ActiveRegion();
+    regNew.eUp = eNewUp;
+    regNew.nodeUp = tess.dict.insertBefore( regAbove.nodeUp, regNew );
+  //  if (regNew->nodeUp == NULL) longjmp(tess->env,1);
+    regNew.fixUpperEdge = false;
+    regNew.sentinel = false;
+    regNew.dirty = false;
+
+    eNewUp.activeRegion = regNew;
+    return regNew;
+  }
+
+  //static int IsWindingInside( TESStesselator *tess, int n )
+  Sweep.isWindingInside = function( tess, n ) {
+    switch( tess.windingRule ) {
+      case Tess2.WINDING_ODD:
+        return (n & 1) != 0;
+      case Tess2.WINDING_NONZERO:
+        return (n != 0);
+      case Tess2.WINDING_POSITIVE:
+        return (n > 0);
+      case Tess2.WINDING_NEGATIVE:
+        return (n < 0);
+      case Tess2.WINDING_ABS_GEQ_TWO:
+        return (n >= 2) || (n <= -2);
+    }
+    assert( false );
+    return false;
+  }
+
+  //static void ComputeWinding( TESStesselator *tess, ActiveRegion *reg )
+  Sweep.computeWinding = function( tess, reg ) {
+    reg.windingNumber = Sweep.regionAbove(reg).windingNumber + reg.eUp.winding;
+    reg.inside = Sweep.isWindingInside( tess, reg.windingNumber );
+  }
+
+
+  //static void FinishRegion( TESStesselator *tess, ActiveRegion *reg )
+  Sweep.finishRegion = function( tess, reg ) {
+    /*
+    * Delete a region from the sweep line.  This happens when the upper
+    * and lower chains of a region meet (at a vertex on the sweep line).
+    * The "inside" flag is copied to the appropriate mesh face (we could
+    * not do this before -- since the structure of the mesh is always
+    * changing, this face may not have even existed until now).
+    */
+    var e = reg.eUp;
+    var f = e.Lface;
+
+    f.inside = reg.inside;
+    f.anEdge = e;   /* optimization for tessMeshTessellateMonoRegion() */
+    Sweep.deleteRegion( tess, reg );
+  }
+
+
+  //static TESShalfEdge *FinishLeftRegions( TESStesselator *tess, ActiveRegion *regFirst, ActiveRegion *regLast )
+  Sweep.finishLeftRegions = function( tess, regFirst, regLast ) {
+    /*
+    * We are given a vertex with one or more left-going edges.  All affected
+    * edges should be in the edge dictionary.  Starting at regFirst->eUp,
+    * we walk down deleting all regions where both edges have the same
+    * origin vOrg.  At the same time we copy the "inside" flag from the
+    * active region to the face, since at this point each face will belong
+    * to at most one region (this was not necessarily true until this point
+    * in the sweep).  The walk stops at the region above regLast; if regLast
+    * is NULL we walk as far as possible.  At the same time we relink the
+    * mesh if necessary, so that the ordering of edges around vOrg is the
+    * same as in the dictionary.
+    */
+    var e, ePrev;
+    var reg = null;
+    var regPrev = regFirst;
+    var ePrev = regFirst.eUp;
+    while( regPrev !== regLast ) {
+      regPrev.fixUpperEdge = false; /* placement was OK */
+      reg = Sweep.regionBelow( regPrev );
+      e = reg.eUp;
+      if( e.Org != ePrev.Org ) {
+        if( ! reg.fixUpperEdge ) {
+          /* Remove the last left-going edge.  Even though there are no further
+          * edges in the dictionary with this origin, there may be further
+          * such edges in the mesh (if we are adding left edges to a vertex
+          * that has already been processed).  Thus it is important to call
+          * FinishRegion rather than just DeleteRegion.
+          */
+          Sweep.finishRegion( tess, regPrev );
+          break;
+        }
+        /* If the edge below was a temporary edge introduced by
+        * ConnectRightVertex, now is the time to fix it.
+        */
+        e = tess.mesh.connect( ePrev.Lprev, e.Sym );
+  //      if (e == NULL) longjmp(tess->env,1);
+        Sweep.fixUpperEdge( tess, reg, e );
+      }
+
+      /* Relink edges so that ePrev->Onext == e */
+      if( ePrev.Onext !== e ) {
+        tess.mesh.splice( e.Oprev, e );
+        tess.mesh.splice( ePrev, e );
+      }
+      Sweep.finishRegion( tess, regPrev );  /* may change reg->eUp */
+      ePrev = reg.eUp;
+      regPrev = reg;
+    }
+    return ePrev;
+  }
+
+
+  //static void AddRightEdges( TESStesselator *tess, ActiveRegion *regUp, TESShalfEdge *eFirst, TESShalfEdge *eLast, TESShalfEdge *eTopLeft, int cleanUp )
+  Sweep.addRightEdges = function( tess, regUp, eFirst, eLast, eTopLeft, cleanUp ) {
+    /*
+    * Purpose: insert right-going edges into the edge dictionary, and update
+    * winding numbers and mesh connectivity appropriately.  All right-going
+    * edges share a common origin vOrg.  Edges are inserted CCW starting at
+    * eFirst; the last edge inserted is eLast->Oprev.  If vOrg has any
+    * left-going edges already processed, then eTopLeft must be the edge
+    * such that an imaginary upward vertical segment from vOrg would be
+    * contained between eTopLeft->Oprev and eTopLeft; otherwise eTopLeft
+    * should be NULL.
+    */
+    var reg, regPrev;
+    var e, ePrev;
+    var firstTime = true;
+
+    /* Insert the new right-going edges in the dictionary */
+    e = eFirst;
+    do {
+      assert( Geom.vertLeq( e.Org, e.Dst ));
+      Sweep.addRegionBelow( tess, regUp, e.Sym );
+      e = e.Onext;
+    } while ( e !== eLast );
+
+    /* Walk *all* right-going edges from e->Org, in the dictionary order,
+    * updating the winding numbers of each region, and re-linking the mesh
+    * edges to match the dictionary ordering (if necessary).
+    */
+    if( eTopLeft === null ) {
+      eTopLeft = Sweep.regionBelow( regUp ).eUp.Rprev;
+    }
+    regPrev = regUp;
+    ePrev = eTopLeft;
+    for( ;; ) {
+      reg = Sweep.regionBelow( regPrev );
+      e = reg.eUp.Sym;
+      if( e.Org !== ePrev.Org ) break;
+
+      if( e.Onext !== ePrev ) {
+        /* Unlink e from its current position, and relink below ePrev */
+        tess.mesh.splice( e.Oprev, e );
+        tess.mesh.splice( ePrev.Oprev, e );
+      }
+      /* Compute the winding number and "inside" flag for the new regions */
+      reg.windingNumber = regPrev.windingNumber - e.winding;
+      reg.inside = Sweep.isWindingInside( tess, reg.windingNumber );
+
+      /* Check for two outgoing edges with same slope -- process these
+      * before any intersection tests (see example in tessComputeInterior).
+      */
+      regPrev.dirty = true;
+      if( ! firstTime && Sweep.checkForRightSplice( tess, regPrev )) {
+        Sweep.addWinding( e, ePrev );
+        Sweep.deleteRegion( tess, regPrev );
+        tess.mesh.delete( ePrev );
+      }
+      firstTime = false;
+      regPrev = reg;
+      ePrev = e;
+    }
+    regPrev.dirty = true;
+    assert( regPrev.windingNumber - e.winding === reg.windingNumber );
+
+    if( cleanUp ) {
+      /* Check for intersections between newly adjacent edges. */
+      Sweep.walkDirtyRegions( tess, regPrev );
+    }
+  }
+
+
+  //static void SpliceMergeVertices( TESStesselator *tess, TESShalfEdge *e1, TESShalfEdge *e2 )
+  Sweep.spliceMergeVertices = function( tess, e1, e2 ) {
+    /*
+    * Two vertices with idential coordinates are combined into one.
+    * e1->Org is kept, while e2->Org is discarded.
+    */
+    tess.mesh.splice( e1, e2 );
+  }
+
+  //static void VertexWeights( TESSvertex *isect, TESSvertex *org, TESSvertex *dst, TESSreal *weights )
+  Sweep.vertexWeights = function( isect, org, dst ) {
+    /*
+    * Find some weights which describe how the intersection vertex is
+    * a linear combination of "org" and "dest".  Each of the two edges
+    * which generated "isect" is allocated 50% of the weight; each edge
+    * splits the weight between its org and dst according to the
+    * relative distance to "isect".
+    */
+    var t1 = Geom.vertL1dist( org, isect );
+    var t2 = Geom.vertL1dist( dst, isect );
+    var w0 = 0.5 * t2 / (t1 + t2);
+    var w1 = 0.5 * t1 / (t1 + t2);
+    isect.coords[0] += w0*org.coords[0] + w1*dst.coords[0];
+    isect.coords[1] += w0*org.coords[1] + w1*dst.coords[1];
+    isect.coords[2] += w0*org.coords[2] + w1*dst.coords[2];
+  }
+
+
+  //static void GetIntersectData( TESStesselator *tess, TESSvertex *isect, TESSvertex *orgUp, TESSvertex *dstUp, TESSvertex *orgLo, TESSvertex *dstLo )
+  Sweep.getIntersectData = function( tess, isect, orgUp, dstUp, orgLo, dstLo ) {
+     /*
+     * We've computed a new intersection point, now we need a "data" pointer
+     * from the user so that we can refer to this new vertex in the
+     * rendering callbacks.
+     */
+    isect.coords[0] = isect.coords[1] = isect.coords[2] = 0;
+    isect.idx = -1;
+    Sweep.vertexWeights( isect, orgUp, dstUp );
+    Sweep.vertexWeights( isect, orgLo, dstLo );
+  }
+
+  //static int CheckForRightSplice( TESStesselator *tess, ActiveRegion *regUp )
+  Sweep.checkForRightSplice = function( tess, regUp ) {
+    /*
+    * Check the upper and lower edge of "regUp", to make sure that the
+    * eUp->Org is above eLo, or eLo->Org is below eUp (depending on which
+    * origin is leftmost).
+    *
+    * The main purpose is to splice right-going edges with the same
+    * dest vertex and nearly identical slopes (ie. we can't distinguish
+    * the slopes numerically).  However the splicing can also help us
+    * to recover from numerical errors.  For example, suppose at one
+    * point we checked eUp and eLo, and decided that eUp->Org is barely
+    * above eLo.  Then later, we split eLo into two edges (eg. from
+    * a splice operation like this one).  This can change the result of
+    * our test so that now eUp->Org is incident to eLo, or barely below it.
+    * We must correct this condition to maintain the dictionary invariants.
+    *
+    * One possibility is to check these edges for intersection again
+    * (ie. CheckForIntersect).  This is what we do if possible.  However
+    * CheckForIntersect requires that tess->event lies between eUp and eLo,
+    * so that it has something to fall back on when the intersection
+    * calculation gives us an unusable answer.  So, for those cases where
+    * we can't check for intersection, this routine fixes the problem
+    * by just splicing the offending vertex into the other edge.
+    * This is a guaranteed solution, no matter how degenerate things get.
+    * Basically this is a combinatorial solution to a numerical problem.
+    */
+    var regLo = Sweep.regionBelow(regUp);
+    var eUp = regUp.eUp;
+    var eLo = regLo.eUp;
+
+    if( Geom.vertLeq( eUp.Org, eLo.Org )) {
+      if( Geom.edgeSign( eLo.Dst, eUp.Org, eLo.Org ) > 0 ) return false;
+
+      /* eUp->Org appears to be below eLo */
+      if( ! Geom.vertEq( eUp.Org, eLo.Org )) {
+        /* Splice eUp->Org into eLo */
+        tess.mesh.splitEdge( eLo.Sym );
+        tess.mesh.splice( eUp, eLo.Oprev );
+        regUp.dirty = regLo.dirty = true;
+
+      } else if( eUp.Org !== eLo.Org ) {
+        /* merge the two vertices, discarding eUp->Org */
+        tess.pq.delete( eUp.Org.pqHandle );
+        Sweep.spliceMergeVertices( tess, eLo.Oprev, eUp );
+      }
+    } else {
+      if( Geom.edgeSign( eUp.Dst, eLo.Org, eUp.Org ) < 0 ) return false;
+
+      /* eLo->Org appears to be above eUp, so splice eLo->Org into eUp */
+      Sweep.regionAbove(regUp).dirty = regUp.dirty = true;
+      tess.mesh.splitEdge( eUp.Sym );
+      tess.mesh.splice( eLo.Oprev, eUp );
+    }
+    return true;
+  }
+
+  //static int CheckForLeftSplice( TESStesselator *tess, ActiveRegion *regUp )
+  Sweep.checkForLeftSplice = function( tess, regUp ) {
+    /*
+    * Check the upper and lower edge of "regUp", to make sure that the
+    * eUp->Dst is above eLo, or eLo->Dst is below eUp (depending on which
+    * destination is rightmost).
+    *
+    * Theoretically, this should always be true.  However, splitting an edge
+    * into two pieces can change the results of previous tests.  For example,
+    * suppose at one point we checked eUp and eLo, and decided that eUp->Dst
+    * is barely above eLo.  Then later, we split eLo into two edges (eg. from
+    * a splice operation like this one).  This can change the result of
+    * the test so that now eUp->Dst is incident to eLo, or barely below it.
+    * We must correct this condition to maintain the dictionary invariants
+    * (otherwise new edges might get inserted in the wrong place in the
+    * dictionary, and bad stuff will happen).
+    *
+    * We fix the problem by just splicing the offending vertex into the
+    * other edge.
+    */
+    var regLo = Sweep.regionBelow(regUp);
+    var eUp = regUp.eUp;
+    var eLo = regLo.eUp;
+    var e;
+
+    assert( ! Geom.vertEq( eUp.Dst, eLo.Dst ));
+
+    if( Geom.vertLeq( eUp.Dst, eLo.Dst )) {
+      if( Geom.edgeSign( eUp.Dst, eLo.Dst, eUp.Org ) < 0 ) return false;
+
+      /* eLo->Dst is above eUp, so splice eLo->Dst into eUp */
+      Sweep.regionAbove(regUp).dirty = regUp.dirty = true;
+      e = tess.mesh.splitEdge( eUp );
+      tess.mesh.splice( eLo.Sym, e );
+      e.Lface.inside = regUp.inside;
+    } else {
+      if( Geom.edgeSign( eLo.Dst, eUp.Dst, eLo.Org ) > 0 ) return false;
+
+      /* eUp->Dst is below eLo, so splice eUp->Dst into eLo */
+      regUp.dirty = regLo.dirty = true;
+      e = tess.mesh.splitEdge( eLo );
+      tess.mesh.splice( eUp.Lnext, eLo.Sym );
+      e.Rface.inside = regUp.inside;
+    }
+    return true;
+  }
+
+
+  //static int CheckForIntersect( TESStesselator *tess, ActiveRegion *regUp )
+  Sweep.checkForIntersect = function( tess, regUp ) {
+    /*
+    * Check the upper and lower edges of the given region to see if
+    * they intersect.  If so, create the intersection and add it
+    * to the data structures.
+    *
+    * Returns TRUE if adding the new intersection resulted in a recursive
+    * call to AddRightEdges(); in this case all "dirty" regions have been
+    * checked for intersections, and possibly regUp has been deleted.
+    */
+    var regLo = Sweep.regionBelow(regUp);
+    var eUp = regUp.eUp;
+    var eLo = regLo.eUp;
+    var orgUp = eUp.Org;
+    var orgLo = eLo.Org;
+    var dstUp = eUp.Dst;
+    var dstLo = eLo.Dst;
+    var tMinUp, tMaxLo;
+    var isect = new TESSvertex, orgMin;
+    var e;
+
+    assert( ! Geom.vertEq( dstLo, dstUp ));
+    assert( Geom.edgeSign( dstUp, tess.event, orgUp ) <= 0 );
+    assert( Geom.edgeSign( dstLo, tess.event, orgLo ) >= 0 );
+    assert( orgUp !== tess.event && orgLo !== tess.event );
+    assert( ! regUp.fixUpperEdge && ! regLo.fixUpperEdge );
+
+    if( orgUp === orgLo ) return false; /* right endpoints are the same */
+
+    tMinUp = Math.min( orgUp.t, dstUp.t );
+    tMaxLo = Math.max( orgLo.t, dstLo.t );
+    if( tMinUp > tMaxLo ) return false; /* t ranges do not overlap */
+
+    if( Geom.vertLeq( orgUp, orgLo )) {
+      if( Geom.edgeSign( dstLo, orgUp, orgLo ) > 0 ) return false;
+    } else {
+      if( Geom.edgeSign( dstUp, orgLo, orgUp ) < 0 ) return false;
+    }
+
+    /* At this point the edges intersect, at least marginally */
+    Sweep.debugEvent( tess );
+
+    Geom.intersect( dstUp, orgUp, dstLo, orgLo, isect );
+    /* The following properties are guaranteed: */
+    assert( Math.min( orgUp.t, dstUp.t ) <= isect.t );
+    assert( isect.t <= Math.max( orgLo.t, dstLo.t ));
+    assert( Math.min( dstLo.s, dstUp.s ) <= isect.s );
+    assert( isect.s <= Math.max( orgLo.s, orgUp.s ));
+
+    if( Geom.vertLeq( isect, tess.event )) {
+      /* The intersection point lies slightly to the left of the sweep line,
+      * so move it until it''s slightly to the right of the sweep line.
+      * (If we had perfect numerical precision, this would never happen
+      * in the first place).  The easiest and safest thing to do is
+      * replace the intersection by tess->event.
+      */
+      isect.s = tess.event.s;
+      isect.t = tess.event.t;
+    }
+    /* Similarly, if the computed intersection lies to the right of the
+    * rightmost origin (which should rarely happen), it can cause
+    * unbelievable inefficiency on sufficiently degenerate inputs.
+    * (If you have the test program, try running test54.d with the
+    * "X zoom" option turned on).
+    */
+    orgMin = Geom.vertLeq( orgUp, orgLo ) ? orgUp : orgLo;
+    if( Geom.vertLeq( orgMin, isect )) {
+      isect.s = orgMin.s;
+      isect.t = orgMin.t;
+    }
+
+    if( Geom.vertEq( isect, orgUp ) || Geom.vertEq( isect, orgLo )) {
+      /* Easy case -- intersection at one of the right endpoints */
+      Sweep.checkForRightSplice( tess, regUp );
+      return false;
+    }
+
+    if(    (! Geom.vertEq( dstUp, tess.event )
+      && Geom.edgeSign( dstUp, tess.event, isect ) >= 0)
+      || (! Geom.vertEq( dstLo, tess.event )
+      && Geom.edgeSign( dstLo, tess.event, isect ) <= 0 ))
+    {
+      /* Very unusual -- the new upper or lower edge would pass on the
+      * wrong side of the sweep event, or through it.  This can happen
+      * due to very small numerical errors in the intersection calculation.
+      */
+      if( dstLo === tess.event ) {
+        /* Splice dstLo into eUp, and process the new region(s) */
+        tess.mesh.splitEdge( eUp.Sym );
+        tess.mesh.splice( eLo.Sym, eUp );
+        regUp = Sweep.topLeftRegion( tess, regUp );
+  //      if (regUp == NULL) longjmp(tess->env,1);
+        eUp = Sweep.regionBelow(regUp).eUp;
+        Sweep.finishLeftRegions( tess, Sweep.regionBelow(regUp), regLo );
+        Sweep.addRightEdges( tess, regUp, eUp.Oprev, eUp, eUp, true );
+        return TRUE;
+      }
+      if( dstUp === tess.event ) {
+        /* Splice dstUp into eLo, and process the new region(s) */
+        tess.mesh.splitEdge( eLo.Sym );
+        tess.mesh.splice( eUp.Lnext, eLo.Oprev );
+        regLo = regUp;
+        regUp = Sweep.topRightRegion( regUp );
+        e = Sweep.regionBelow(regUp).eUp.Rprev;
+        regLo.eUp = eLo.Oprev;
+        eLo = Sweep.finishLeftRegions( tess, regLo, null );
+        Sweep.addRightEdges( tess, regUp, eLo.Onext, eUp.Rprev, e, true );
+        return true;
+      }
+      /* Special case: called from ConnectRightVertex.  If either
+      * edge passes on the wrong side of tess->event, split it
+      * (and wait for ConnectRightVertex to splice it appropriately).
+      */
+      if( Geom.edgeSign( dstUp, tess.event, isect ) >= 0 ) {
+        Sweep.regionAbove(regUp).dirty = regUp.dirty = true;
+        tess.mesh.splitEdge( eUp.Sym );
+        eUp.Org.s = tess.event.s;
+        eUp.Org.t = tess.event.t;
+      }
+      if( Geom.edgeSign( dstLo, tess.event, isect ) <= 0 ) {
+        regUp.dirty = regLo.dirty = true;
+        tess.mesh.splitEdge( eLo.Sym );
+        eLo.Org.s = tess.event.s;
+        eLo.Org.t = tess.event.t;
+      }
+      /* leave the rest for ConnectRightVertex */
+      return false;
+    }
+
+    /* General case -- split both edges, splice into new vertex.
+    * When we do the splice operation, the order of the arguments is
+    * arbitrary as far as correctness goes.  However, when the operation
+    * creates a new face, the work done is proportional to the size of
+    * the new face.  We expect the faces in the processed part of
+    * the mesh (ie. eUp->Lface) to be smaller than the faces in the
+    * unprocessed original contours (which will be eLo->Oprev->Lface).
+    */
+    tess.mesh.splitEdge( eUp.Sym );
+    tess.mesh.splitEdge( eLo.Sym );
+    tess.mesh.splice( eLo.Oprev, eUp );
+    eUp.Org.s = isect.s;
+    eUp.Org.t = isect.t;
+    eUp.Org.pqHandle = tess.pq.insert( eUp.Org );
+    Sweep.getIntersectData( tess, eUp.Org, orgUp, dstUp, orgLo, dstLo );
+    Sweep.regionAbove(regUp).dirty = regUp.dirty = regLo.dirty = true;
+    return false;
+  }
+
+  //static void WalkDirtyRegions( TESStesselator *tess, ActiveRegion *regUp )
+  Sweep.walkDirtyRegions = function( tess, regUp ) {
+    /*
+    * When the upper or lower edge of any region changes, the region is
+    * marked "dirty".  This routine walks through all the dirty regions
+    * and makes sure that the dictionary invariants are satisfied
+    * (see the comments at the beginning of this file).  Of course
+    * new dirty regions can be created as we make changes to restore
+    * the invariants.
+    */
+    var regLo = Sweep.regionBelow(regUp);
+    var eUp, eLo;
+
+    for( ;; ) {
+      /* Find the lowest dirty region (we walk from the bottom up). */
+      while( regLo.dirty ) {
+        regUp = regLo;
+        regLo = Sweep.regionBelow(regLo);
+      }
+      if( ! regUp.dirty ) {
+        regLo = regUp;
+        regUp = Sweep.regionAbove( regUp );
+        if( regUp == null || ! regUp.dirty ) {
+          /* We've walked all the dirty regions */
+          return;
+        }
+      }
+      regUp.dirty = false;
+      eUp = regUp.eUp;
+      eLo = regLo.eUp;
+
+      if( eUp.Dst !== eLo.Dst ) {
+        /* Check that the edge ordering is obeyed at the Dst vertices. */
+        if( Sweep.checkForLeftSplice( tess, regUp )) {
+
+          /* If the upper or lower edge was marked fixUpperEdge, then
+          * we no longer need it (since these edges are needed only for
+          * vertices which otherwise have no right-going edges).
+          */
+          if( regLo.fixUpperEdge ) {
+            Sweep.deleteRegion( tess, regLo );
+            tess.mesh.delete( eLo );
+            regLo = Sweep.regionBelow( regUp );
+            eLo = regLo.eUp;
+          } else if( regUp.fixUpperEdge ) {
+            Sweep.deleteRegion( tess, regUp );
+            tess.mesh.delete( eUp );
+            regUp = Sweep.regionAbove( regLo );
+            eUp = regUp.eUp;
+          }
+        }
+      }
+      if( eUp.Org !== eLo.Org ) {
+        if(    eUp.Dst !== eLo.Dst
+          && ! regUp.fixUpperEdge && ! regLo.fixUpperEdge
+          && (eUp.Dst === tess.event || eLo.Dst === tess.event) )
+        {
+          /* When all else fails in CheckForIntersect(), it uses tess->event
+          * as the intersection location.  To make this possible, it requires
+          * that tess->event lie between the upper and lower edges, and also
+          * that neither of these is marked fixUpperEdge (since in the worst
+          * case it might splice one of these edges into tess->event, and
+          * violate the invariant that fixable edges are the only right-going
+          * edge from their associated vertex).
+          */
+          if( Sweep.checkForIntersect( tess, regUp )) {
+            /* WalkDirtyRegions() was called recursively; we're done */
+            return;
+          }
+        } else {
+          /* Even though we can't use CheckForIntersect(), the Org vertices
+          * may violate the dictionary edge ordering.  Check and correct this.
+          */
+          Sweep.checkForRightSplice( tess, regUp );
+        }
+      }
+      if( eUp.Org === eLo.Org && eUp.Dst === eLo.Dst ) {
+        /* A degenerate loop consisting of only two edges -- delete it. */
+        Sweep.addWinding( eLo, eUp );
+        Sweep.deleteRegion( tess, regUp );
+        tess.mesh.delete( eUp );
+        regUp = Sweep.regionAbove( regLo );
+      }
+    }
+  }
+
+
+  //static void ConnectRightVertex( TESStesselator *tess, ActiveRegion *regUp, TESShalfEdge *eBottomLeft )
+  Sweep.connectRightVertex = function( tess, regUp, eBottomLeft ) {
+    /*
+    * Purpose: connect a "right" vertex vEvent (one where all edges go left)
+    * to the unprocessed portion of the mesh.  Since there are no right-going
+    * edges, two regions (one above vEvent and one below) are being merged
+    * into one.  "regUp" is the upper of these two regions.
+    *
+    * There are two reasons for doing this (adding a right-going edge):
+    *  - if the two regions being merged are "inside", we must add an edge
+    *    to keep them separated (the combined region would not be monotone).
+    *  - in any case, we must leave some record of vEvent in the dictionary,
+    *    so that we can merge vEvent with features that we have not seen yet.
+    *    For example, maybe there is a vertical edge which passes just to
+    *    the right of vEvent; we would like to splice vEvent into this edge.
+    *
+    * However, we don't want to connect vEvent to just any vertex.  We don''t
+    * want the new edge to cross any other edges; otherwise we will create
+    * intersection vertices even when the input data had no self-intersections.
+    * (This is a bad thing; if the user's input data has no intersections,
+    * we don't want to generate any false intersections ourselves.)
+    *
+    * Our eventual goal is to connect vEvent to the leftmost unprocessed
+    * vertex of the combined region (the union of regUp and regLo).
+    * But because of unseen vertices with all right-going edges, and also
+    * new vertices which may be created by edge intersections, we don''t
+    * know where that leftmost unprocessed vertex is.  In the meantime, we
+    * connect vEvent to the closest vertex of either chain, and mark the region
+    * as "fixUpperEdge".  This flag says to delete and reconnect this edge
+    * to the next processed vertex on the boundary of the combined region.
+    * Quite possibly the vertex we connected to will turn out to be the
+    * closest one, in which case we won''t need to make any changes.
+    */
+    var eNew;
+    var eTopLeft = eBottomLeft.Onext;
+    var regLo = Sweep.regionBelow(regUp);
+    var eUp = regUp.eUp;
+    var eLo = regLo.eUp;
+    var degenerate = false;
+
+    if( eUp.Dst !== eLo.Dst ) {
+      Sweep.checkForIntersect( tess, regUp );
+    }
+
+    /* Possible new degeneracies: upper or lower edge of regUp may pass
+    * through vEvent, or may coincide with new intersection vertex
+    */
+    if( Geom.vertEq( eUp.Org, tess.event )) {
+      tess.mesh.splice( eTopLeft.Oprev, eUp );
+      regUp = Sweep.topLeftRegion( tess, regUp );
+      eTopLeft = Sweep.regionBelow( regUp ).eUp;
+      Sweep.finishLeftRegions( tess, Sweep.regionBelow(regUp), regLo );
+      degenerate = true;
+    }
+    if( Geom.vertEq( eLo.Org, tess.event )) {
+      tess.mesh.splice( eBottomLeft, eLo.Oprev );
+      eBottomLeft = Sweep.finishLeftRegions( tess, regLo, null );
+      degenerate = true;
+    }
+    if( degenerate ) {
+      Sweep.addRightEdges( tess, regUp, eBottomLeft.Onext, eTopLeft, eTopLeft, true );
+      return;
+    }
+
+    /* Non-degenerate situation -- need to add a temporary, fixable edge.
+    * Connect to the closer of eLo->Org, eUp->Org.
+    */
+    if( Geom.vertLeq( eLo.Org, eUp.Org )) {
+      eNew = eLo.Oprev;
+    } else {
+      eNew = eUp;
+    }
+    eNew = tess.mesh.connect( eBottomLeft.Lprev, eNew );
+
+    /* Prevent cleanup, otherwise eNew might disappear before we've even
+    * had a chance to mark it as a temporary edge.
+    */
+    Sweep.addRightEdges( tess, regUp, eNew, eNew.Onext, eNew.Onext, false );
+    eNew.Sym.activeRegion.fixUpperEdge = true;
+    Sweep.walkDirtyRegions( tess, regUp );
+  }
+
+  /* Because vertices at exactly the same location are merged together
+  * before we process the sweep event, some degenerate cases can't occur.
+  * However if someone eventually makes the modifications required to
+  * merge features which are close together, the cases below marked
+  * TOLERANCE_NONZERO will be useful.  They were debugged before the
+  * code to merge identical vertices in the main loop was added.
+  */
+  //#define TOLERANCE_NONZERO FALSE
+
+  //static void ConnectLeftDegenerate( TESStesselator *tess, ActiveRegion *regUp, TESSvertex *vEvent )
+  Sweep.connectLeftDegenerate = function( tess, regUp, vEvent ) {
+    /*
+    * The event vertex lies exacty on an already-processed edge or vertex.
+    * Adding the new vertex involves splicing it into the already-processed
+    * part of the mesh.
+    */
+    var e, eTopLeft, eTopRight, eLast;
+    var reg;
+
+    e = regUp.eUp;
+    if( Geom.vertEq( e.Org, vEvent )) {
+      /* e->Org is an unprocessed vertex - just combine them, and wait
+      * for e->Org to be pulled from the queue
+      */
+      assert( false /*TOLERANCE_NONZERO*/ );
+      Sweep.spliceMergeVertices( tess, e, vEvent.anEdge );
+      return;
+    }
+
+    if( ! Geom.vertEq( e.Dst, vEvent )) {
+      /* General case -- splice vEvent into edge e which passes through it */
+      tess.mesh.splitEdge( e.Sym );
+      if( regUp.fixUpperEdge ) {
+        /* This edge was fixable -- delete unused portion of original edge */
+        tess.mesh.delete( e.Onext );
+        regUp.fixUpperEdge = false;
+      }
+      tess.mesh.splice( vEvent.anEdge, e );
+      Sweep.sweepEvent( tess, vEvent ); /* recurse */
+      return;
+    }
+
+    /* vEvent coincides with e->Dst, which has already been processed.
+    * Splice in the additional right-going edges.
+    */
+    assert( false /*TOLERANCE_NONZERO*/ );
+    regUp = Sweep.topRightRegion( regUp );
+    reg = Sweep.regionBelow( regUp );
+    eTopRight = reg.eUp.Sym;
+    eTopLeft = eLast = eTopRight.Onext;
+    if( reg.fixUpperEdge ) {
+      /* Here e->Dst has only a single fixable edge going right.
+      * We can delete it since now we have some real right-going edges.
+      */
+      assert( eTopLeft !== eTopRight );   /* there are some left edges too */
+      Sweep.deleteRegion( tess, reg );
+      tess.mesh.delete( eTopRight );
+      eTopRight = eTopLeft.Oprev;
+    }
+    tess.mesh.splice( vEvent.anEdge, eTopRight );
+    if( ! Geom.edgeGoesLeft( eTopLeft )) {
+      /* e->Dst had no left-going edges -- indicate this to AddRightEdges() */
+      eTopLeft = null;
+    }
+    Sweep.addRightEdges( tess, regUp, eTopRight.Onext, eLast, eTopLeft, true );
+  }
+
+
+  //static void ConnectLeftVertex( TESStesselator *tess, TESSvertex *vEvent )
+  Sweep.connectLeftVertex = function( tess, vEvent ) {
+    /*
+    * Purpose: connect a "left" vertex (one where both edges go right)
+    * to the processed portion of the mesh.  Let R be the active region
+    * containing vEvent, and let U and L be the upper and lower edge
+    * chains of R.  There are two possibilities:
+    *
+    * - the normal case: split R into two regions, by connecting vEvent to
+    *   the rightmost vertex of U or L lying to the left of the sweep line
+    *
+    * - the degenerate case: if vEvent is close enough to U or L, we
+    *   merge vEvent into that edge chain.  The subcases are:
+    * - merging with the rightmost vertex of U or L
+    * - merging with the active edge of U or L
+    * - merging with an already-processed portion of U or L
+    */
+    var regUp, regLo, reg;
+    var eUp, eLo, eNew;
+    var tmp = new ActiveRegion();
+
+    /* assert( vEvent->anEdge->Onext->Onext == vEvent->anEdge ); */
+
+    /* Get a pointer to the active region containing vEvent */
+    tmp.eUp = vEvent.anEdge.Sym;
+    /* __GL_DICTLISTKEY */ /* tessDictListSearch */
+    regUp = tess.dict.search( tmp ).key;
+    regLo = Sweep.regionBelow( regUp );
+    if( !regLo ) {
+      // This may happen if the input polygon is coplanar.
+      return;
+    }
+    eUp = regUp.eUp;
+    eLo = regLo.eUp;
+
+    /* Try merging with U or L first */
+    if( Geom.edgeSign( eUp.Dst, vEvent, eUp.Org ) === 0.0 ) {
+      Sweep.connectLeftDegenerate( tess, regUp, vEvent );
+      return;
+    }
+
+    /* Connect vEvent to rightmost processed vertex of either chain.
+    * e->Dst is the vertex that we will connect to vEvent.
+    */
+    reg = Geom.vertLeq( eLo.Dst, eUp.Dst ) ? regUp : regLo;
+
+    if( regUp.inside || reg.fixUpperEdge) {
+      if( reg === regUp ) {
+        eNew = tess.mesh.connect( vEvent.anEdge.Sym, eUp.Lnext );
+      } else {
+        var tempHalfEdge = tess.mesh.connect( eLo.Dnext, vEvent.anEdge);
+        eNew = tempHalfEdge.Sym;
+      }
+      if( reg.fixUpperEdge ) {
+        Sweep.fixUpperEdge( tess, reg, eNew );
+      } else {
+        Sweep.computeWinding( tess, Sweep.addRegionBelow( tess, regUp, eNew ));
+      }
+      Sweep.sweepEvent( tess, vEvent );
+    } else {
+      /* The new vertex is in a region which does not belong to the polygon.
+      * We don''t need to connect this vertex to the rest of the mesh.
+      */
+      Sweep.addRightEdges( tess, regUp, vEvent.anEdge, vEvent.anEdge, null, true );
+    }
+  };
+
+
+  //static void SweepEvent( TESStesselator *tess, TESSvertex *vEvent )
+  Sweep.sweepEvent = function( tess, vEvent ) {
+    /*
+    * Does everything necessary when the sweep line crosses a vertex.
+    * Updates the mesh and the edge dictionary.
+    */
+
+    tess.event = vEvent;    /* for access in EdgeLeq() */
+    Sweep.debugEvent( tess );
+
+    /* Check if this vertex is the right endpoint of an edge that is
+    * already in the dictionary.  In this case we don't need to waste
+    * time searching for the location to insert new edges.
+    */
+    var e = vEvent.anEdge;
+    while( e.activeRegion === null ) {
+      e = e.Onext;
+      if( e == vEvent.anEdge ) {
+        /* All edges go right -- not incident to any processed edges */
+        Sweep.connectLeftVertex( tess, vEvent );
+        return;
+      }
+    }
+
+    /* Processing consists of two phases: first we "finish" all the
+    * active regions where both the upper and lower edges terminate
+    * at vEvent (ie. vEvent is closing off these regions).
+    * We mark these faces "inside" or "outside" the polygon according
+    * to their winding number, and delete the edges from the dictionary.
+    * This takes care of all the left-going edges from vEvent.
+    */
+    var regUp = Sweep.topLeftRegion( tess, e.activeRegion );
+    assert( regUp !== null );
+  //  if (regUp == NULL) longjmp(tess->env,1);
+    var reg = Sweep.regionBelow( regUp );
+    var eTopLeft = reg.eUp;
+    var eBottomLeft = Sweep.finishLeftRegions( tess, reg, null );
+
+    /* Next we process all the right-going edges from vEvent.  This
+    * involves adding the edges to the dictionary, and creating the
+    * associated "active regions" which record information about the
+    * regions between adjacent dictionary edges.
+    */
+    if( eBottomLeft.Onext === eTopLeft ) {
+      /* No right-going edges -- add a temporary "fixable" edge */
+      Sweep.connectRightVertex( tess, regUp, eBottomLeft );
+    } else {
+      Sweep.addRightEdges( tess, regUp, eBottomLeft.Onext, eTopLeft, eTopLeft, true );
+    }
+  };
+
+
+  /* Make the sentinel coordinates big enough that they will never be
+  * merged with real input features.
+  */
+
+  //static void AddSentinel( TESStesselator *tess, TESSreal smin, TESSreal smax, TESSreal t )
+  Sweep.addSentinel = function( tess, smin, smax, t ) {
+    /*
+    * We add two sentinel edges above and below all other edges,
+    * to avoid special cases at the top and bottom.
+    */
+    var reg = new ActiveRegion();
+    var e = tess.mesh.makeEdge();
+  //  if (e == NULL) longjmp(tess->env,1);
+
+    e.Org.s = smax;
+    e.Org.t = t;
+    e.Dst.s = smin;
+    e.Dst.t = t;
+    tess.event = e.Dst;   /* initialize it */
+
+    reg.eUp = e;
+    reg.windingNumber = 0;
+    reg.inside = false;
+    reg.fixUpperEdge = false;
+    reg.sentinel = true;
+    reg.dirty = false;
+    reg.nodeUp = tess.dict.insert( reg );
+  //  if (reg->nodeUp == NULL) longjmp(tess->env,1);
+  }
+
+
+  //static void InitEdgeDict( TESStesselator *tess )
+  Sweep.initEdgeDict = function( tess ) {
+    /*
+    * We maintain an ordering of edge intersections with the sweep line.
+    * This order is maintained in a dynamic dictionary.
+    */
+    tess.dict = new Dict( tess, Sweep.edgeLeq );
+  //  if (tess->dict == NULL) longjmp(tess->env,1);
+
+    var w = (tess.bmax[0] - tess.bmin[0]);
+    var h = (tess.bmax[1] - tess.bmin[1]);
+
+    var smin = tess.bmin[0] - w;
+    var smax = tess.bmax[0] + w;
+    var tmin = tess.bmin[1] - h;
+    var tmax = tess.bmax[1] + h;
+
+    Sweep.addSentinel( tess, smin, smax, tmin );
+    Sweep.addSentinel( tess, smin, smax, tmax );
+  }
+
+
+  Sweep.doneEdgeDict = function( tess )
+  {
+    var reg;
+    var fixedEdges = 0;
+
+    while( (reg = tess.dict.min().key) !== null ) {
+      /*
+      * At the end of all processing, the dictionary should contain
+      * only the two sentinel edges, plus at most one "fixable" edge
+      * created by ConnectRightVertex().
+      */
+      if( ! reg.sentinel ) {
+        assert( reg.fixUpperEdge );
+        assert( ++fixedEdges == 1 );
+      }
+      assert( reg.windingNumber == 0 );
+      Sweep.deleteRegion( tess, reg );
+      /*    tessMeshDelete( reg->eUp );*/
+    }
+  //  dictDeleteDict( &tess->alloc, tess->dict );
+  }
+
+
+  Sweep.removeDegenerateEdges = function( tess ) {
+    /*
+    * Remove zero-length edges, and contours with fewer than 3 vertices.
+    */
+    var e, eNext, eLnext;
+    var eHead = tess.mesh.eHead;
+
+    /*LINTED*/
+    for( e = eHead.next; e !== eHead; e = eNext ) {
+      eNext = e.next;
+      eLnext = e.Lnext;
+
+      if( Geom.vertEq( e.Org, e.Dst ) && e.Lnext.Lnext !== e ) {
+        /* Zero-length edge, contour has at least 3 edges */
+        Sweep.spliceMergeVertices( tess, eLnext, e ); /* deletes e->Org */
+        tess.mesh.delete( e ); /* e is a self-loop */
+        e = eLnext;
+        eLnext = e.Lnext;
+      }
+      if( eLnext.Lnext === e ) {
+        /* Degenerate contour (one or two edges) */
+        if( eLnext !== e ) {
+          if( eLnext === eNext || eLnext === eNext.Sym ) { eNext = eNext.next; }
+          tess.mesh.delete( eLnext );
+        }
+        if( e === eNext || e === eNext.Sym ) { eNext = eNext.next; }
+        tess.mesh.delete( e );
+      }
+    }
+  }
+
+  Sweep.initPriorityQ = function( tess ) {
+    /*
+    * Insert all vertices into the priority queue which determines the
+    * order in which vertices cross the sweep line.
+    */
+    var pq;
+    var v, vHead;
+    var vertexCount = 0;
+
+    vHead = tess.mesh.vHead;
+    for( v = vHead.next; v !== vHead; v = v.next ) {
+      vertexCount++;
+    }
+    /* Make sure there is enough space for sentinels. */
+    vertexCount += 8; //MAX( 8, tess->alloc.extraVertices );
+
+    pq = tess.pq = new PriorityQ( vertexCount, Geom.vertLeq );
+  //  if (pq == NULL) return 0;
+
+    vHead = tess.mesh.vHead;
+    for( v = vHead.next; v !== vHead; v = v.next ) {
+      v.pqHandle = pq.insert( v );
+  //    if (v.pqHandle == INV_HANDLE)
+  //      break;
+    }
+
+    if (v !== vHead) {
+      return false;
+    }
+
+    pq.init();
+
+    return true;
+  }
+
+
+  Sweep.donePriorityQ = function( tess ) {
+    tess.pq = null;
+  }
+
+
+  Sweep.removeDegenerateFaces = function( tess, mesh ) {
+    /*
+    * Delete any degenerate faces with only two edges.  WalkDirtyRegions()
+    * will catch almost all of these, but it won't catch degenerate faces
+    * produced by splice operations on already-processed edges.
+    * The two places this can happen are in FinishLeftRegions(), when
+    * we splice in a "temporary" edge produced by ConnectRightVertex(),
+    * and in CheckForLeftSplice(), where we splice already-processed
+    * edges to ensure that our dictionary invariants are not violated
+    * by numerical errors.
+    *
+    * In both these cases it is *very* dangerous to delete the offending
+    * edge at the time, since one of the routines further up the stack
+    * will sometimes be keeping a pointer to that edge.
+    */
+    var f, fNext;
+    var e;
+
+    /*LINTED*/
+    for( f = mesh.fHead.next; f !== mesh.fHead; f = fNext ) {
+      fNext = f.next;
+      e = f.anEdge;
+      assert( e.Lnext !== e );
+
+      if( e.Lnext.Lnext === e ) {
+        /* A face with only two edges */
+        Sweep.addWinding( e.Onext, e );
+        tess.mesh.delete( e );
+      }
+    }
+    return true;
+  }
+
+  Sweep.computeInterior = function( tess ) {
+    /*
+    * tessComputeInterior( tess ) computes the planar arrangement specified
+    * by the given contours, and further subdivides this arrangement
+    * into regions.  Each region is marked "inside" if it belongs
+    * to the polygon, according to the rule given by tess->windingRule.
+    * Each interior region is guaranteed be monotone.
+    */
+    var v, vNext;
+
+    /* Each vertex defines an event for our sweep line.  Start by inserting
+    * all the vertices in a priority queue.  Events are processed in
+    * lexicographic order, ie.
+    *
+    * e1 < e2  iff  e1.x < e2.x || (e1.x == e2.x && e1.y < e2.y)
+    */
+    Sweep.removeDegenerateEdges( tess );
+    if ( !Sweep.initPriorityQ( tess ) ) return false; /* if error */
+    Sweep.initEdgeDict( tess );
+
+    while( (v = tess.pq.extractMin()) !== null ) {
+      for( ;; ) {
+        vNext = tess.pq.min();
+        if( vNext === null || ! Geom.vertEq( vNext, v )) break;
+
+        /* Merge together all vertices at exactly the same location.
+        * This is more efficient than processing them one at a time,
+        * simplifies the code (see ConnectLeftDegenerate), and is also
+        * important for correct handling of certain degenerate cases.
+        * For example, suppose there are two identical edges A and B
+        * that belong to different contours (so without this code they would
+        * be processed by separate sweep events).  Suppose another edge C
+        * crosses A and B from above.  When A is processed, we split it
+        * at its intersection point with C.  However this also splits C,
+        * so when we insert B we may compute a slightly different
+        * intersection point.  This might leave two edges with a small
+        * gap between them.  This kind of error is especially obvious
+        * when using boundary extraction (TESS_BOUNDARY_ONLY).
+        */
+        vNext = tess.pq.extractMin();
+        Sweep.spliceMergeVertices( tess, v.anEdge, vNext.anEdge );
+      }
+      Sweep.sweepEvent( tess, v );
+    }
+
+    /* Set tess->event for debugging purposes */
+    tess.event = tess.dict.min().key.eUp.Org;
+    Sweep.debugEvent( tess );
+    Sweep.doneEdgeDict( tess );
+    Sweep.donePriorityQ( tess );
+
+    if ( !Sweep.removeDegenerateFaces( tess, tess.mesh ) ) return false;
+    tess.mesh.check();
+
+    return true;
+  }
+
+
+  function Tesselator() {
+
+    /*** state needed for collecting the input data ***/
+    this.mesh = null;   /* stores the input contours, and eventually
+              the tessellation itself */
+
+    /*** state needed for projecting onto the sweep plane ***/
+
+    this.normal = [0.0, 0.0, 0.0];  /* user-specified normal (if provided) */
+    this.sUnit = [0.0, 0.0, 0.0]; /* unit vector in s-direction (debugging) */
+    this.tUnit = [0.0, 0.0, 0.0]; /* unit vector in t-direction (debugging) */
+
+    this.bmin = [0.0, 0.0];
+    this.bmax = [0.0, 0.0];
+
+    /*** state needed for the line sweep ***/
+    this.windingRule = Tess2.WINDING_ODD; /* rule for determining polygon interior */
+
+    this.dict = null;   /* edge dictionary for sweep line */
+    this.pq = null;   /* priority queue of vertex events */
+    this.event = null;    /* current sweep event being processed */
+
+    this.vertexIndexCounter = 0;
+
+    this.vertices = [];
+    this.vertexIndices = [];
+    this.vertexCount = 0;
+    this.elements = [];
+    this.elementCount = 0;
+  };
+
+  Tesselator.prototype = {
+
+    dot_: function(u, v) {
+      return (u[0]*v[0] + u[1]*v[1] + u[2]*v[2]);
+    },
+
+    normalize_: function( v ) {
+      var len = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
+      assert( len > 0.0 );
+      len = Math.sqrt( len );
+      v[0] /= len;
+      v[1] /= len;
+      v[2] /= len;
+    },
+
+    longAxis_: function( v ) {
+      var i = 0;
+      if( Math.abs(v[1]) > Math.abs(v[0]) ) { i = 1; }
+      if( Math.abs(v[2]) > Math.abs(v[i]) ) { i = 2; }
+      return i;
+    },
+
+    computeNormal_: function( norm )
+    {
+      var v, v1, v2;
+      var c, tLen2, maxLen2;
+      var maxVal = [0,0,0], minVal = [0,0,0], d1 = [0,0,0], d2 = [0,0,0], tNorm = [0,0,0];
+      var maxVert = [null,null,null], minVert = [null,null,null];
+      var vHead = this.mesh.vHead;
+      var i;
+
+      v = vHead.next;
+      for( i = 0; i < 3; ++i ) {
+        c = v.coords[i];
+        minVal[i] = c;
+        minVert[i] = v;
+        maxVal[i] = c;
+        maxVert[i] = v;
+      }
+
+      for( v = vHead.next; v !== vHead; v = v.next ) {
+        for( i = 0; i < 3; ++i ) {
+          c = v.coords[i];
+          if( c < minVal[i] ) { minVal[i] = c; minVert[i] = v; }
+          if( c > maxVal[i] ) { maxVal[i] = c; maxVert[i] = v; }
+        }
+      }
+
+      /* Find two vertices separated by at least 1/sqrt(3) of the maximum
+      * distance between any two vertices
+      */
+      i = 0;
+      if( maxVal[1] - minVal[1] > maxVal[0] - minVal[0] ) { i = 1; }
+      if( maxVal[2] - minVal[2] > maxVal[i] - minVal[i] ) { i = 2; }
+      if( minVal[i] >= maxVal[i] ) {
+        /* All vertices are the same -- normal doesn't matter */
+        norm[0] = 0; norm[1] = 0; norm[2] = 1;
+        return;
+      }
+
+      /* Look for a third vertex which forms the triangle with maximum area
+      * (Length of normal == twice the triangle area)
+      */
+      maxLen2 = 0;
+      v1 = minVert[i];
+      v2 = maxVert[i];
+      d1[0] = v1.coords[0] - v2.coords[0];
+      d1[1] = v1.coords[1] - v2.coords[1];
+      d1[2] = v1.coords[2] - v2.coords[2];
+      for( v = vHead.next; v !== vHead; v = v.next ) {
+        d2[0] = v.coords[0] - v2.coords[0];
+        d2[1] = v.coords[1] - v2.coords[1];
+        d2[2] = v.coords[2] - v2.coords[2];
+        tNorm[0] = d1[1]*d2[2] - d1[2]*d2[1];
+        tNorm[1] = d1[2]*d2[0] - d1[0]*d2[2];
+        tNorm[2] = d1[0]*d2[1] - d1[1]*d2[0];
+        tLen2 = tNorm[0]*tNorm[0] + tNorm[1]*tNorm[1] + tNorm[2]*tNorm[2];
+        if( tLen2 > maxLen2 ) {
+          maxLen2 = tLen2;
+          norm[0] = tNorm[0];
+          norm[1] = tNorm[1];
+          norm[2] = tNorm[2];
+        }
+      }
+
+      if( maxLen2 <= 0 ) {
+        /* All points lie on a single line -- any decent normal will do */
+        norm[0] = norm[1] = norm[2] = 0;
+        norm[this.longAxis_(d1)] = 1;
+      }
+    },
+
+    checkOrientation_: function() {
+      var area;
+      var f, fHead = this.mesh.fHead;
+      var v, vHead = this.mesh.vHead;
+      var e;
+
+      /* When we compute the normal automatically, we choose the orientation
+      * so that the the sum of the signed areas of all contours is non-negative.
+      */
+      area = 0;
+      for( f = fHead.next; f !== fHead; f = f.next ) {
+        e = f.anEdge;
+        if( e.winding <= 0 ) continue;
+        do {
+          area += (e.Org.s - e.Dst.s) * (e.Org.t + e.Dst.t);
+          e = e.Lnext;
+        } while( e !== f.anEdge );
+      }
+      if( area < 0 ) {
+        /* Reverse the orientation by flipping all the t-coordinates */
+        for( v = vHead.next; v !== vHead; v = v.next ) {
+          v.t = - v.t;
+        }
+        this.tUnit[0] = - this.tUnit[0];
+        this.tUnit[1] = - this.tUnit[1];
+        this.tUnit[2] = - this.tUnit[2];
+      }
+    },
+
+  /*  #ifdef FOR_TRITE_TEST_PROGRAM
+    #include <stdlib.h>
+    extern int RandomSweep;
+    #define S_UNIT_X  (RandomSweep ? (2*drand48()-1) : 1.0)
+    #define S_UNIT_Y  (RandomSweep ? (2*drand48()-1) : 0.0)
+    #else
+    #if defined(SLANTED_SWEEP) */
+    /* The "feature merging" is not intended to be complete.  There are
+    * special cases where edges are nearly parallel to the sweep line
+    * which are not implemented.  The algorithm should still behave
+    * robustly (ie. produce a reasonable tesselation) in the presence
+    * of such edges, however it may miss features which could have been
+    * merged.  We could minimize this effect by choosing the sweep line
+    * direction to be something unusual (ie. not parallel to one of the
+    * coordinate axes).
+    */
+  /*  #define S_UNIT_X  (TESSreal)0.50941539564955385 // Pre-normalized
+    #define S_UNIT_Y  (TESSreal)0.86052074622010633
+    #else
+    #define S_UNIT_X  (TESSreal)1.0
+    #define S_UNIT_Y  (TESSreal)0.0
+    #endif
+    #endif*/
+
+    /* Determine the polygon normal and project vertices onto the plane
+    * of the polygon.
+    */
+    projectPolygon_: function() {
+      var v, vHead = this.mesh.vHead;
+      var norm = [0,0,0];
+      var sUnit, tUnit;
+      var i, first, computedNormal = false;
+
+      norm[0] = this.normal[0];
+      norm[1] = this.normal[1];
+      norm[2] = this.normal[2];
+      if( norm[0] === 0.0 && norm[1] === 0.0 && norm[2] === 0.0 ) {
+        this.computeNormal_( norm );
+        computedNormal = true;
+      }
+      sUnit = this.sUnit;
+      tUnit = this.tUnit;
+      i = this.longAxis_( norm );
+
+  /*  #if defined(FOR_TRITE_TEST_PROGRAM) || defined(TRUE_PROJECT)
+      // Choose the initial sUnit vector to be approximately perpendicular
+      // to the normal.
+
+      Normalize( norm );
+
+      sUnit[i] = 0;
+      sUnit[(i+1)%3] = S_UNIT_X;
+      sUnit[(i+2)%3] = S_UNIT_Y;
+
+      // Now make it exactly perpendicular
+      w = Dot( sUnit, norm );
+      sUnit[0] -= w * norm[0];
+      sUnit[1] -= w * norm[1];
+      sUnit[2] -= w * norm[2];
+      Normalize( sUnit );
+
+      // Choose tUnit so that (sUnit,tUnit,norm) form a right-handed frame
+      tUnit[0] = norm[1]*sUnit[2] - norm[2]*sUnit[1];
+      tUnit[1] = norm[2]*sUnit[0] - norm[0]*sUnit[2];
+      tUnit[2] = norm[0]*sUnit[1] - norm[1]*sUnit[0];
+      Normalize( tUnit );
+    #else*/
+      /* Project perpendicular to a coordinate axis -- better numerically */
+      sUnit[i] = 0;
+      sUnit[(i+1)%3] = 1.0;
+      sUnit[(i+2)%3] = 0.0;
+
+      tUnit[i] = 0;
+      tUnit[(i+1)%3] = 0.0;
+      tUnit[(i+2)%3] = (norm[i] > 0) ? 1.0 : -1.0;
+  //  #endif
+
+      /* Project the vertices onto the sweep plane */
+      for( v = vHead.next; v !== vHead; v = v.next ) {
+        v.s = this.dot_( v.coords, sUnit );
+        v.t = this.dot_( v.coords, tUnit );
+      }
+      if( computedNormal ) {
+        this.checkOrientation_();
+      }
+
+      /* Compute ST bounds. */
+      first = true;
+      for( v = vHead.next; v !== vHead; v = v.next ) {
+        if (first) {
+          this.bmin[0] = this.bmax[0] = v.s;
+          this.bmin[1] = this.bmax[1] = v.t;
+          first = false;
+        } else {
+          if (v.s < this.bmin[0]) this.bmin[0] = v.s;
+          if (v.s > this.bmax[0]) this.bmax[0] = v.s;
+          if (v.t < this.bmin[1]) this.bmin[1] = v.t;
+          if (v.t > this.bmax[1]) this.bmax[1] = v.t;
+        }
+      }
+    },
+
+    addWinding_: function(eDst,eSrc) {
+      eDst.winding += eSrc.winding;
+      eDst.Sym.winding += eSrc.Sym.winding;
+    },
+
+    /* tessMeshTessellateMonoRegion( face ) tessellates a monotone region
+    * (what else would it do??)  The region must consist of a single
+    * loop of half-edges (see mesh.h) oriented CCW.  "Monotone" in this
+    * case means that any vertical line intersects the interior of the
+    * region in a single interval.
+    *
+    * Tessellation consists of adding interior edges (actually pairs of
+    * half-edges), to split the region into non-overlapping triangles.
+    *
+    * The basic idea is explained in Preparata and Shamos (which I don''t
+    * have handy right now), although their implementation is more
+    * complicated than this one.  The are two edge chains, an upper chain
+    * and a lower chain.  We process all vertices from both chains in order,
+    * from right to left.
+    *
+    * The algorithm ensures that the following invariant holds after each
+    * vertex is processed: the untessellated region consists of two
+    * chains, where one chain (say the upper) is a single edge, and
+    * the other chain is concave.  The left vertex of the single edge
+    * is always to the left of all vertices in the concave chain.
+    *
+    * Each step consists of adding the rightmost unprocessed vertex to one
+    * of the two chains, and forming a fan of triangles from the rightmost
+    * of two chain endpoints.  Determining whether we can add each triangle
+    * to the fan is a simple orientation test.  By making the fan as large
+    * as possible, we restore the invariant (check it yourself).
+    */
+  //  int tessMeshTessellateMonoRegion( TESSmesh *mesh, TESSface *face )
+    tessellateMonoRegion_: function( mesh, face ) {
+      var up, lo;
+
+      /* All edges are oriented CCW around the boundary of the region.
+      * First, find the half-edge whose origin vertex is rightmost.
+      * Since the sweep goes from left to right, face->anEdge should
+      * be close to the edge we want.
+      */
+      up = face.anEdge;
+      assert( up.Lnext !== up && up.Lnext.Lnext !== up );
+
+      for( ; Geom.vertLeq( up.Dst, up.Org ); up = up.Lprev )
+        ;
+      for( ; Geom.vertLeq( up.Org, up.Dst ); up = up.Lnext )
+        ;
+      lo = up.Lprev;
+
+      while( up.Lnext !== lo ) {
+        if( Geom.vertLeq( up.Dst, lo.Org )) {
+          /* up->Dst is on the left.  It is safe to form triangles from lo->Org.
+          * The EdgeGoesLeft test guarantees progress even when some triangles
+          * are CW, given that the upper and lower chains are truly monotone.
+          */
+          while( lo.Lnext !== up && (Geom.edgeGoesLeft( lo.Lnext )
+            || Geom.edgeSign( lo.Org, lo.Dst, lo.Lnext.Dst ) <= 0.0 )) {
+              var tempHalfEdge = mesh.connect( lo.Lnext, lo );
+              //if (tempHalfEdge == NULL) return 0;
+              lo = tempHalfEdge.Sym;
+          }
+          lo = lo.Lprev;
+        } else {
+          /* lo->Org is on the left.  We can make CCW triangles from up->Dst. */
+          while( lo.Lnext != up && (Geom.edgeGoesRight( up.Lprev )
+            || Geom.edgeSign( up.Dst, up.Org, up.Lprev.Org ) >= 0.0 )) {
+              var tempHalfEdge = mesh.connect( up, up.Lprev );
+              //if (tempHalfEdge == NULL) return 0;
+              up = tempHalfEdge.Sym;
+          }
+          up = up.Lnext;
+        }
+      }
+
+      /* Now lo->Org == up->Dst == the leftmost vertex.  The remaining region
+      * can be tessellated in a fan from this leftmost vertex.
+      */
+      assert( lo.Lnext !== up );
+      while( lo.Lnext.Lnext !== up ) {
+        var tempHalfEdge = mesh.connect( lo.Lnext, lo );
+        //if (tempHalfEdge == NULL) return 0;
+        lo = tempHalfEdge.Sym;
+      }
+
+      return true;
+    },
+
+
+    /* tessMeshTessellateInterior( mesh ) tessellates each region of
+    * the mesh which is marked "inside" the polygon.  Each such region
+    * must be monotone.
+    */
+    //int tessMeshTessellateInterior( TESSmesh *mesh )
+    tessellateInterior_: function( mesh ) {
+      var f, next;
+
+      /*LINTED*/
+      for( f = mesh.fHead.next; f !== mesh.fHead; f = next ) {
+        /* Make sure we don''t try to tessellate the new triangles. */
+        next = f.next;
+        if( f.inside ) {
+          if ( !this.tessellateMonoRegion_( mesh, f ) ) return false;
+        }
+      }
+
+      return true;
+    },
+
+
+    /* tessMeshDiscardExterior( mesh ) zaps (ie. sets to NULL) all faces
+    * which are not marked "inside" the polygon.  Since further mesh operations
+    * on NULL faces are not allowed, the main purpose is to clean up the
+    * mesh so that exterior loops are not represented in the data structure.
+    */
+    //void tessMeshDiscardExterior( TESSmesh *mesh )
+    discardExterior_: function( mesh ) {
+      var f, next;
+
+      /*LINTED*/
+      for( f = mesh.fHead.next; f !== mesh.fHead; f = next ) {
+        /* Since f will be destroyed, save its next pointer. */
+        next = f.next;
+        if( ! f.inside ) {
+          mesh.zapFace( f );
+        }
+      }
+    },
+
+    /* tessMeshSetWindingNumber( mesh, value, keepOnlyBoundary ) resets the
+    * winding numbers on all edges so that regions marked "inside" the
+    * polygon have a winding number of "value", and regions outside
+    * have a winding number of 0.
+    *
+    * If keepOnlyBoundary is TRUE, it also deletes all edges which do not
+    * separate an interior region from an exterior one.
+    */
+  //  int tessMeshSetWindingNumber( TESSmesh *mesh, int value, int keepOnlyBoundary )
+    setWindingNumber_: function( mesh, value, keepOnlyBoundary ) {
+      var e, eNext;
+
+      for( e = mesh.eHead.next; e !== mesh.eHead; e = eNext ) {
+        eNext = e.next;
+        if( e.Rface.inside !== e.Lface.inside ) {
+
+          /* This is a boundary edge (one side is interior, one is exterior). */
+          e.winding = (e.Lface.inside) ? value : -value;
+        } else {
+
+          /* Both regions are interior, or both are exterior. */
+          if( ! keepOnlyBoundary ) {
+            e.winding = 0;
+          } else {
+            mesh.delete( e );
+          }
+        }
+      }
+    },
+
+    getNeighbourFace_: function(edge)
+    {
+      if (!edge.Rface)
+        return -1;
+      if (!edge.Rface.inside)
+        return -1;
+      return edge.Rface.n;
+    },
+
+    outputPolymesh_: function( mesh, elementType, polySize, vertexSize ) {
+      var v;
+      var f;
+      var edge;
+      var maxFaceCount = 0;
+      var maxVertexCount = 0;
+      var faceVerts, i;
+      var elements = 0;
+      var vert;
+
+      // Assume that the input data is triangles now.
+      // Try to merge as many polygons as possible
+      if (polySize > 3)
+      {
+        mesh.mergeConvexFaces( polySize );
+      }
+
+      // Mark unused
+      for ( v = mesh.vHead.next; v !== mesh.vHead; v = v.next )
+        v.n = -1;
+
+      // Create unique IDs for all vertices and faces.
+      for ( f = mesh.fHead.next; f != mesh.fHead; f = f.next )
+      {
+        f.n = -1;
+        if( !f.inside ) continue;
+
+        edge = f.anEdge;
+        faceVerts = 0;
+        do
+        {
+          v = edge.Org;
+          if ( v.n === -1 )
+          {
+            v.n = maxVertexCount;
+            maxVertexCount++;
+          }
+          faceVerts++;
+          edge = edge.Lnext;
+        }
+        while (edge !== f.anEdge);
+
+        assert( faceVerts <= polySize );
+
+        f.n = maxFaceCount;
+        ++maxFaceCount;
+      }
+
+      this.elementCount = maxFaceCount;
+      if (elementType == Tess2.CONNECTED_POLYGONS)
+        maxFaceCount *= 2;
+  /*    tess.elements = (TESSindex*)tess->alloc.memalloc( tess->alloc.userData,
+                                sizeof(TESSindex) * maxFaceCount * polySize );
+      if (!tess->elements)
+      {
+        tess->outOfMemory = 1;
+        return;
+      }*/
+      this.elements = [];
+      this.elements.length = maxFaceCount * polySize;
+
+      this.vertexCount = maxVertexCount;
+  /*    tess->vertices = (TESSreal*)tess->alloc.memalloc( tess->alloc.userData,
+                               sizeof(TESSreal) * tess->vertexCount * vertexSize );
+      if (!tess->vertices)
+      {
+        tess->outOfMemory = 1;
+        return;
+      }*/
+      this.vertices = [];
+      this.vertices.length = maxVertexCount * vertexSize;
+
+  /*    tess->vertexIndices = (TESSindex*)tess->alloc.memalloc( tess->alloc.userData,
+                                    sizeof(TESSindex) * tess->vertexCount );
+      if (!tess->vertexIndices)
+      {
+        tess->outOfMemory = 1;
+        return;
+      }*/
+      this.vertexIndices = [];
+      this.vertexIndices.length = maxVertexCount;
+
+
+      // Output vertices.
+      for ( v = mesh.vHead.next; v !== mesh.vHead; v = v.next )
+      {
+        if ( v.n != -1 )
+        {
+          // Store coordinate
+          var idx = v.n * vertexSize;
+          this.vertices[idx+0] = v.coords[0];
+          this.vertices[idx+1] = v.coords[1];
+          if ( vertexSize > 2 )
+            this.vertices[idx+2] = v.coords[2];
+          // Store vertex index.
+          this.vertexIndices[v.n] = v.idx;
+        }
+      }
+
+      // Output indices.
+      var nel = 0;
+      for ( f = mesh.fHead.next; f !== mesh.fHead; f = f.next )
+      {
+        if ( !f.inside ) continue;
+
+        // Store polygon
+        edge = f.anEdge;
+        faceVerts = 0;
+        do
+        {
+          v = edge.Org;
+          this.elements[nel++] = v.n;
+          faceVerts++;
+          edge = edge.Lnext;
+        }
+        while (edge !== f.anEdge);
+        // Fill unused.
+        for (i = faceVerts; i < polySize; ++i)
+          this.elements[nel++] = -1;
+
+        // Store polygon connectivity
+        if ( elementType == Tess2.CONNECTED_POLYGONS )
+        {
+          edge = f.anEdge;
+          do
+          {
+            this.elements[nel++] = this.getNeighbourFace_( edge );
+            edge = edge.Lnext;
+          }
+          while (edge !== f.anEdge);
+          // Fill unused.
+          for (i = faceVerts; i < polySize; ++i)
+            this.elements[nel++] = -1;
+        }
+      }
+    },
+
+  //  void OutputContours( TESStesselator *tess, TESSmesh *mesh, int vertexSize )
+    outputContours_: function( mesh, vertexSize ) {
+      var f;
+      var edge;
+      var start;
+      var verts;
+      var elements;
+      var vertInds;
+      var startVert = 0;
+      var vertCount = 0;
+
+      this.vertexCount = 0;
+      this.elementCount = 0;
+
+      for ( f = mesh.fHead.next; f !== mesh.fHead; f = f.next )
+      {
+        if ( !f.inside ) continue;
+
+        start = edge = f.anEdge;
+        do
+        {
+          this.vertexCount++;
+          edge = edge.Lnext;
+        }
+        while ( edge !== start );
+
+        this.elementCount++;
+      }
+
+  /*    tess->elements = (TESSindex*)tess->alloc.memalloc( tess->alloc.userData,
+                                sizeof(TESSindex) * tess->elementCount * 2 );
+      if (!tess->elements)
+      {
+        tess->outOfMemory = 1;
+        return;
+      }*/
+      this.elements = [];
+      this.elements.length = this.elementCount * 2;
+
+  /*    tess->vertices = (TESSreal*)tess->alloc.memalloc( tess->alloc.userData,
+                                sizeof(TESSreal) * tess->vertexCount * vertexSize );
+      if (!tess->vertices)
+      {
+        tess->outOfMemory = 1;
+        return;
+      }*/
+      this.vertices = [];
+      this.vertices.length = this.vertexCount * vertexSize;
+
+  /*    tess->vertexIndices = (TESSindex*)tess->alloc.memalloc( tess->alloc.userData,
+                                    sizeof(TESSindex) * tess->vertexCount );
+      if (!tess->vertexIndices)
+      {
+        tess->outOfMemory = 1;
+        return;
+      }*/
+      this.vertexIndices = [];
+      this.vertexIndices.length = this.vertexCount;
+
+      var nv = 0;
+      var nvi = 0;
+      var nel = 0;
+      startVert = 0;
+
+      for ( f = mesh.fHead.next; f !== mesh.fHead; f = f.next )
+      {
+        if ( !f.inside ) continue;
+
+        vertCount = 0;
+        start = edge = f.anEdge;
+        do
+        {
+          this.vertices[nv++] = edge.Org.coords[0];
+          this.vertices[nv++] = edge.Org.coords[1];
+          if ( vertexSize > 2 )
+            this.vertices[nv++] = edge.Org.coords[2];
+          this.vertexIndices[nvi++] = edge.Org.idx;
+          vertCount++;
+          edge = edge.Lnext;
+        }
+        while ( edge !== start );
+
+        this.elements[nel++] = startVert;
+        this.elements[nel++] = vertCount;
+
+        startVert += vertCount;
+      }
+    },
+
+    addContour: function( size, vertices )
+    {
+      var e;
+      var i;
+
+      if ( this.mesh === null )
+          this.mesh = new TESSmesh();
+  /*    if ( tess->mesh == NULL ) {
+        tess->outOfMemory = 1;
+        return;
+      }*/
+
+      if ( size < 2 )
+        size = 2;
+      if ( size > 3 )
+        size = 3;
+
+      e = null;
+
+      for( i = 0; i < vertices.length; i += size )
+      {
+        if( e == null ) {
+          /* Make a self-loop (one vertex, one edge). */
+          e = this.mesh.makeEdge();
+  /*        if ( e == NULL ) {
+            tess->outOfMemory = 1;
+            return;
+          }*/
+          this.mesh.splice( e, e.Sym );
+        } else {
+          /* Create a new vertex and edge which immediately follow e
+          * in the ordering around the left face.
+          */
+          this.mesh.splitEdge( e );
+          e = e.Lnext;
+        }
+
+        /* The new vertex is now e->Org. */
+        e.Org.coords[0] = vertices[i+0];
+        e.Org.coords[1] = vertices[i+1];
+        if ( size > 2 )
+          e.Org.coords[2] = vertices[i+2];
+        else
+          e.Org.coords[2] = 0.0;
+        /* Store the insertion number so that the vertex can be later recognized. */
+        e.Org.idx = this.vertexIndexCounter++;
+
+        /* The winding of an edge says how the winding number changes as we
+        * cross from the edge''s right face to its left face.  We add the
+        * vertices in such an order that a CCW contour will add +1 to
+        * the winding number of the region inside the contour.
+        */
+        e.winding = 1;
+        e.Sym.winding = -1;
+      }
+    },
+
+  //  int tessTesselate( TESStesselator *tess, int windingRule, int elementType, int polySize, int vertexSize, const TESSreal* normal )
+    tesselate: function( windingRule, elementType, polySize, vertexSize, normal ) {
+      this.vertices = [];
+      this.elements = [];
+      this.vertexIndices = [];
+
+      this.vertexIndexCounter = 0;
+
+      if (normal)
+      {
+        this.normal[0] = normal[0];
+        this.normal[1] = normal[1];
+        this.normal[2] = normal[2];
+      }
+
+      this.windingRule = windingRule;
+
+      if (vertexSize < 2)
+        vertexSize = 2;
+      if (vertexSize > 3)
+        vertexSize = 3;
+
+  /*    if (setjmp(tess->env) != 0) {
+        // come back here if out of memory
+        return 0;
+      }*/
+
+      if (!this.mesh)
+      {
+        return false;
+      }
+
+      /* Determine the polygon normal and project vertices onto the plane
+      * of the polygon.
+      */
+      this.projectPolygon_();
+
+      /* tessComputeInterior( tess ) computes the planar arrangement specified
+      * by the given contours, and further subdivides this arrangement
+      * into regions.  Each region is marked "inside" if it belongs
+      * to the polygon, according to the rule given by tess->windingRule.
+      * Each interior region is guaranteed be monotone.
+      */
+      Sweep.computeInterior( this );
+
+      var mesh = this.mesh;
+
+      /* If the user wants only the boundary contours, we throw away all edges
+      * except those which separate the interior from the exterior.
+      * Otherwise we tessellate all the regions marked "inside".
+      */
+      if (elementType == Tess2.BOUNDARY_CONTOURS) {
+        this.setWindingNumber_( mesh, 1, true );
+      } else {
+        this.tessellateInterior_( mesh );
+      }
+  //    if (rc == 0) longjmp(tess->env,1);  /* could've used a label */
+
+      mesh.check();
+
+      if (elementType == Tess2.BOUNDARY_CONTOURS) {
+        this.outputContours_( mesh, vertexSize );     /* output contours */
+      }
+      else
+      {
+        this.outputPolymesh_( mesh, elementType, polySize, vertexSize );     /* output polygons */
+      }
+
+//      tess.mesh = null;
+
+      return true;
+    }
+  };
+},{}],146:[function(require,module,exports){
+module.exports = extend
+
+var hasOwnProperty = Object.prototype.hasOwnProperty;
+
+function extend() {
+    var target = {}
+
+    for (var i = 0; i < arguments.length; i++) {
+        var source = arguments[i]
+
+        for (var key in source) {
+            if (hasOwnProperty.call(source, key)) {
+                target[key] = source[key]
+            }
+        }
+    }
+
+    return target
+}
+
+},{}],147:[function(require,module,exports){
 module.exports = unindex
 
 function unindex(positions, cells, out) {
@@ -16553,10 +20476,10 @@ function unindex(positions, cells, out) {
   return out
 }
 
-},{}],277:[function(require,module,exports){
+},{}],148:[function(require,module,exports){
 window.loadSvg = require('load-svg')
 window.parsePath = require('extract-svg-path').parse
-window.svgMesh3d = require('svg-mesh-3d')
+// window.svgMesh3d = require('svg-mesh-3d')
 window.reindex= require('mesh-reindex');
 window.unindex= require('unindex-mesh');
 window.createGeom = require('three-simplicial-complex')(THREE)
@@ -16565,6 +20488,22 @@ window.csrMatrix = require('csr-matrix')
 window.drawTriangles = require('draw-triangles-2d')
 window.svgIntersections = require('svg-intersections');
 window.polygonBoolean = require('2d-polygon-boolean');
-window.polybool = require('poly-bool');
+// window.polybool = require('poly-bool');
+window.inside = require('point-in-triangle');
+window.ghClip = require('gh-clipping-algorithm');
+// window.triangulate = require('delaunay-triangulate');
+window.triangulateContours = require('triangulate-contours')
+window.cdt2d = require('cdt2d');
+window.parseSVG = require('parse-svg-path');
+window.getContours = require('svg-path-contours');
+window.getBounds = require('bound-points');
+window.cleanPSLG = require('clean-pslg')
+window.simplify = require('simplify-path')
+window.random = require('random-float')
+window.assign = require('object-assign')
+window.normalize = require('normalize-path-scale')
+window.areaPolygon = require('area-polygon');
 
-},{"2d-polygon-boolean":5,"csr-matrix":20,"draw-triangles-2d":23,"extract-svg-path":24,"load-svg":26,"mesh-laplacian":34,"mesh-reindex":38,"poly-bool":39,"svg-intersections":183,"svg-mesh-3d":194,"three-simplicial-complex":274,"unindex-mesh":276}]},{},[277]);
+
+
+},{"2d-polygon-boolean":5,"area-polygon":20,"bound-points":21,"cdt2d":22,"clean-pslg":40,"csr-matrix":86,"draw-triangles-2d":89,"extract-svg-path":90,"gh-clipping-algorithm":92,"load-svg":102,"mesh-laplacian":110,"mesh-reindex":114,"normalize-path-scale":115,"object-assign":117,"parse-svg-path":118,"point-in-triangle":119,"random-float":120,"simplify-path":122,"svg-intersections":124,"svg-path-contours":135,"three-simplicial-complex":141,"triangulate-contours":143,"unindex-mesh":147}]},{},[148]);
