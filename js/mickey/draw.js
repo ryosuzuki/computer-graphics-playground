@@ -25,7 +25,7 @@ function drawSVG (points) {
   var d = $(path.exportSVG()).attr('d')
   m = svgMesh3d(d, {
     scale: 10,
-    simplify: 1,
+    simplify: 0.01,
     randomization: false
   })
   console.log(m)
@@ -65,7 +65,8 @@ function createSvg () {
 
 function drawObjects () {
   var size = 2;
-  var geometry = new THREE.BoxGeometry(size, size, size)
+  var r = 2
+  var geometry = new THREE.BoxGeometry(size, size, size, r, r, r)
   mesh = new THREE.Mesh(geometry, material);
   mesh.geometry.verticesNeedUpdate = true;
   mesh.dynamic = true;
@@ -115,17 +116,17 @@ function replaceObject (svgMesh) {
       }
       var p = inner_points[j];
       var np = inner_points[(j+1)%inner_points.length]
-      var num = ng.vertices.length;
-      ng.vertices.push(new THREE.Vector3(p[0], p[1], size))
-      ng.vertices.push(new THREE.Vector3(p[0], p[1], size*1.2))
-      ng.vertices.push(new THREE.Vector3(np[0], np[1], size))
-      ng.faces.push(new THREE.Face3(num, num+1, num+2))
+      // var num = ng.vertices.length;
+      // ng.vertices.push(new THREE.Vector3(p[0], p[1], size))
+      // ng.vertices.push(new THREE.Vector3(p[0], p[1], size*1.2))
+      // ng.vertices.push(new THREE.Vector3(np[0], np[1], size))
+      // ng.faces.push(new THREE.Face3(num, num+1, num+2))
 
-      var num = ng.vertices.length;
-      ng.vertices.push(new THREE.Vector3(p[0], p[1], size))
-      ng.vertices.push(new THREE.Vector3(p[0], p[1], size*1.2))
-      ng.vertices.push(new THREE.Vector3(pp[0], pp[1], size*1.2))
-      ng.faces.push(new THREE.Face3(num, num+1, num+2))
+      // var num = ng.vertices.length;
+      // ng.vertices.push(new THREE.Vector3(p[0], p[1], size))
+      // ng.vertices.push(new THREE.Vector3(p[0], p[1], size*1.2))
+      // ng.vertices.push(new THREE.Vector3(pp[0], pp[1], size*1.2))
+      // ng.faces.push(new THREE.Face3(num, num+1, num+2))
     }
 
     count++;
