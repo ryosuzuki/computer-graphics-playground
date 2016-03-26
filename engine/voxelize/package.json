@@ -1,0 +1,48 @@
+{
+  "name": "voxelize",
+  "version": "1.0.0",
+  "description": "Voxelizes a mesh into an ndarray",
+  "main": "index.js",
+  "directories": {
+    "example": "example"
+  },
+  "dependencies": {
+    "rle-core": "~0.0.7",
+    "rle-repair": "~0.0.4",
+    "rle-extents": "~0.0.0",
+    "ndarray": "~1.0.3",
+    "normals": "~0.1.0",
+    "numeric": "~1.2.6",
+    "bit-twiddle": "~0.0.1",
+    "polytope-closest-point": "~0.0"
+  },
+  "devDependencies": {
+    "bunny": "~1.0.0",
+    "gl-shells": "~0.1",
+    "jquery-browserify": "~1.8.1",
+    "tape": "~1.0.4",
+    "conway-hart": "~0.0.0",
+    "ndarray-unpack": "^1.0.0",
+    "ndarray-fill": "~0.1.0",
+    "zeros": "0.0.0"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/ryosuzuki/voxelize.git"
+  },
+  "keywords": [
+    "voxelize",
+    "ndarray",
+    "mesh"
+  ],
+  "author": "Mikola Lysenko",
+  "license": "MIT",
+  "readmeFilename": "README.md",
+  "gitHead": "8d03823cf0a07f62afb8778e98128e3b43007137",
+  "bugs": {
+    "url": "https://github.com/ryosuzuki/voxelize/issues"
+  }
+}
