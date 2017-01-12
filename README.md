@@ -1,2 +1,2 @@
-# Three.js Playground
+# Computer Graphics Playground
 
